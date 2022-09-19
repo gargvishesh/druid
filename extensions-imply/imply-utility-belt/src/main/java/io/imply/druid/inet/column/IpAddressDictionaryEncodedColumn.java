@@ -12,7 +12,6 @@ package io.imply.druid.inet.column;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import io.imply.druid.inet.IpAddressModule;
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.query.extraction.ExtractionFn;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
@@ -44,17 +43,14 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
 {
   private final ColumnarInts column;
   private final GenericIndexed<ByteBuffer> dictionary;
-  private final GenericIndexed<ImmutableBitmap> bitmaps;
 
   public IpAddressDictionaryEncodedColumn(
       ColumnarInts column,
-      GenericIndexed<ByteBuffer> dictionary,
-      GenericIndexed<ImmutableBitmap> bitmaps
+      GenericIndexed<ByteBuffer> dictionary
   )
   {
     this.column = column;
     this.dictionary = dictionary;
-    this.bitmaps = bitmaps;
   }
 
   @Override
@@ -360,7 +356,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.TYPE_NAME;
+    return IpAddressModule.ADDRESS_TYPE_NAME;
   }
 
   @Override
@@ -372,7 +368,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
   @Override
   public int getLength()
   {
-    return dictionary.size() + bitmaps.size() + column.size();
+    return column.size();
   }
 
   @Override
@@ -395,10 +391,5 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
   public GenericIndexed<ByteBuffer> getDictionary()
   {
     return dictionary;
-  }
-
-  public GenericIndexed<ImmutableBitmap> getBitmaps()
-  {
-    return bitmaps;
   }
 }

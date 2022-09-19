@@ -10,6 +10,8 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseLongColumnValueSelector;
@@ -23,23 +25,25 @@ public class SimpleTimeSeriesBuildBufferAggregator implements BufferAggregator
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
   private final SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
-  public SimpleTimeSeriesBuildBufferAggregator(final BaseLongColumnValueSelector timeSelector,
-                                    final BaseDoubleColumnValueSelector dataSelector,
-                                    final Interval window,
-                                    final int maxEntries)
+  public SimpleTimeSeriesBuildBufferAggregator(
+      final BaseLongColumnValueSelector timeSelector,
+      final BaseDoubleColumnValueSelector dataSelector,
+      final Interval window,
+      final int maxEntries
+  )
   {
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
     this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    simpleByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    simpleByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -48,14 +52,22 @@ public class SimpleTimeSeriesBuildBufferAggregator implements BufferAggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    simpleByteBufferTimeSeries.addDataPointBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
+    simpleByteBufferTimeSeries.addDataPointBuffered(
+        bufferToWritableMemoryCache.getMemory(buf),
+        position,
+        timeSelector.getLong(),
+        dataSelector.getDouble()
+    );
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return simpleByteBufferTimeSeries.computeSimpleBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    SimpleTimeSeries simpleTimeSeries =
+        simpleByteBufferTimeSeries.computeSimpleBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
+
+    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
   }
 
   @Override

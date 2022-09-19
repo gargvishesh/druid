@@ -108,7 +108,7 @@ public class AdTechInventorySqlAggregatorTest extends BaseCalciteQueryTest
   }
 
   @Test
-  public void testAdTechInventorySqlAggregator() throws Exception
+  public void testAdTechInventorySqlAggregator()
   {
     cannotVectorize();
     testQuery(

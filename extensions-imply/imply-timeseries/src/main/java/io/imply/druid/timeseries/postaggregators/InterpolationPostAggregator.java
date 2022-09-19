@@ -95,12 +95,14 @@ public class InterpolationPostAggregator implements PostAggregator
   @Override
   public Object compute(Map<String, Object> combinedAggregators)
   {
-    TimeSeries<?> timeSeries = ((TimeSeries<?>) field.compute(combinedAggregators));
+    Object computedField = field.compute(combinedAggregators);
+    TimeSeries<?> timeSeries = PostAggregatorsUtil.asTimeSeries(computedField);
+
     if (timeSeries == null) {
       return null;
     }
 
-    timeSeries.build();
+    timeSeries.computeSimple();
     SimpleTimeSeries simpleTimeSeries = timeSeries.computeSimple();
 
     return interpolator.interpolate(simpleTimeSeries, new DurationGranularity(timeBucketMillis, 0), simpleTimeSeries.getMaxEntries());

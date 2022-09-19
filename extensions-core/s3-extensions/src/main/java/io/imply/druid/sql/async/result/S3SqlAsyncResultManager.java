@@ -24,13 +24,17 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
+import io.imply.druid.sql.async.SqlAsyncUtil;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
-import io.imply.druid.storage.s3.ImplyServerSideEncryptingAmazonS3;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 import org.apache.druid.storage.s3.S3Utils;
+import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
+import org.apache.druid.storage.s3.output.RetryableS3OutputStream;
+import org.apache.druid.storage.s3.output.S3OutputConfig;
 import org.apache.druid.utils.Streams;
 
 import java.io.IOException;
@@ -46,13 +50,13 @@ import java.util.stream.Collectors;
  */
 public class S3SqlAsyncResultManager implements SqlAsyncResultManager
 {
-  private final ImplyServerSideEncryptingAmazonS3 s3Client;
-  private final S3SqlAsyncResultManagerConfig config;
+  private final ServerSideEncryptingAmazonS3 s3Client;
+  private final S3OutputConfig config;
 
   @Inject
   public S3SqlAsyncResultManager(
-      ImplyServerSideEncryptingAmazonS3 s3Client,
-      S3SqlAsyncResultManagerConfig config
+      ServerSideEncryptingAmazonS3 s3Client,
+      @Named("async") S3OutputConfig config
   ) throws IOException
   {
     if (Strings.isNullOrEmpty(config.getBucket())) {
@@ -73,13 +77,13 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public OutputStream writeResults(SqlAsyncQueryDetails queryDetails) throws IOException
   {
-    return RetriableS3OutputStream.create(config, s3Client, queryDetails);
+    return new RetryableS3OutputStream(config, s3Client, SqlAsyncUtil.getS3KeyForQuery(config.getPrefix(), queryDetails.getAsyncResultId()));
   }
 
   @Override
   public Optional<SqlAsyncResults> readResults(SqlAsyncQueryDetails queryDetails)
   {
-    final String key = RetriableS3OutputStream.getS3KeyForQuery(config.getPrefix(), queryDetails.getAsyncResultId());
+    final String key = SqlAsyncUtil.getS3KeyForQuery(config.getPrefix(), queryDetails.getAsyncResultId());
     final S3Object object = s3Client.getObject(config.getBucket(), key);
     if (object != null) {
       return Optional.of(new SqlAsyncResults(object.getObjectContent(), queryDetails.getResultLength()));
@@ -91,7 +95,7 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public boolean deleteResults(String asyncResultId)
   {
-    final String key = RetriableS3OutputStream.getS3KeyForQuery(config.getPrefix(), asyncResultId);
+    final String key = SqlAsyncUtil.getS3KeyForQuery(config.getPrefix(), asyncResultId);
     s3Client.deleteObject(config.getBucket(), key);
     return true;
   }
@@ -108,7 +112,7 @@ public class S3SqlAsyncResultManager implements SqlAsyncResultManager
   @Override
   public long getResultSize(String asyncResultId) throws IOException
   {
-    final String key = RetriableS3OutputStream.getS3KeyForQuery(config.getPrefix(), asyncResultId);
+    final String key = SqlAsyncUtil.getS3KeyForQuery(config.getPrefix(), asyncResultId);
     long size;
     try {
       size = s3Client.getObjectMetadata(config.getBucket(), key).getContentLength();

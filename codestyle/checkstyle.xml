@@ -220,7 +220,8 @@
     </module>
 
     <module name="PackageName">
-      <property name="format" value="^(org.apache.druid.*)|(io.imply.(clarity|druid|security).*)$"/>
+      <property name="format"
+                value="^(org.apache.druid.*)|(io.imply.(clarity|druid|security).*)|(org.apache.datasketches.theta.*)$"/>
     </module>
     <module name="PackageDeclaration"/>
 

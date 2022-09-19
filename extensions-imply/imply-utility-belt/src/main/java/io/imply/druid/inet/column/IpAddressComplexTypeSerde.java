@@ -36,7 +36,7 @@ import static io.imply.druid.inet.column.IpAddressDictionaryEncodedColumnMerger.
 
 public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 {
-  private static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
+  static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
     @Override
     public Class<? extends ByteBuffer> getClazz()
@@ -48,6 +48,9 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
     @Override
     public ByteBuffer fromByteBuffer(ByteBuffer buffer, int numBytes)
     {
+      if (numBytes == 0) {
+        return null;
+      }
       return GenericIndexed.BYTE_BUFFER_STRATEGY.fromByteBuffer(buffer, numBytes);
     }
 
@@ -72,7 +75,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.TYPE_NAME;
+    return IpAddressModule.ADDRESS_TYPE_NAME;
   }
 
   @Override
@@ -97,7 +100,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
   {
     try {
       byte version = buffer.get();
-      Preconditions.checkArgument(version == 0, StringUtils.format("Unknown version %s", version));
+      Preconditions.checkArgument(version == 0 || version == 1, StringUtils.format("Unknown version %s", version));
       IpAddressBlobColumnMetadata metadata = IpAddressComplexTypeSerde.JSON_MAPPER.readValue(
           SERIALIZER_UTILS.readString(buffer),
           IpAddressBlobColumnMetadata.class
@@ -119,22 +122,37 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
           metadata.getBitmapSerdeFactory().getObjectStrategy(),
           builder.getFileMapper()
       );
-      builder.setBitmapIndex(
-          new IpAddressBitmapIndexColumnPartSupplier(
-              metadata.getBitmapSerdeFactory().getBitmapFactory(),
-              bitmaps,
-              dictionaryBytes
-          )
-      );
+
+      boolean hasValidBitmap = true;
+      if (version == 0) {
+        // Version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+        // We should not use these bitmaps and fall back to using no indexes
+        for (ImmutableBitmap bitmap : bitmaps) {
+          if (bitmap == null) {
+            hasValidBitmap = false;
+          }
+        }
+      }
+      if (hasValidBitmap) {
+        builder.setIndexSupplier(
+            new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
+                metadata.getBitmapSerdeFactory().getBitmapFactory(),
+                bitmaps,
+                dictionaryBytes
+            ),
+            true,
+            false
+        );
+      }
+
       IpAddressDictionaryEncodedColumnSupplier supplier = new IpAddressDictionaryEncodedColumnSupplier(
           column,
-          dictionaryBytes,
-          bitmaps
+          dictionaryBytes
       );
 
       builder.setDictionaryEncodedColumnSupplier(supplier);
       builder.setType(ValueType.COMPLEX);
-      builder.setComplexTypeName(IpAddressModule.TYPE_NAME);
+      builder.setComplexTypeName(IpAddressModule.ADDRESS_TYPE_NAME);
       builder.setFilterable(true);
     }
     catch (IOException ex) {

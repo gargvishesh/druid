@@ -11,6 +11,7 @@ package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.joda.time.Interval;
@@ -20,40 +21,50 @@ import java.nio.ByteBuffer;
 
 public class SimpleTimeSeriesMergeBufferAggregator implements BufferAggregator
 {
-  private final BaseObjectColumnValueSelector<SimpleTimeSeries> selector;
+  private final BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector;
+  private final Interval window;
   private final SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
-  public SimpleTimeSeriesMergeBufferAggregator(final BaseObjectColumnValueSelector<SimpleTimeSeries> selector,
-                                               final Interval window,
-                                               final int maxEntries)
+  public SimpleTimeSeriesMergeBufferAggregator(
+      BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector,
+      Interval window,
+      int maxEntries
+  )
   {
     this.selector = selector;
+    this.window = window;
     this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    simpleByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    simpleByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    final SimpleTimeSeries mergeSeries = selector.getObject();
-    if (mergeSeries == null) {
+    SimpleTimeSeriesContainer mergeSeriesContainer = selector.getObject();
+
+    // This should never *BE* null since any null object would be contained
+    if (mergeSeriesContainer == null || mergeSeriesContainer.isNull()) {
       return;
     }
-    simpleByteBufferTimeSeries.mergeSeriesBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, mergeSeries);
+
+    mergeSeriesContainer.pushInto(simpleByteBufferTimeSeries, bufferToWritableMemoryCache.getMemory(buf), position, window);
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return simpleByteBufferTimeSeries.computeSimpleBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    SimpleTimeSeries simpleTimeSeries =
+        simpleByteBufferTimeSeries.computeSimpleBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
+
+    return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
   }
 
   @Override

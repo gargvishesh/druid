@@ -45,17 +45,33 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     this(timestamps, dataPoints, window, null, null, maxEntries);
   }
 
-  public SimpleTimeSeries(ImplyLongArrayList timestamps,
-                          ImplyDoubleArrayList dataPoints,
-                          Interval window,
-                          @Nullable EdgePoint start,
-                          @Nullable EdgePoint end,
-                          int maxEntries)
+  public SimpleTimeSeries(
+      ImplyLongArrayList timestamps,
+      ImplyDoubleArrayList dataPoints,
+      Interval window,
+      @Nullable EdgePoint start,
+      @Nullable EdgePoint end,
+      int maxEntries
+  )
   {
     super(window, start, end, maxEntries);
     this.timestamps = timestamps;
     this.dataPoints = dataPoints;
     this.maxEntries = maxEntries;
+  }
+
+  public SimpleTimeSeries withWindow(Interval newWindow)
+  {
+    SimpleTimeSeries newSimpleTimeSeries = new SimpleTimeSeries(newWindow, maxEntries);
+
+    for (int i = 0; i < timestamps.size(); i++) {
+      long timestamp = timestamps.getLong(i);
+      double datapoint = dataPoints.getDouble(i);
+
+      newSimpleTimeSeries.addDataPoint(timestamp, datapoint);
+    }
+
+    return newSimpleTimeSeries;
   }
 
   @JsonProperty
@@ -101,7 +117,9 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
 
     mergeSeries.forEach(SimpleTimeSeries::build);
     Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream().map(SimpleTimeSeries::getIterator).collect(Collectors.toList()),
+        mergeSeries.stream()
+                   .map(SimpleTimeSeries::getIterator)
+                   .collect(Collectors.toList()),
         Comparator.comparingLong(lhs -> lhs.lhs)
     );
 
@@ -115,7 +133,14 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       timestamps.add((long) dataPoint.lhs);
       dataPoints.add((double) dataPoint.rhs);
     }
-    SimpleTimeSeries mergedSeries = new SimpleTimeSeries(timestamps, dataPoints, getwindow(), getStart(), getEnd(), getMaxEntries());
+    SimpleTimeSeries mergedSeries = new SimpleTimeSeries(
+        timestamps,
+        dataPoints,
+        getwindow(),
+        getStart(),
+        getEnd(),
+        getMaxEntries()
+    );
     mergedSeries.build();
     copy(mergedSeries);
   }
@@ -125,9 +150,11 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   {
     for (int i = 1; i < timeSeries.size(); i++) {
       if (timeSeries.getTimestamps().getLong(i - 1) > timeSeries.getTimestamps().getLong(i)) {
-        throw new RE("SimpleTimeSeries data is not sorted." + "Found timestamp %d after %d while merging",
-                     timeSeries.getTimestamps().getLong(i),
-                     timeSeries.getTimestamps().getLong(i - 1));
+        throw new RE(
+            "SimpleTimeSeries data is not sorted." + "Found timestamp %d after %d while merging",
+            timeSeries.getTimestamps().getLong(i),
+            timeSeries.getTimestamps().getLong(i - 1)
+        );
       }
     }
     timeSeriesList.add(timeSeries);
@@ -149,7 +176,39 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   public SimpleTimeSeries computeSimple()
   {
     build();
+    cosort(timestamps, dataPoints);
     return this;
+  }
+
+  private static void cosort(ImplyLongArrayList timestamps, ImplyDoubleArrayList dataPoints)
+  {
+    List<TimestampDataPointPair> sortedPairList = new ArrayList<>();
+
+    for (int i = 0; i < timestamps.size(); i++) {
+      sortedPairList.add(new TimestampDataPointPair(timestamps.getLong(i), dataPoints.getDouble(i)));
+    }
+
+    sortedPairList.sort(Comparator.comparingLong(a -> a.timestamp));
+
+    timestamps.clear();
+    dataPoints.clear();
+
+    sortedPairList.forEach(p -> {
+      timestamps.add(p.timestamp);
+      dataPoints.add(p.dataPoint);
+    });
+  }
+
+  private static class TimestampDataPointPair
+  {
+    private final long timestamp;
+    private final double dataPoint;
+
+    public TimestampDataPointPair(long timestamp, double dataPoint)
+    {
+      this.timestamp = timestamp;
+      this.dataPoint = dataPoint;
+    }
   }
 
   @Override
@@ -183,9 +242,14 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       return false;
     }
     SimpleTimeSeries that = (SimpleTimeSeries) o;
-    return Objects.equals(timestamps, that.timestamps) &&
-           Objects.equals(dataPoints, that.dataPoints) &&
-           Objects.equals(timeSeriesList, that.timeSeriesList) &&
-           super.equals(o);
+    return Objects.equals(timestamps, that.timestamps) && Objects.equals(dataPoints, that.dataPoints) && Objects.equals(
+        timeSeriesList,
+        that.timeSeriesList
+    ) && super.equals(o);
+  }
+
+  public SimpleTimeSeriesData asSimpleTimeSeriesData()
+  {
+    return new SimpleTimeSeriesData(timestamps, dataPoints, getwindow());
   }
 }

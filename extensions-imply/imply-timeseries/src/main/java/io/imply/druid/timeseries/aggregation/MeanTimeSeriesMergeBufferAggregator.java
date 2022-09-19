@@ -23,7 +23,7 @@ public class MeanTimeSeriesMergeBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector<MeanTimeSeries> selector;
   private final MeanByteBufferTimeSeries meanByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public MeanTimeSeriesMergeBufferAggregator(final BaseObjectColumnValueSelector<MeanTimeSeries> selector,
                                              final DurationGranularity durationGranularity,
@@ -32,13 +32,13 @@ public class MeanTimeSeriesMergeBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.meanByteBufferTimeSeries = new MeanByteBufferTimeSeries(durationGranularity, window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    meanByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    meanByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -48,14 +48,14 @@ public class MeanTimeSeriesMergeBufferAggregator implements BufferAggregator
     if (mergeSeries == null) {
       return;
     }
-    meanByteBufferTimeSeries.mergeSeriesBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, mergeSeries);
+    meanByteBufferTimeSeries.mergeSeriesBuffered(bufferToWritableMemoryCache.getMemory(buf), position, mergeSeries);
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return meanByteBufferTimeSeries.computeMeanBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    return meanByteBufferTimeSeries.computeMeanBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override

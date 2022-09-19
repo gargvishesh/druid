@@ -19,10 +19,10 @@
 
 package org.apache.druid.query;
 
-import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.Numbers;
+import org.apache.druid.java.util.common.HumanReadableBytes;
 
 import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -64,10 +64,23 @@ public class QueryContext
 
   public QueryContext(@Nullable Map<String, Object> userParams)
   {
-    this.defaultParams = new TreeMap<>();
-    this.userParams = userParams == null ? new TreeMap<>() : new TreeMap<>(userParams);
-    this.systemParams = new TreeMap<>();
-    invalidateMergedParams();
+    this(
+        new TreeMap<>(),
+        userParams == null ? new TreeMap<>() : new TreeMap<>(userParams),
+        new TreeMap<>()
+    );
+  }
+
+  private QueryContext(
+      final Map<String, Object> defaultParams,
+      final Map<String, Object> userParams,
+      final Map<String, Object> systemParams
+  )
+  {
+    this.defaultParams = defaultParams;
+    this.userParams = userParams;
+    this.systemParams = systemParams;
+    this.mergedParams = null;
   }
 
   private void invalidateMergedParams()
@@ -127,6 +140,7 @@ public class QueryContext
         QueryContexts.DEFAULT_ENABLE_SQL_JOIN_LEFT_SCAN_DIRECT
     );
   }
+
   @SuppressWarnings("unused")
   public boolean containsKey(String key)
   {
@@ -154,55 +168,66 @@ public class QueryContext
   @Nullable
   public String getAsString(String key)
   {
-    return (String) get(key);
+    Object val = get(key);
+    return val == null ? null : val.toString();
+  }
+
+  public String getAsString(String key, String defaultValue)
+  {
+    Object val = get(key);
+    return val == null ? defaultValue : val.toString();
+  }
+
+  @Nullable
+  public Boolean getAsBoolean(String key)
+  {
+    return QueryContexts.getAsBoolean(key, get(key));
   }
 
   public boolean getAsBoolean(
-      final String parameter,
+      final String key,
       final boolean defaultValue
   )
   {
-    final Object value = get(parameter);
-    if (value == null) {
-      return defaultValue;
-    } else if (value instanceof String) {
-      return Boolean.parseBoolean((String) value);
-    } else if (value instanceof Boolean) {
-      return (Boolean) value;
-    } else {
-      throw new IAE("Expected parameter[%s] to be boolean", parameter);
-    }
+    return QueryContexts.getAsBoolean(key, get(key), defaultValue);
+  }
+
+  public Integer getAsInt(final String key)
+  {
+    return QueryContexts.getAsInt(key, get(key));
   }
 
   public int getAsInt(
-      final String parameter,
+      final String key,
       final int defaultValue
   )
   {
-    final Object value = get(parameter);
-    if (value == null) {
-      return defaultValue;
-    } else if (value instanceof String) {
-      return Numbers.parseInt(value);
-    } else if (value instanceof Number) {
-      return ((Number) value).intValue();
-    } else {
-      throw new IAE("Expected parameter[%s] to be integer", parameter);
-    }
+    return QueryContexts.getAsInt(key, get(key), defaultValue);
   }
 
-  public long getAsLong(final String parameter, final long defaultValue)
+  public Long getAsLong(final String key)
   {
-    final Object value = get(parameter);
-    if (value == null) {
-      return defaultValue;
-    } else if (value instanceof String) {
-      return Numbers.parseLong(value);
-    } else if (value instanceof Number) {
-      return ((Number) value).longValue();
-    } else {
-      throw new IAE("Expected parameter[%s] to be long", parameter);
-    }
+    return QueryContexts.getAsLong(key, get(key));
+  }
+
+  public long getAsLong(final String key, final long defaultValue)
+  {
+    return QueryContexts.getAsLong(key, get(key), defaultValue);
+  }
+
+  public HumanReadableBytes getAsHumanReadableBytes(final String key, final HumanReadableBytes defaultValue)
+  {
+    return QueryContexts.getAsHumanReadableBytes(key, get(key), defaultValue);
+  }
+
+  public float getAsFloat(final String key, final float defaultValue)
+  {
+    return QueryContexts.getAsFloat(key, get(key), defaultValue);
+  }
+
+  public <E extends Enum<E>> E getAsEnum(String key, Class<E> clazz, E defaultValue)
+  {
+    return QueryContexts.getAsEnum(key, get(key), clazz, defaultValue);
   }
 
   public Map<String, Object> getMergedParams()
@@ -214,6 +239,15 @@ public class QueryContext
       mergedParams = Collections.unmodifiableMap(merged);
     }
     return mergedParams;
+  }
+
+  public QueryContext copy()
+  {
+    return new QueryContext(
+        new TreeMap<>(defaultParams),
+        new TreeMap<>(userParams),
+        new TreeMap<>(systemParams)
+    );
   }
 
   @Override

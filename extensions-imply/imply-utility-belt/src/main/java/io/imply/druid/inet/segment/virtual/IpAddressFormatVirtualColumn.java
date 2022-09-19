@@ -14,15 +14,18 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import io.imply.druid.inet.column.IpAddressBitmapIndex;
+import com.google.common.collect.Sets;
+import io.imply.druid.inet.column.DictionaryEncodedIpAddressBlobValueIndex;
 import io.imply.druid.inet.column.IpAddressBlob;
 import io.imply.druid.inet.column.IpAddressDictionaryEncodedColumn;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.query.BitmapResultFactory;
+import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.AbstractDimensionSelector;
@@ -34,20 +37,29 @@ import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.IdLookup;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapIndex;
+import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
+import org.apache.druid.segment.column.ColumnIndexCapabilities;
+import org.apache.druid.segment.column.ColumnIndexSupplier;
+import org.apache.druid.segment.column.DruidPredicateIndex;
+import org.apache.druid.segment.column.NullValueIndex;
+import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
+import org.apache.druid.segment.column.SimpleImmutableBitmapIndex;
+import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.data.ColumnarInts;
-import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.filter.BooleanValueMatcher;
+import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
+import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 import org.apache.druid.segment.vector.ReadableVectorInspector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.VectorObjectSelector;
+import org.apache.druid.segment.virtual.VirtualColumnCacheHelper;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -55,6 +67,8 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.SortedSet;
 
 public class IpAddressFormatVirtualColumn implements VirtualColumn
 {
@@ -82,7 +96,12 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
   @Override
   public byte[] getCacheKey()
   {
-    return new byte[0];
+    return new CacheKeyBuilder(VirtualColumnCacheHelper.CACHE_TYPE_ID_USER_DEFINED).appendString("ip-format")
+                                                                                   .appendString(name)
+                                                                                   .appendString(field)
+                                                                                   .appendBoolean(compact)
+                                                                                   .appendBoolean(forceV6)
+                                                                                   .build();
   }
 
   @JsonProperty("name")
@@ -562,36 +581,43 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
 
   @Nullable
   @Override
-  public BitmapIndex getBitmapIndex(
-      String columnName,
-      ColumnSelector selector
-  )
+  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnSelector columnSelector)
   {
-    final IpAddressDictionaryEncodedColumn ipAddressColumn = getColumnFromColumnSelector(selector);
-    // holder definitely exists if we got here
-    final ColumnHolder holder = selector.getColumnHolder(field);
-    final BitmapIndex delegate = holder.getBitmapIndex();
-    if (delegate == null) {
+    final ColumnHolder holder = columnSelector.getColumnHolder(field);
+    if (holder == null) {
+      // column doesn't exist
       return null;
     }
-    final GenericIndexed<ImmutableBitmap> bitmaps = ipAddressColumn.getBitmaps();
-    final GenericIndexed<ByteBuffer> dictionary = ipAddressColumn.getDictionary();
+    final ColumnIndexSupplier underlyingIndexes = holder.getIndexSupplier();
+    if (underlyingIndexes == null) {
+      throw new UnsupportedOperationException("How can this be?");
+    }
 
-    return new IpAddressBitmapIndex(delegate.getBitmapFactory(), bitmaps, dictionary)
+    final DictionaryEncodedIpAddressBlobValueIndex index = underlyingIndexes.as(
+        DictionaryEncodedIpAddressBlobValueIndex.class
+    );
+
+    if (index == null) {
+      // Index can be null as IP address/prefix of version 0 has a bug where the bitmap can be null after segments are merged during ingestion.
+      // Hence, we fall back to using no indexes for those segments
+      return NoIndexesColumnIndexSupplier.getInstance();
+    }
+
+    return new ColumnIndexSupplier()
     {
       @Nullable
       @Override
-      public String getValue(int index)
+      public <T> T as(Class<T> clazz)
       {
-        ByteBuffer value = dictionary.get(index);
-        if (value == null) {
-          return null;
+        if (clazz.equals(NullValueIndex.class)) {
+          final BitmapColumnIndex nullIndex = new SimpleImmutableBitmapIndex(index.getBitmapForValue(null));
+          return (T) (NullValueIndex) () -> nullIndex;
+        } else if (clazz.equals(StringValueSetIndex.class)) {
+          return (T) new IpFormatStringValueSetIndex(index);
+        } else if (clazz.equals(DruidPredicateIndex.class)) {
+          return (T) new IpFormatPredicateIndex(index);
         }
-        IpAddressBlob blob = IpAddressBlob.ofByteBuffer(value);
-        if (blob == null) {
-          return null;
-        }
-        return blob.stringify(compact, forceV6);
+        return null;
       }
     };
   }
@@ -632,6 +658,11 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     if (holder == null) {
       throw new IAE("Column [%s] does not exist", field);
     }
+    return getColumnFromColumnHolder(holder);
+  }
+
+  private IpAddressDictionaryEncodedColumn getColumnFromColumnHolder(ColumnHolder holder)
+  {
     final BaseColumn baseColumn = holder.getColumn();
     if (!(baseColumn instanceof IpAddressDictionaryEncodedColumn)) {
       throw new IAE(
@@ -641,5 +672,99 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       );
     }
     return (IpAddressDictionaryEncodedColumn) holder.getColumn();
+  }
+
+  private static abstract class SimpleBitmapColumnIndex implements BitmapColumnIndex
+  {
+    private static final ColumnIndexCapabilities CAPABILITIES = new SimpleColumnIndexCapabilities(true, true);
+    @Override
+    public ColumnIndexCapabilities getIndexCapabilities()
+    {
+      return CAPABILITIES;
+    }
+  }
+
+  private static class IpFormatStringValueSetIndex implements StringValueSetIndex
+  {
+    private final DictionaryEncodedIpAddressBlobValueIndex delegate;
+
+    private IpFormatStringValueSetIndex(DictionaryEncodedIpAddressBlobValueIndex delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public BitmapColumnIndex forValue(@Nullable String value)
+    {
+      final IpAddressBlob addr = IpAddressBlob.ofString(value);
+      final ByteBuffer blob = addr == null ? null : ByteBuffer.wrap(addr.getBytes());
+      return new SimpleBitmapColumnIndex()
+      {
+        @Override
+        public double estimateSelectivity(int totalRows)
+        {
+          return delegate.getBitmapForValue(blob).size();
+        }
+
+        @Override
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        {
+          return bitmapResultFactory.wrapDimensionValue(delegate.getBitmapForValue(blob));
+        }
+      };
+    }
+
+    @Override
+    public BitmapColumnIndex forSortedValues(SortedSet<String> values)
+    {
+      final Set<ByteBuffer> blobs = Sets.newHashSetWithExpectedSize(values.size());
+      for (String value : values) {
+        final IpAddressBlob addr = IpAddressBlob.ofString(value);
+        blobs.add(addr == null ? null : ByteBuffer.wrap(addr.getBytes()));
+      }
+      return new SimpleBitmapColumnIndex()
+      {
+        @Override
+        public double estimateSelectivity(int totalRows)
+        {
+          return Filters.estimateSelectivity(delegate.getBitmapsForValues(blobs).iterator(), totalRows);
+        }
+
+        @Override
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        {
+          return bitmapResultFactory.unionDimensionValueBitmaps(delegate.getBitmapsForValues(blobs));
+        }
+      };
+    }
+  }
+
+  private static class IpFormatPredicateIndex implements DruidPredicateIndex
+  {
+    private final DictionaryEncodedIpAddressBlobValueIndex delegate;
+
+    private IpFormatPredicateIndex(DictionaryEncodedIpAddressBlobValueIndex delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
+    {
+      return new SimpleBitmapColumnIndex()
+      {
+        @Override
+        public double estimateSelectivity(int totalRows)
+        {
+          return Filters.estimateSelectivity(delegate.getBitmapsForPredicateFactory(matcherFactory).iterator(), totalRows);
+        }
+
+        @Override
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        {
+          return bitmapResultFactory.unionDimensionValueBitmaps(delegate.getBitmapsForPredicateFactory(matcherFactory));
+        }
+      };
+    }
   }
 }

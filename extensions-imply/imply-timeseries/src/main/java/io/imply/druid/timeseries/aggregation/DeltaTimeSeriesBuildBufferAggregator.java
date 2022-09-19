@@ -24,7 +24,7 @@ public class DeltaTimeSeriesBuildBufferAggregator implements BufferAggregator
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
   private final DeltaByteBufferTimeSeries deltaByteBufferTimeSeries;
-  private final TimeSeriesBufferAggregatorHelper timeSeriesBufferAggregatorHelper;
+  private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public DeltaTimeSeriesBuildBufferAggregator(final BaseLongColumnValueSelector timeSelector,
                                              final BaseDoubleColumnValueSelector dataSelector,
@@ -35,13 +35,13 @@ public class DeltaTimeSeriesBuildBufferAggregator implements BufferAggregator
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
     this.deltaByteBufferTimeSeries = new DeltaByteBufferTimeSeries(durationGranularity, window, maxEntries);
-    this.timeSeriesBufferAggregatorHelper = new TimeSeriesBufferAggregatorHelper();
+    this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    deltaByteBufferTimeSeries.init(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    deltaByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -50,14 +50,14 @@ public class DeltaTimeSeriesBuildBufferAggregator implements BufferAggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    deltaByteBufferTimeSeries.addDataPointBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
+    deltaByteBufferTimeSeries.addDataPointBuffered(bufferToWritableMemoryCache.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
   }
 
   @Nullable
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return deltaByteBufferTimeSeries.computeDeltaBuffered(timeSeriesBufferAggregatorHelper.getMemory(buf), position);
+    return deltaByteBufferTimeSeries.computeDeltaBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override

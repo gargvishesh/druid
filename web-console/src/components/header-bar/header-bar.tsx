@@ -28,10 +28,11 @@ import {
   NavbarDivider,
   NavbarGroup,
   Position,
+  Tag,
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { MouseEvent, useState } from 'react';
+import React, { useState } from 'react';
 
 import {
   AboutDialog,
@@ -39,16 +40,14 @@ import {
   DoctorDialog,
   OverlordDynamicConfigDialog,
 } from '../../dialogs';
-import { usePermanentCallback } from '../../hooks';
 import { getLink } from '../../links';
-import { Api, AppToaster } from '../../singletons';
-import { MULTI_STAGE_QUERY_ENABLED } from '../../singletons/multi-stage-query-enabled';
 import {
   Capabilities,
   localStorageGetJson,
   LocalStorageKeys,
   localStorageRemove,
   localStorageSetJson,
+  oneOf,
 } from '../../utils';
 import { ExternalLink } from '../external-link/external-link';
 import { PopoverText } from '../popover-text/popover-text';
@@ -59,15 +58,19 @@ const capabilitiesOverride = localStorageGetJson(LocalStorageKeys.CAPABILITIES_O
 
 export type HeaderActiveTab =
   | null
-  | 'load-data'
+  | 'data-loader'
+  | 'streaming-data-loader'
+  | 'classic-batch-data-loader'
   | 'ingestion'
   | 'datasources'
   | 'segments'
   | 'services'
   | 'query'
   | 'workbench'
-  | 'sqloader'
+  | 'sql-data-loader'
+  // BEGIN: Imply-modified code for user management
   | 'user-management'
+  // END: Imply-modified code for user management
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -239,13 +242,68 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const [coordinatorDynamicConfigDialogOpen, setCoordinatorDynamicConfigDialogOpen] =
     useState(false);
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
-  const loadDataPrimary = false;
 
-  // BEGIN: Imply-added code for Talaria execution
-  const [showTalaria, setShowTalaria] = useState<any>(
-    MULTI_STAGE_QUERY_ENABLED && localStorageGetJson(LocalStorageKeys.WORKBENCH_SHOW),
+  const showSplitDataLoaderMenu = capabilities.hasMultiStageQuery();
+
+  const loadDataViewsMenuActive = oneOf(
+    active,
+    'data-loader',
+    'streaming-data-loader',
+    'classic-batch-data-loader',
+    'sql-data-loader',
   );
-  // END: Imply-added code for Talaria execution
+  const loadDataViewsMenu = (
+    <Menu>
+      <MenuItem
+        icon={IconNames.FEED}
+        text="Streaming"
+        href="#streaming-data-loader"
+        selected={active === 'streaming-data-loader'}
+      />
+      <MenuItem
+        icon={IconNames.CLEAN}
+        text="Batch - SQL"
+        href="#sql-data-loader"
+        labelElement={<Tag minimal>multi-stage-query</Tag>}
+        selected={active === 'sql-data-loader'}
+      />
+      <MenuItem
+        icon={IconNames.LIST}
+        text="Batch - classic"
+        href="#classic-batch-data-loader"
+        selected={active === 'classic-batch-data-loader'}
+      />
+    </Menu>
+  );
+
+  const moreViewsMenuActive = oneOf(
+    active,
+    'lookups',
+    // BEGIN: Imply-modified code for user management
+    'user-management',
+    // END: Imply-modified code for user management
+  );
+  const moreViewsMenu = (
+    <Menu>
+      <MenuItem
+        icon={IconNames.PROPERTIES}
+        text="Lookups"
+        href="#lookups"
+        disabled={!capabilities.hasCoordinatorAccess()}
+        selected={active === 'lookups'}
+      />
+
+      {/* BEGIN: Imply-modified code for user management */}
+      <MenuItem
+        icon={IconNames.PEOPLE}
+        active={active === 'user-management'}
+        text="User management"
+        href="#user-management"
+        disabled={!capabilities.hasCoordinatorAccess()}
+      />
+      {/* END: Imply-modified code for user management */}
+    </Menu>
+  );
 
   const helpMenu = (
     <Menu>
@@ -302,23 +360,6 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         onClick={() => setOverlordDynamicConfigDialogOpen(true)}
         disabled={!capabilities.hasOverlordAccess()}
       />
-      <MenuItem
-        icon={IconNames.PROPERTIES}
-        active={active === 'lookups'}
-        text="Lookups"
-        href="#lookups"
-        disabled={!capabilities.hasCoordinatorAccess()}
-      />
-
-      {/* BEGIN: Imply-modified code for user management */}
-      <MenuItem
-        icon={IconNames.PEOPLE}
-        active={active === 'user-management'}
-        text="User management"
-        href="#user-management"
-        disabled={!capabilities.hasCoordinatorAccess()}
-      />
-      {/* END: Imply-modified code for user management */}
 
       <MenuDivider />
       <MenuItem icon={IconNames.COG} text="Console options">
@@ -356,108 +397,56 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  // BEGIN: Imply-added code for Talaria execution
-  const handleLogoClick = usePermanentCallback(async function logoClick(e: MouseEvent) {
-    if (!MULTI_STAGE_QUERY_ENABLED || !e.altKey) return;
-    e.preventDefault();
-    const nextShowTalaria = e.shiftKey ? (showTalaria ? false : 'loader') : !showTalaria;
-
-    if (nextShowTalaria) {
-      // Check extension
-      let status: any;
-      try {
-        status = (await Api.instance.get(`/status`)).data;
-      } catch (e) {
-        AppToaster.show({
-          message: 'Could not get status',
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-
-      if (!Array.isArray(status.modules)) {
-        AppToaster.show({
-          message: 'Invalid status response',
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-
-      if (
-        !status.modules.some((module: any) =>
-          String(module.name).startsWith('io.imply.druid.talaria'),
-        )
-      ) {
-        AppToaster.show({
-          message: `'imply-talaria' module needs to be loaded to enable the multi-stage query engine capable query view.`,
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-
-      if (
-        !status.modules.some((module: any) =>
-          String(module.name).startsWith('io.imply.druid.sql.async'),
-        )
-      ) {
-        AppToaster.show({
-          message: `'imply-sql-async' module needs to be loaded to enable the multi-stage query engine capable query view.`,
-          intent: Intent.DANGER,
-        });
-        return;
-      }
-    }
-
-    setShowTalaria(!nextShowTalaria);
-    localStorageSetJson(LocalStorageKeys.WORKBENCH_SHOW, nextShowTalaria);
-    AppToaster.show({
-      message: nextShowTalaria ? (
-        <>
-          <p>You have enabled the multi-stage query engine capable query view.</p>
-          <p>
-            The multi-stage query engine is an Alpha feature only available as part of the Imply
-            distribution of Druid.
-          </p>
-          <p>Please share any feedback with your Imply Account Team.</p>
-        </>
-      ) : (
-        'You have disabled the multi-stage query engine capable query view.'
-      ),
-      intent: Intent.SUCCESS,
-      timeout: 5000,
-    });
-    location.hash = nextShowTalaria ? '#workbench' : '#query';
-  });
-  // END: Imply-modified code for Talaria execution
-
   return (
     <Navbar className="header-bar">
       <NavbarGroup align={Alignment.LEFT}>
-        <a href="#" onClick={handleLogoClick}>
+        <a href="#">
           <DruidLogo />
         </a>
-
         <NavbarDivider />
         <AnchorButton
-          icon={IconNames.CLOUD_UPLOAD}
-          text="Load data"
-          active={active === 'load-data'}
-          href="#load-data"
-          minimal={!loadDataPrimary}
-          intent={loadDataPrimary ? Intent.PRIMARY : Intent.NONE}
-          disabled={!capabilities.hasEverything()}
-        />
-
-        <NavbarDivider />
-        <AnchorButton
+          className="header-entry"
           minimal
-          active={active === 'ingestion'}
-          icon={IconNames.GANTT_CHART}
-          text="Ingestion"
-          href="#ingestion"
-          disabled={!capabilities.hasSqlOrOverlordAccess()}
+          active={oneOf(active, 'workbench', 'query')}
+          icon={IconNames.APPLICATION}
+          text="Query"
+          href="#workbench"
+          disabled={!capabilities.hasQuerying()}
+          onClick={e => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            location.hash = '#query';
+          }}
         />
+        {showSplitDataLoaderMenu ? (
+          <Popover2
+            content={loadDataViewsMenu}
+            disabled={!capabilities.hasEverything()}
+            position={Position.BOTTOM_LEFT}
+          >
+            <Button
+              className="header-entry"
+              icon={IconNames.CLOUD_UPLOAD}
+              text="Load data"
+              minimal
+              active={loadDataViewsMenuActive}
+              disabled={!capabilities.hasEverything()}
+            />
+          </Popover2>
+        ) : (
+          <AnchorButton
+            className="header-entry"
+            icon={IconNames.CLOUD_UPLOAD}
+            text="Load data"
+            href="#data-loader"
+            minimal
+            active={loadDataViewsMenuActive}
+            disabled={!capabilities.hasEverything()}
+          />
+        )}
+        <NavbarDivider />
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'datasources'}
           icon={IconNames.MULTI_SELECT}
@@ -466,6 +455,16 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
         <AnchorButton
+          className="header-entry"
+          minimal
+          active={active === 'ingestion'}
+          icon={IconNames.GANTT_CHART}
+          text="Ingestion"
+          href="#ingestion"
+          disabled={!capabilities.hasSqlOrOverlordAccess()}
+        />
+        <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'segments'}
           icon={IconNames.STACKED_CHART}
@@ -474,6 +473,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
         <AnchorButton
+          className="header-entry"
           minimal
           active={active === 'services'}
           icon={IconNames.DATABASE}
@@ -481,47 +481,22 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
           href="#services"
           disabled={!capabilities.hasSqlOrCoordinatorAccess()}
         />
-
-        <NavbarDivider />
-        {showTalaria ? (
-          <AnchorButton
+        <Popover2 content={moreViewsMenu} position={Position.BOTTOM_LEFT}>
+          <Button
+            className="header-entry"
             minimal
-            active={active === 'workbench'}
-            icon={IconNames.APPLICATION}
-            text="Query"
-            href="#workbench"
-            disabled={!capabilities.hasQuerying()}
+            icon={IconNames.MORE}
+            active={moreViewsMenuActive}
           />
-        ) : (
-          <AnchorButton
-            minimal
-            active={active === 'query'}
-            icon={IconNames.APPLICATION}
-            text="Query"
-            href="#query"
-            disabled={!capabilities.hasQuerying()}
-          />
-        )}
-        {/* BEGIN: Imply-added code for Talaria execution */}
-        {showTalaria === 'loader' && (
-          <AnchorButton
-            minimal
-            active={active === 'sqloader'}
-            icon={IconNames.CLOUD_UPLOAD}
-            text="SQLoader"
-            href="#sqloader"
-            disabled={!capabilities.hasQuerying()}
-          />
-        )}
-        {/* END: Imply-modified code for Talaria execution */}
+        </Popover2>
       </NavbarGroup>
       <NavbarGroup align={Alignment.RIGHT}>
         <RestrictedMode capabilities={capabilities} onUnrestrict={onUnrestrict} />
         <Popover2 content={configMenu} position={Position.BOTTOM_RIGHT}>
-          <Button minimal icon={IconNames.COG} />
+          <Button className="header-entry" minimal icon={IconNames.COG} />
         </Popover2>
         <Popover2 content={helpMenu} position={Position.BOTTOM_RIGHT}>
-          <Button minimal icon={IconNames.HELP} />
+          <Button className="header-entry" minimal icon={IconNames.HELP} />
         </Popover2>
       </NavbarGroup>
       {aboutDialogOpen && <AboutDialog onClose={() => setAboutDialogOpen(false)} />}

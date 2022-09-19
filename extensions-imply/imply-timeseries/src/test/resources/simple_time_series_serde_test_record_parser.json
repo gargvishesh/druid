@@ -1,0 +1,19 @@
+{
+  "type": "string",
+  "parseSpec": {
+    "format": "tsv",
+    "timestampSpec": {
+      "column": "timestamp",
+      "format": "yyyyMMddHH"
+    },
+    "dimensionsSpec": {
+      "dimensions": [],
+      "dimensionExclusions": ["timestamps", "datapoints"],
+      "spatialDimensions": []
+    },
+    "columns": [
+      "timestamp",
+      "dataPoints"
+    ]
+  }
+}

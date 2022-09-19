@@ -31,6 +31,9 @@ import java.util.Set;
 @LoadScope(roles = {NodeRole.BROKER_JSON_NAME, NodeRole.ROUTER_JSON_NAME, NodeRole.COORDINATOR_JSON_NAME})
 public class BrokerIdServiceModule implements DruidModule
 {
+  // Note: this is not used. But, if it is removed, the Imply Keycloak IT test
+  // fails. Some odd back-door dependency? TODO: Figure out the issue then
+  // remove this variable and its injection.
   private Set<NodeRole> nodeRoles;
 
   @Inject

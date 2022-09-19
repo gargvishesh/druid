@@ -22,19 +22,20 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.QueryCapacityExceededException;
-import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ResourceLimitExceededException;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.ForbiddenException;
-import org.apache.druid.sql.SqlLifecycle;
+import org.apache.druid.sql.DirectStatement.ResultSet;
+import org.apache.druid.sql.HttpStatement;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
@@ -62,7 +63,8 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       final SqlQuery sqlQuery,
       final HttpServletRequest req)
   {
-    final SqlLifecycle lifecycle = context.sqlLifecycleFactory.factorize();
+    final HttpStatement stmt = context.sqlStatementFactory.httpStatement(sqlQuery, req);
+    final String sqlQueryId = stmt.sqlQueryId();
     final String remoteAddr = req.getRemoteAddr();
     // Update query to add FEATURE_NAME and FEATURE_VALUE in context
     final SqlQuery updatedSqlQuery = sqlQuery.withQueryContext(
@@ -70,24 +72,19 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
             ImmutableMap.of(FEATURE_NAME, FEATURE_VALUE),
             sqlQuery.getContext()));
 
-    final String sqlQueryId = lifecycle.initialize(
-        updatedSqlQuery.getQuery(),
-        new QueryContext(updatedSqlQuery.getContext())
-    );
     final String asyncResultId = SqlAsyncUtil.createAsyncResultId(context.brokerId, sqlQueryId);
     final ResultFormat resultFormat = sqlQuery.getResultFormat();
 
     try {
-      lifecycle.setParameters(updatedSqlQuery.getParameterList());
-      lifecycle.validateAndAuthorize(req);
-      final SqlAsyncQueryDetails queryDetails = context.queryPool.execute(asyncResultId, updatedSqlQuery, lifecycle, remoteAddr);
+      ResultSet resultSet = stmt.plan();
+      final SqlAsyncQueryDetails queryDetails = context.queryPool.execute(asyncResultId, updatedSqlQuery, resultSet, remoteAddr);
       return Response
           .status(Response.Status.ACCEPTED)
           .entity(queryDetails.toApiResponse(ENGINE_NAME))
           .build();
     }
     catch (QueryCapacityExceededException cap) {
-      lifecycle.finalizeStateAndEmitLogsAndMetrics(cap, remoteAddr, -1);
+      stmt.closeWithError(cap);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -96,7 +93,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       );
     }
     catch (QueryUnsupportedException unsupported) {
-      lifecycle.finalizeStateAndEmitLogsAndMetrics(unsupported, remoteAddr, -1);
+      stmt.closeWithError(unsupported);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -105,7 +102,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       );
     }
     catch (SqlPlanningException | ResourceLimitExceededException e) {
-      lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
+      stmt.closeWithError(e);
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
@@ -119,7 +116,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
     }
     catch (Exception e) {
       log.warn(e, "Failed to handle query: %s", updatedSqlQuery);
-      lifecycle.finalizeStateAndEmitLogsAndMetrics(e, remoteAddr, -1);
+      stmt.closeWithError(e);
 
       final Exception exceptionToReport;
 

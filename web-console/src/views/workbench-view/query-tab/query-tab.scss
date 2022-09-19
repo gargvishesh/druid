@@ -23,6 +23,10 @@ $vertical-gap: 6px;
 .query-tab {
   position: relative;
 
+  .#{$bp-ns}-dark & {
+    background: $dark-gray2;
+  }
+
   .splitter-layout {
     position: absolute;
     width: 100%;
@@ -60,7 +64,7 @@ $vertical-gap: 6px;
         &.single {
           height: 100%;
 
-          .talaria-query-input {
+          .flexible-query-input {
             height: 100%;
           }
         }
@@ -88,6 +92,11 @@ $vertical-gap: 6px;
       display: flex;
       gap: 10px;
       align-items: center;
+
+      .execution-timer-panel,
+      .execution-summary-panel {
+        margin-left: auto;
+      }
     }
   }
 
@@ -114,26 +123,24 @@ $vertical-gap: 6px;
       }
     }
 
-    .stats-container {
+    .error-container {
       position: relative;
 
-      .stage-progress {
+      .execution-error-pane {
         position: absolute;
-        left: 15px;
-        right: 15px;
-        top: 15px;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        height: 150px;
+        width: auto;
       }
 
-      .query-error {
-        height: 160px;
-      }
-
-      .talaria-stats {
+      .execution-stages-pane {
         position: absolute;
         top: 160px;
-        left: 10px;
-        right: 10px;
-        bottom: 10px;
+        bottom: 0;
+        left: 0;
+        right: 0;
       }
     }
   }

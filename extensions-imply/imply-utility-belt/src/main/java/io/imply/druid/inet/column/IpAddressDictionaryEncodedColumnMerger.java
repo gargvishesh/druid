@@ -45,7 +45,7 @@ public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedCol
       DictionaryMergingIterator.makePeekingComparator();
 
   private static final Indexed<IpAddressBlob> NULL_VALUE = new ListIndexed<>(Collections.singletonList(null));
-  private static final byte VERSION = 0x00;
+  private static final byte VERSION = 0x01;
 
   private final byte[] metadataBytes;
 
@@ -107,7 +107,7 @@ public class IpAddressDictionaryEncodedColumnMerger extends DictionaryEncodedCol
         .setHasMultipleValues(false)
         .addSerde(
             ComplexColumnPartSerde.serializerBuilder()
-                                  .withTypeName(IpAddressModule.TYPE_NAME)
+                                  .withTypeName(IpAddressModule.ADDRESS_TYPE_NAME)
                                   .withDelegate(new Serializer()
                                   {
                                     @Override

@@ -29,12 +29,12 @@ public class IpAddressDimensionSchema extends DimensionSchema
   @Override
   public String getTypeName()
   {
-    return IpAddressModule.TYPE_NAME;
+    return IpAddressModule.ADDRESS_TYPE_NAME;
   }
 
   @Override
   public ColumnType getColumnType()
   {
-    return IpAddressModule.TYPE;
+    return IpAddressModule.ADDRESS_TYPE;
   }
 }

@@ -104,7 +104,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       return new MeanTimeSeriesAggregator(timeSelector,
                                           dataSelector,
                                           new DurationGranularity(getTimeBucketMillis(), 0),
-                                          getwindow(),
+                                          getWindow(),
                                           getMaxEntries());
     }
   }
@@ -116,7 +116,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       BaseObjectColumnValueSelector<MeanTimeSeries> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
       return new MeanTimeSeriesMergeBufferAggregator(selector,
                                                      new DurationGranularity(getTimeBucketMillis(), 0),
-                                                     getwindow(),
+                                                     getWindow(),
                                                      getMaxEntries());
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
@@ -124,7 +124,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       return new MeanTimeSeriesBuildBufferAggregator(timeSelector,
                                                      dataSelector,
                                                      new DurationGranularity(getTimeBucketMillis(), 0),
-                                                     getwindow(),
+                                                     getWindow(),
                                                      getMaxEntries());
     }
   }
@@ -160,7 +160,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
                                                getName(),
                                                getPostProcessing(),
                                                getTimeBucketMillis(),
-                                               getwindow(),
+                                               getWindow(),
                                                getMaxEntries());
   }
 
@@ -179,7 +179,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
                               sumPoints,
                               countPoints,
                               new DurationGranularity(getTimeBucketMillis(), 0),
-                              getwindow(),
+                              getWindow(),
                               bounds.lhs,
                               bounds.rhs,
                               getMaxEntries());
@@ -208,5 +208,20 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   public int getMaxIntermediateSize()
   {
     return maxEntries * (Long.BYTES + Double.BYTES) + ByteBufferTimeSeries.DATA_OFFSET;
+  }
+
+  @Override
+  public AggregatorFactory withName(String newName)
+  {
+    return new MeanTimeSeriesAggregatorFactory(
+        newName,
+        getDataColumn(),
+        getTimeColumn(),
+        getTimeseriesColumn(),
+        getPostProcessing(),
+        getTimeBucketMillis(),
+        getWindow(),
+        getMaxEntries()
+    );
   }
 }

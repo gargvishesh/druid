@@ -15,15 +15,9 @@ import com.google.inject.name.Named;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryPool;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
-import org.apache.druid.client.indexing.IndexingService;
-import org.apache.druid.client.indexing.IndexingServiceClient;
-import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.annotations.Json;
-import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlLifecycleFactory;
-
-import javax.annotation.Nullable;
+import org.apache.druid.sql.SqlStatementFactory;
 
 import java.time.Clock;
 
@@ -33,15 +27,12 @@ public class AsyncQueryContext
   final SqlAsyncQueryPool queryPool;
   final SqlAsyncMetadataManager metadataManager;
   final SqlAsyncResultManager resultManager;
-  final SqlLifecycleFactory sqlLifecycleFactory;
+  final SqlStatementFactory sqlStatementFactory;
   final SqlAsyncLifecycleManager sqlAsyncLifecycleManager;
   final AuthorizerMapper authorizerMapper;
   final ObjectMapper jsonMapper;
   final Clock clock;
   final AsyncQueryConfig asyncQueryReadRefreshConfig;
-  final ServerConfig serverConfig;
-  @Nullable final IndexingServiceClient overlordClient;
-  DruidLeaderClient druidLeaderClient;
 
   @Inject
   public AsyncQueryContext(
@@ -49,29 +40,23 @@ public class AsyncQueryContext
       final SqlAsyncQueryPool queryPool,
       final SqlAsyncMetadataManager metadataManager,
       final SqlAsyncResultManager resultManager,
-      final SqlLifecycleFactory sqlLifecycleFactory,
+      final SqlStatementFactory sqlStatementFactory,
       final SqlAsyncLifecycleManager sqlAsyncLifecycleManager,
       final AuthorizerMapper authorizerMapper,
       @Json final ObjectMapper jsonMapper,
       final AsyncQueryConfig asyncQueryReadRefreshConfig,
-      final Clock clock,
-      final ServerConfig serverConfig,
-      final IndexingServiceClient overlordClient,
-      @IndexingService DruidLeaderClient druidLeaderClient
+      final Clock clock
   )
   {
     this.brokerId = brokerId;
     this.queryPool = queryPool;
     this.metadataManager = metadataManager;
     this.resultManager = resultManager;
-    this.sqlLifecycleFactory = sqlLifecycleFactory;
+    this.sqlStatementFactory = sqlStatementFactory;
     this.sqlAsyncLifecycleManager = sqlAsyncLifecycleManager;
     this.authorizerMapper = authorizerMapper;
     this.jsonMapper = jsonMapper;
     this.asyncQueryReadRefreshConfig = asyncQueryReadRefreshConfig;
     this.clock = clock;
-    this.serverConfig = serverConfig;
-    this.overlordClient = overlordClient;
-    this.druidLeaderClient = druidLeaderClient;
   }
 }

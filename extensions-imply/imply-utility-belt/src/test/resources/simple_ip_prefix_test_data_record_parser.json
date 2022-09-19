@@ -1,0 +1,34 @@
+{
+  "type": "string",
+  "parseSpec": {
+    "format": "tsv",
+    "timestampSpec": {
+      "column": "timestamp",
+      "format": "yyyyMMddHH"
+    },
+    "dimensionsSpec": {
+      "dimensions": [
+        {
+          "type": "ipPrefix",
+          "name": "ipv4"
+        },
+        {
+          "type": "ipPrefix",
+          "name": "ipv6"
+        },
+        {
+          "type": "ipPrefix",
+          "name": "ipmix"
+        }
+      ],
+      "dimensionExclusions": [],
+      "spatialDimensions": []
+    },
+    "columns": [
+      "timestamp",
+      "ipv4",
+      "ipv6",
+      "ipmix"
+    ]
+  }
+}

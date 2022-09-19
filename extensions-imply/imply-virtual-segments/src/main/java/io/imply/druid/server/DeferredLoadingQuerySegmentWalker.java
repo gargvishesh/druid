@@ -52,7 +52,6 @@ import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.segment.SegmentReference;
 import org.apache.druid.segment.filter.Filters;
-import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.SegmentManager;
 import org.apache.druid.server.coordination.ServerManager;
@@ -63,9 +62,9 @@ import org.apache.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
 import javax.inject.Inject;
-
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -100,7 +99,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
       Cache cache,
       CacheConfig cacheConfig,
       SegmentManager segmentManager,
-      JoinableFactory joinableFactory,
+      JoinableFactoryWrapper joinableFactoryWrapper,
       ServerConfig serverConfig,
       VirtualSegmentLoader virtualSegmentLoader
   )
@@ -114,7 +113,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
         cache,
         cacheConfig,
         segmentManager,
-        joinableFactory,
+        joinableFactoryWrapper,
         serverConfig
     );
     this.conglomerate = conglomerate;
@@ -122,7 +121,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
     this.queryProcessingPool = queryProcessingPool;
     this.virtualSegmentLoader = virtualSegmentLoader;
     this.segmentManager = segmentManager;
-    this.joinableFactoryWrapper = new JoinableFactoryWrapper(joinableFactory);
+    this.joinableFactoryWrapper = joinableFactoryWrapper;
   }
 
   @Override
@@ -382,7 +381,7 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
               new SegmentAnalysis(
                   dataSegment.getId().toString(),
                   Collections.singletonList(dataSegment.getInterval()),
-                  Collections.emptyMap(),
+                  new LinkedHashMap<>(),
                   dataSegment.getSize(),
                   -1,
                   Collections.emptyMap(),

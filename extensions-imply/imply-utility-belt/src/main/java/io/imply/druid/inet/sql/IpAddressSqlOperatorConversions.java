@@ -39,16 +39,16 @@ import java.util.List;
 
 public class IpAddressSqlOperatorConversions
 {
-  public static class ParseOperatorConversion implements SqlOperatorConversion
+  public static class AddressParseOperatorConversion implements SqlOperatorConversion
   {
     private static final SqlFunction SQL_FUNCTION = OperatorConversions
-        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.ParseExprMacro.NAME))
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.AddressParseExprMacro.NAME))
         .operandTypes(SqlTypeFamily.ANY)
         .returnTypeInference(
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.ADDRESS_TYPE,
                     true
                 )
             )
@@ -75,22 +75,22 @@ public class IpAddressSqlOperatorConversions
           rowSignature,
           rexNode,
           operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.ParseExprMacro.NAME, operands)
+              DruidExpression.functionCall(IpAddressExpressions.AddressParseExprMacro.NAME, operands)
           )
       );
     }
   }
 
-  public static class TryParseOperatorConversion implements SqlOperatorConversion
+  public static class PrefixParseOperatorConversion implements SqlOperatorConversion
   {
     private static final SqlFunction SQL_FUNCTION = OperatorConversions
-        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.TryParseExprMacro.NAME))
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.PrefixParseExprMacro.NAME))
         .operandTypes(SqlTypeFamily.ANY)
         .returnTypeInference(
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.PREFIX_TYPE,
                     true
                 )
             )
@@ -117,7 +117,91 @@ public class IpAddressSqlOperatorConversions
           rowSignature,
           rexNode,
           operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.TryParseExprMacro.NAME, operands)
+              DruidExpression.functionCall(IpAddressExpressions.PrefixParseExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
+
+  public static class AddressTryParseOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.AddressTryParseExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY)
+        .returnTypeInference(
+            ReturnTypes.explicit(
+                new RowSignatures.ComplexSqlType(
+                    SqlTypeName.OTHER,
+                    IpAddressModule.ADDRESS_TYPE,
+                    true
+                )
+            )
+        )
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.AddressTryParseExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
+
+  public static class PrefixTryParseOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.PrefixTryParseExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY)
+        .returnTypeInference(
+            ReturnTypes.explicit(
+                new RowSignatures.ComplexSqlType(
+                    SqlTypeName.OTHER,
+                    IpAddressModule.PREFIX_TYPE,
+                    true
+                )
+            )
+        )
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.PrefixTryParseExprMacro.NAME, operands)
           )
       );
     }
@@ -180,7 +264,8 @@ public class IpAddressSqlOperatorConversions
       } else {
         compact = true;
       }
-      if (druidExpressions.get(0).isSimpleExtraction()) {
+
+      if (druidExpressions.get(0).isSimpleExtraction() && IpAddressModule.ADDRESS_TYPE.equals(druidExpressions.get(0).getDruidType())) {
         return DruidExpression.ofVirtualColumn(
             Calcites.getColumnTypeForRelDataType(call.getType()),
             DruidExpression.functionCall(IpAddressExpressions.StringifyExprMacro.NAME),
@@ -210,7 +295,7 @@ public class IpAddressSqlOperatorConversions
             ReturnTypes.explicit(
                 new RowSignatures.ComplexSqlType(
                     SqlTypeName.OTHER,
-                    IpAddressModule.TYPE,
+                    IpAddressModule.PREFIX_TYPE,
                     true
                 )
             )
@@ -243,13 +328,53 @@ public class IpAddressSqlOperatorConversions
     }
   }
 
+  public static class HostOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.HostExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY)
+        .returnTypeInference(
+            ReturnTypes.explicit(
+                new RowSignatures.ComplexSqlType(
+                    SqlTypeName.OTHER,
+                    IpAddressModule.ADDRESS_TYPE,
+                    true
+                )
+            )
+        )
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.HostExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
+
   public static class MatchOperatorConversion implements SqlOperatorConversion
   {
     private static final SqlFunction SQL_FUNCTION = OperatorConversions
         .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.MatchExprMacro.NAME))
-        .operandTypeChecker(
-            OperandTypes.sequence("(expr,string)", OperandTypes.ANY, OperandTypes.STRING)
-        )
+        .operandTypes(SqlTypeFamily.ANY, SqlTypeFamily.ANY)
         .returnTypeCascadeNullable(SqlTypeName.BOOLEAN)
         .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
         .build();
@@ -274,6 +399,40 @@ public class IpAddressSqlOperatorConversions
           rexNode,
           operands -> DruidExpression.fromExpression(
               DruidExpression.functionCall(IpAddressExpressions.MatchExprMacro.NAME, operands)
+          )
+      );
+    }
+  }
+
+  public static class SearchOperatorConversion implements SqlOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.SearchExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY, SqlTypeFamily.ANY)
+        .returnTypeCascadeNullable(SqlTypeName.BOOLEAN)
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    @Override
+    public SqlOperator calciteOperator()
+    {
+      return SQL_FUNCTION;
+    }
+
+    @Nullable
+    @Override
+    public DruidExpression toDruidExpression(
+        PlannerContext plannerContext,
+        RowSignature rowSignature,
+        RexNode rexNode
+    )
+    {
+      return OperatorConversions.convertCall(
+          plannerContext,
+          rowSignature,
+          rexNode,
+          operands -> DruidExpression.fromExpression(
+              DruidExpression.functionCall(IpAddressExpressions.SearchExprMacro.NAME, operands)
           )
       );
     }

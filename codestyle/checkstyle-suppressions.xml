@@ -75,4 +75,8 @@
   <suppress checks="Header" files="io.imply.druid.license.*" />
   <suppress checks="Header" files="io.imply.druid.query.aggregation.*" />
   <suppress checks="Header" files="io.imply.druid.meter.*" />
+  <suppress checks="Header" files="io.imply.druid.sql.*" />
+  <suppress checks="Header" files="io.imply.druid.storage.*" />
+  <suppress checks="Header" files="org.apache.datasketches.theta.*" />
+  <suppress checks="Header" files="io.imply.druid.query.samplinggroupby.*" />
 </suppressions>

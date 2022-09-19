@@ -151,7 +151,7 @@ export SSL_TRUSTSTORE_PASSWORD=mysecrettruststorepassword
         }
       }
 ```
-Verify that you've changed the values for all configurations to match your own environment.  You can use the environment variable config provider syntax in the **Consumer properties** field on the **Connect tab** in the **Load Data** UI in the Druid console. When connecting to Kafka, Druid replaces the environment variables with their corresponding values.
+Verify that you've changed the values for all configurations to match your own environment.  You can use the environment variable config provider syntax in the **Consumer properties** field on the **Connect tab** in the **Load Data** UI in the web console. When connecting to Kafka, Druid replaces the environment variables with their corresponding values.
 
 Note: You can provide SSL connections with  [Password Provider](../../operations/password-provider.md) interface to define the `keystore`, `truststore`, and `key`, but this feature is deprecated.
 
@@ -208,8 +208,8 @@ The `tuningConfig` is optional and default parameters will be used if no `tuning
 |Field|Type|Description|Required|
 |-----|----|-----------|--------|
 |bitmap|Object|Compression format for bitmap indexes. Should be a JSON object. See [Bitmap types](#bitmap-types) below for options.|no (defaults to Roaring)|
-|dimensionCompression|String|Compression format for dimension columns. Choose from `LZ4`, `LZF`, or `uncompressed`.|no (default == `LZ4`)|
-|metricCompression|String|Compression format for primitive type metric columns. Choose from `LZ4`, `LZF`, `uncompressed`, or `none`.|no (default == `LZ4`)|
+|dimensionCompression|String|Compression format for dimension columns. Choose from `LZ4`, `LZF`, `ZSTD` or `uncompressed`.|no (default == `LZ4`)|
+|metricCompression|String|Compression format for primitive type metric columns. Choose from `LZ4`, `LZF`, `ZSTD`, `uncompressed` or `none`.|no (default == `LZ4`)|
 |longEncoding|String|Encoding format for metric and dimension columns with type long. Choose from `auto` or `longs`. `auto` encodes the values using offset or lookup table depending on column cardinality, and store them with variable size. `longs` stores the value as is with 8 bytes each.|no (default == `longs`)|
 
 ##### Bitmap types

@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
 import org.apache.druid.guice.annotations.ExtensionPoint;
+import org.apache.druid.java.util.common.HumanReadableBytes;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import org.apache.druid.query.filter.DimFilter;
@@ -101,7 +102,14 @@ public interface Query<T>
   Map<String, Object> getContext();
 
   /**
-   * Returns QueryContext for this query.
+   * Returns QueryContext for this query. This type distinguishes between user provided, system default, and system
+   * generated query context keys so that authorization may be employed directly against the user supplied context
+   * values.
+   *
+   * This method is marked @Nullable, but is only so for backwards compatibility with Druid versions older than 0.23.
+   * Callers should check if the result of this method is null, and if so, they are dealing with a legacy query
+   * implementation, and should fall back to using {@link #getContext()} and {@link #withOverriddenContext(Map)} to
+   * manipulate the query context.
    *
    * Note for query context serialization and deserialization.
    * Currently, once a query is serialized, its queryContext can be different from the original queryContext
@@ -110,13 +118,65 @@ public interface Query<T>
    * after it is deserialized. This is because {@link BaseQuery#getContext()} uses
    * {@link QueryContext#getMergedParams()} for serialization, and queries accept a map for deserialization.
    */
-  QueryContext getQueryContext();
+  @Nullable
+  default QueryContext getQueryContext()
+  {
+    return null;
+  }
 
-  <ContextType> ContextType getContextValue(String key);
+  /**
+   * Get context value and cast to ContextType in an unsafe way.
+   *
+   * For safe conversion, it's recommended to use following methods instead
+   *
+   * {@link QueryContext#getAsBoolean(String)}
+   * {@link QueryContext#getAsString(String)}
+   * {@link QueryContext#getAsInt(String)}
+   * {@link QueryContext#getAsLong(String)}
+   * {@link QueryContext#getAsFloat(String, float)}
+   * {@link QueryContext#getAsEnum(String, Class, Enum)}
+   * {@link QueryContext#getAsHumanReadableBytes(String, HumanReadableBytes)}
+   */
+  @Nullable
+  default <ContextType> ContextType getContextValue(String key)
+  {
+    if (getQueryContext() == null) {
+      return null;
+    } else {
+      return (ContextType) getQueryContext().get(key);
+    }
+  }
 
-  <ContextType> ContextType getContextValue(String key, ContextType defaultValue);
+  default boolean getContextBoolean(String key, boolean defaultValue)
+  {
+    if (getQueryContext() == null) {
+      return defaultValue;
+    } else {
+      return getQueryContext().getAsBoolean(key, defaultValue);
+    }
+  }
 
-  boolean getContextBoolean(String key, boolean defaultValue);
+  /**
+   * Returns {@link HumanReadableBytes} for a specified context key. If the context is null or the key doesn't exist
+   * a caller specified default value is returned. A default implementation is provided since Query is an extension
+   * point. Extensions can choose to rely on this default to retain compatibility with core Druid.
+   *
+   * @param key          The context key value being looked up
+   * @param defaultValue The default to return if the key value doesn't exist or the context is null.
+   * @return {@link HumanReadableBytes}
+   */
+  // IMPLY CODE : Suppression is added to quiet intellij inspect job which asks to remove this method from interface and
+  // inline it since the method is being used only by one caller for one specific query type. More usages of this method
+  // are present in apache's contrib extensions which aren't present in Imply's fork.
+  @SuppressWarnings("all")
+  default HumanReadableBytes getContextAsHumanReadableBytes(String key, HumanReadableBytes defaultValue)
+  {
+    if (getQueryContext() == null) {
+      return defaultValue;
+    } else {
+      return getQueryContext().getAsHumanReadableBytes(key, defaultValue);
+    }
+  }
 
   boolean isDescending();
 
@@ -174,7 +234,7 @@ public interface Query<T>
   @Nullable
   default String getSqlQueryId()
   {
-    return getContextValue(BaseQuery.SQL_QUERY_ID);
+    return getQueryContext().getAsString(BaseQuery.SQL_QUERY_ID);
   }
 
   /**

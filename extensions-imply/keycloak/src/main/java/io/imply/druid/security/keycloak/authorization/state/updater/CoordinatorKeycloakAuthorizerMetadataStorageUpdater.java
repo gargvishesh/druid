@@ -451,11 +451,8 @@ public class CoordinatorKeycloakAuthorizerMetadataStorageUpdater implements Keyc
       for (Map.Entry<String, List<ResourceAction>> roleEntry : fromDisk.entrySet()) {
         if (!roleMap.containsKey(roleEntry.getKey())) {
           createRoleInternal(roleEntry.getKey());
-          setPermissionsInternal(
-              roleEntry.getKey(),
-              roleEntry.getValue()
-          );
         }
+        setPermissionsInternal(roleEntry.getKey(), roleEntry.getValue());
       }
     }
     catch (IOException e) {

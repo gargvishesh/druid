@@ -214,14 +214,14 @@ public class GroupByStrategyV2 implements GroupByStrategy
 
     // Set up downstream context.
     final ImmutableMap.Builder<String, Object> context = ImmutableMap.builder();
-    context.put("finalize", false);
+    context.put(QueryContexts.FINALIZE_KEY, false);
     context.put(GroupByQueryConfig.CTX_KEY_STRATEGY, GroupByStrategySelector.STRATEGY_V2);
     context.put(CTX_KEY_OUTERMOST, false);
 
     Granularity granularity = query.getGranularity();
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     // the CTX_TIMESTAMP_RESULT_FIELD is set in DruidQuery.java
-    final String timestampResultField = query.getContextValue(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD);
+    final String timestampResultField = query.getQueryContext().getAsString(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD);
     final boolean hasTimestampResultField = (timestampResultField != null && !timestampResultField.isEmpty())
                                             && query.getContextBoolean(CTX_KEY_OUTERMOST, true)
                                             && !query.isApplyLimitPushDown();
@@ -258,7 +258,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
       granularity = timestampResultFieldGranularity;
       // when timestampResultField is the last dimension, should set sortByDimsFirst=true,
       // otherwise the downstream is sorted by row's timestamp first which makes the final ordering not as expected
-      timestampResultFieldIndex = query.getContextValue(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD_INDEX);
+      timestampResultFieldIndex = query.getQueryContext().getAsInt(GroupByQuery.CTX_TIMESTAMP_RESULT_FIELD_INDEX);
       if (!query.getContextSortByDimsFirst() && timestampResultFieldIndex == query.getDimensions().size() - 1) {
         context.put(GroupByQuery.CTX_KEY_SORT_BY_DIMS_FIRST, true);
       }
@@ -441,6 +441,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
           wasQueryPushedDown ? queryToRun : subquery,
           subqueryResult,
           configSupplier.get(),
+          processingConfig,
           resource,
           spillMapper,
           processingConfig.getTmpDir(),
@@ -513,6 +514,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
           baseSubtotalQuery,
           queryResult,
           configSupplier.get(),
+          processingConfig,
           resource,
           spillMapper,
           processingConfig.getTmpDir(),
@@ -575,6 +577,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
               subtotalQuery,
               resultSupplierOneFinal.results(subTotalDimensionSpec),
               configSupplier.get(),
+              processingConfig,
               resource,
               spillMapper,
               processingConfig.getTmpDir(),
@@ -680,6 +683,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
   {
     return new GroupByMergingQueryRunnerV2(
         configSupplier.get(),
+        processingConfig,
         queryProcessingPool,
         queryWatcher,
         queryRunners,
@@ -703,6 +707,7 @@ public class GroupByStrategyV2 implements GroupByStrategy
         storageAdapter,
         bufferPool,
         configSupplier.get().withOverrides(query),
+        processingConfig,
         groupByQueryMetrics
     );
   }

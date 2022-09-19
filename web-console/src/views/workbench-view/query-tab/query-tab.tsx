@@ -16,19 +16,35 @@
  * limitations under the License.
  */
 
-import { Button, ButtonGroup, Code, Menu, MenuItem } from '@blueprintjs/core';
+import { Button, Code, Intent, Menu, MenuItem } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
 import classNames from 'classnames';
 import { QueryResult, QueryRunner, SqlQuery } from 'druid-query-toolkit';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import SplitterLayout from 'react-splitter-layout';
 
-import { Loader } from '../../../components';
+import { Loader, QueryErrorPane } from '../../../components';
+import {
+  DruidEngine,
+  Execution,
+  LastExecution,
+  QueryContext,
+  WorkbenchQuery,
+} from '../../../druid-models';
+import {
+  executionBackgroundStatusCheck,
+  reattachTaskExecution,
+  submitTaskQuery,
+} from '../../../helpers';
 import { usePermanentCallback, useQueryManager } from '../../../hooks';
-import { Api } from '../../../singletons';
-import { TalariaHistory } from '../../../singletons/talaria-history';
-import { QueryExecution, TalariaQuery } from '../../../talaria-models';
+import { Api, AppToaster } from '../../../singletons';
+import { ExecutionStateCache } from '../../../singletons/execution-state-cache';
+import { WorkbenchHistory } from '../../../singletons/workbench-history';
+import {
+  WorkbenchRunningPromise,
+  WorkbenchRunningPromises,
+} from '../../../singletons/workbench-running-promises';
 import {
   ColumnMetadata,
   DruidError,
@@ -36,28 +52,21 @@ import {
   LocalStorageKeys,
   localStorageSet,
   QueryAction,
+  QueryManager,
   RowColumn,
 } from '../../../utils';
-import { QueryContext } from '../../../utils/query-context';
-import { QueryError } from '../../query-view/query-error/query-error';
-import { AnchoredQueryTimer } from '../anchored-query-timer/anchored-query-timer';
-import {
-  executionBackgroundStatusCheck,
-  reattachAsyncQuery,
-  submitAsyncQuery,
-} from '../execution-utils';
-import { ExportDialog } from '../export-dialog/export-dialog';
+import { ExecutionDetailsTab } from '../execution-details-pane/execution-details-pane';
+import { ExecutionErrorPane } from '../execution-error-pane/execution-error-pane';
+import { ExecutionProgressPane } from '../execution-progress-pane/execution-progress-pane';
+import { ExecutionStagesPane } from '../execution-stages-pane/execution-stages-pane';
+import { ExecutionSummaryPanel } from '../execution-summary-panel/execution-summary-panel';
+import { ExecutionTimerPanel } from '../execution-timer-panel/execution-timer-panel';
+import { FlexibleQueryInput } from '../flexible-query-input/flexible-query-input';
 import { HelperQuery } from '../helper-query/helper-query';
-import { InsertSuccess } from '../insert-success/insert-success';
+import { IngestSuccessPane } from '../ingest-success-pane/ingest-success-pane';
 import { useMetadataStateStore } from '../metadata-state-store';
-import { QueryOutput2 } from '../query-output2/query-output2';
-import { RunMoreButton } from '../run-more-button/run-more-button';
-import { StageProgress } from '../stage-progress/stage-progress';
-import { TalariaExtraInfo } from '../talaria-extra-info/talaria-extra-info';
-import { TalariaQueryError } from '../talaria-query-error/talaria-query-error';
-import { TalariaQueryInput } from '../talaria-query-input/talaria-query-input';
-import { TalariaQueryStateCache } from '../talaria-query-state-cache';
-import { TalariaStats } from '../talaria-stats/talaria-stats';
+import { ResultTablePane } from '../result-table-pane/result-table-pane';
+import { RunPanel } from '../run-panel/run-panel';
 import { useWorkStateStore } from '../work-state-store';
 
 import './query-tab.scss';
@@ -67,23 +76,46 @@ const queryRunner = new QueryRunner({
 });
 
 export interface QueryTabProps {
-  query: TalariaQuery;
+  query: WorkbenchQuery;
   mandatoryQueryContext: QueryContext | undefined;
   columnMetadata: readonly ColumnMetadata[] | undefined;
-  onQueryChange(newTalariaQuery: TalariaQuery): void;
-  onStats(taskId: string): void;
+  onQueryChange(newQuery: WorkbenchQuery): void;
+  onQueryTab(newQuery: WorkbenchQuery, tabName?: string): void;
+  onDetails(id: string, initTab?: ExecutionDetailsTab): void;
+  queryEngines: DruidEngine[];
+  runMoreMenu: JSX.Element;
+  goToIngestion(taskId: string): void;
 }
 
 export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
-  const { query, columnMetadata, mandatoryQueryContext, onQueryChange, onStats } = props;
-  const [showLiveReports, setShowLiveReports] = useState(true);
-  const [exportDialogQuery, setExportDialogQuery] = useState<TalariaQuery | undefined>();
-
-  const handleExport = usePermanentCallback(() => {
-    setExportDialogQuery(query);
-  });
-
-  const handleQueryStringChange = usePermanentCallback((queryString: string, _run?: boolean) => {
+  const {
+    query,
+    columnMetadata,
+    mandatoryQueryContext,
+    onQueryChange,
+    onQueryTab,
+    onDetails,
+    queryEngines,
+    runMoreMenu,
+    goToIngestion,
+  } = props;
+  const handleQueryStringChange = usePermanentCallback((queryString: string) => {
+    if (query.isEmptyQuery() && queryString.split('=====').length > 2) {
+      let parsedWorkbenchQuery: WorkbenchQuery | undefined;
+      try {
+        parsedWorkbenchQuery = WorkbenchQuery.fromString(queryString);
+      } catch (e) {
+        AppToaster.show({
+          icon: IconNames.CLIPBOARD,
+          intent: Intent.DANGER,
+          message: `Could not paste tab content due to: ${e.message}`,
+        });
+      }
+      if (parsedWorkbenchQuery) {
+        onQueryChange(parsedWorkbenchQuery);
+        return;
+      }
+    }
     onQueryChange(query.changeQueryString(queryString));
   });
 
@@ -91,101 +123,135 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
   const handleQueryAction = usePermanentCallback((queryAction: QueryAction) => {
     if (!(parsedQuery instanceof SqlQuery)) return;
     onQueryChange(query.changeQueryString(parsedQuery.apply(queryAction).toString()));
+
+    if (shouldAutoRun()) {
+      setTimeout(() => handleRun(false), 20);
+    }
   });
 
+  function shouldAutoRun(): boolean {
+    if (query.getEffectiveEngine() !== 'sql-native') return false;
+    const queryDuration = executionState.data?.result?.queryDuration;
+    return Boolean(queryDuration && queryDuration < 10000);
+  }
+
   const handleSecondaryPaneSizeChange = useCallback((secondaryPaneSize: number) => {
-    localStorageSet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE, String(secondaryPaneSize));
+    localStorageSet(LocalStorageKeys.WORKBENCH_PANE_SIZE, String(secondaryPaneSize));
   }, []);
 
-  const queryInputRef = useRef<TalariaQueryInput | null>(null);
+  const queryInputRef = useRef<FlexibleQueryInput | null>(null);
 
   const id = query.getId();
-  const [queryExecutionState, queryManager] = useQueryManager<
-    TalariaQuery | string,
-    QueryExecution,
-    QueryExecution,
+  const [executionState, queryManager] = useQueryManager<
+    WorkbenchQuery | WorkbenchRunningPromise | LastExecution,
+    Execution,
+    Execution,
     DruidError
   >({
-    initQuery: TalariaQueryStateCache.getState(id) ? undefined : query.getLastQueryId(),
-    initState: TalariaQueryStateCache.getState(id),
-    processQuery: async (q: TalariaQuery | string, cancelToken) => {
-      if (q instanceof TalariaQuery) {
-        TalariaQueryStateCache.deleteState(id);
+    initQuery: ExecutionStateCache.getState(id)
+      ? undefined
+      : WorkbenchRunningPromises.getPromise(id) || query.getLastExecution(),
+    initState: ExecutionStateCache.getState(id),
+    processQuery: async (q, cancelToken) => {
+      if (q instanceof WorkbenchQuery) {
+        ExecutionStateCache.deleteState(id);
+        const { engine, query, sqlPrefixLines, cancelQueryId } = q.getApiQuery();
 
-        const { query, context, prefixLines, isAsync, isSql, cancelQueryId } =
-          q.getEffectiveQueryAndContext();
-
-        if (isAsync) {
-          if (!isSql) throw new Error('must be SQL to be async');
-          return await submitAsyncQuery({
-            query,
-            context,
-            prefixLines,
-            cancelToken,
-            preserveOnTermination: true,
-            onSubmitted: id => {
-              onQueryChange(props.query.changeLastQueryId(id));
-            },
-          });
-        } else {
-          if (cancelQueryId) {
-            void cancelToken.promise
-              .then(() => {
-                return Api.instance.delete(
-                  `/druid/v2${isSql ? '/sql' : ''}/${Api.encodePath(cancelQueryId)}`,
-                );
-              })
-              .catch(() => {});
-          }
-
-          const queryContext = { ...context, ...(mandatoryQueryContext || {}) };
-          let result: QueryResult;
-          try {
-            result = await queryRunner.runQuery({
+        switch (engine) {
+          case 'sql-msq-task':
+            return await submitTaskQuery({
               query,
-              extraQueryContext: queryContext,
+              prefixLines: sqlPrefixLines,
               cancelToken,
+              preserveOnTermination: true,
+              onSubmitted: id => {
+                onQueryChange(props.query.changeLastExecution({ engine, id }));
+              },
             });
-          } catch (e) {
-            onQueryChange(props.query.changeLastQueryId(undefined));
-            throw new DruidError(e, prefixLines);
-          }
 
-          onQueryChange(props.query.changeLastQueryId(undefined));
-          return QueryExecution.fromResult(result);
+          case 'native':
+          case 'sql-native': {
+            if (cancelQueryId) {
+              void cancelToken.promise
+                .then(cancel => {
+                  if (cancel.message === QueryManager.TERMINATION_MESSAGE) return;
+                  return Api.instance.delete(
+                    `/druid/v2${engine === 'sql-native' ? '/sql' : ''}/${Api.encodePath(
+                      cancelQueryId,
+                    )}`,
+                  );
+                })
+                .catch(() => {});
+            }
+
+            onQueryChange(props.query.changeLastExecution(undefined));
+
+            let result: QueryResult;
+            try {
+              const resultPromise = queryRunner.runQuery({
+                query,
+                extraQueryContext: mandatoryQueryContext,
+              });
+              WorkbenchRunningPromises.storePromise(id, { promise: resultPromise, sqlPrefixLines });
+
+              result = await resultPromise;
+            } catch (e) {
+              throw new DruidError(e, sqlPrefixLines);
+            }
+
+            return Execution.fromResult(engine, result);
+          }
         }
+      } else if (WorkbenchRunningPromises.isWorkbenchRunningPromise(q)) {
+        let result: QueryResult;
+        try {
+          result = await q.promise;
+        } catch (e) {
+          WorkbenchRunningPromises.deletePromise(id);
+          throw new DruidError(e, q.sqlPrefixLines);
+        }
+
+        WorkbenchRunningPromises.deletePromise(id);
+        return Execution.fromResult('sql-native', result);
       } else {
-        return await reattachAsyncQuery({
-          id: q,
-          cancelToken,
-          preserveOnTermination: true,
-        });
+        switch (q.engine) {
+          case 'sql-msq-task':
+            return await reattachTaskExecution({
+              id: q.id,
+              cancelToken,
+              preserveOnTermination: true,
+            });
+
+          default:
+            throw new Error(`Can not reattach on ${q.engine}`);
+        }
       }
     },
     backgroundStatusCheck: executionBackgroundStatusCheck,
+    swallowBackgroundError: Api.isNetworkError,
   });
 
   useEffect(() => {
-    if (!queryExecutionState.data) return;
-    TalariaQueryStateCache.storeState(id, queryExecutionState);
+    if (!executionState.data) return;
+    ExecutionStateCache.storeState(id, executionState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryExecutionState.data, queryExecutionState.error]);
+  }, [executionState.data, executionState.error]);
 
   const incrementWorkVersion = useWorkStateStore(state => state.increment);
   useEffect(() => {
     incrementWorkVersion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryExecutionState.loading]);
+  }, [executionState.loading, Boolean(executionState.intermediate)]);
 
-  const queryExecution = queryExecutionState.data;
+  const execution = executionState.data;
 
   const incrementMetadataVersion = useMetadataStateStore(state => state.increment);
   useEffect(() => {
-    if (queryExecution?.isSuccessfulInsert()) {
+    if (execution?.isSuccessfulInsert()) {
       incrementMetadataVersion();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(queryExecution?.isSuccessfulInsert())]);
+  }, [Boolean(execution?.isSuccessfulInsert())]);
 
   function moveToPosition(position: RowColumn) {
     const currentQueryInput = queryInputRef.current;
@@ -193,27 +259,24 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
     currentQueryInput.goToPosition(position);
   }
 
-  function handleRun(preview = true) {
-    if (query.isJsonLike() && !query.validRune()) return;
+  const handleRun = usePermanentCallback((preview: boolean) => {
+    if (!query.isValid()) return;
 
-    TalariaHistory.addQueryToHistory(query);
+    WorkbenchHistory.addQueryToHistory(query);
     queryManager.runQuery(preview ? query.makePreview() : query);
-  }
+  });
 
-  const runeMode = query.isJsonLike();
-
-  const statsTaskId: string | undefined = queryExecution?.id;
+  const statsTaskId: string | undefined = execution?.id;
 
   const queryPrefixes = query.getPrefixQueries();
+  const extractedCtes = query.extractCteHelpers();
 
   return (
     <div className="query-tab">
       <SplitterLayout
         vertical
         percentage
-        secondaryInitialSize={
-          Number(localStorageGet(LocalStorageKeys.WORKBENCH_TAB_PANE_SIZE)!) || 40
-        }
+        secondaryInitialSize={Number(localStorageGet(LocalStorageKeys.WORKBENCH_PANE_SIZE)!) || 40}
         primaryMinSize={20}
         secondaryMinSize={20}
         onSecondaryPaneSizeChange={handleSecondaryPaneSizeChange}
@@ -229,34 +292,28 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                 onQueryChange={newQuery => {
                   onQueryChange(query.applyUpdate(newQuery, i));
                 }}
+                onQueryTab={onQueryTab}
                 onDelete={() => {
                   onQueryChange(query.remove(i));
                 }}
-                onStats={onStats}
+                onDetails={onDetails}
+                queryEngines={queryEngines}
+                goToIngestion={goToIngestion}
               />
             ))}
             <div className={classNames('main-query', queryPrefixes.length ? 'multi' : 'single')}>
-              <TalariaQueryInput
+              <FlexibleQueryInput
                 ref={queryInputRef}
                 autoHeight={Boolean(queryPrefixes.length)}
                 minRows={10}
                 queryString={query.getQueryString()}
                 onQueryStringChange={handleQueryStringChange}
-                runeMode={runeMode}
                 columnMetadata={
                   columnMetadata ? columnMetadata.concat(query.getInlineMetadata()) : undefined
                 }
                 editorStateId={query.getId()}
               />
-              <ButtonGroup className="corner">
-                <Button
-                  icon={IconNames.ARROW_UP}
-                  title="Save as helper query"
-                  minimal
-                  onClick={() => {
-                    onQueryChange(query.addBlank());
-                  }}
-                />
+              <div className="corner">
                 <Popover2
                   content={
                     <Menu>
@@ -267,52 +324,63 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
                           onQueryChange(query.addBlank());
                         }}
                       />
+                      {extractedCtes !== query && (
+                        <MenuItem
+                          icon={IconNames.DOCUMENT_SHARE}
+                          text="Extract WITH clauses into helper queries"
+                          onClick={() => onQueryChange(extractedCtes)}
+                        />
+                      )}
+                      {query.hasHelperQueries() && (
+                        <MenuItem
+                          icon={IconNames.DOCUMENT_OPEN}
+                          text="Materialize helper queries"
+                          onClick={() => onQueryChange(query.materializeHelpers())}
+                        />
+                      )}
                       <MenuItem
                         icon={IconNames.DUPLICATE}
-                        text="Duplicate"
+                        text="Duplicate as helper query"
                         onClick={() => onQueryChange(query.duplicateLast())}
                       />
                     </Menu>
                   }
                 >
-                  <Button icon={IconNames.MORE} minimal />
+                  <Button icon={IconNames.LIST} minimal />
                 </Popover2>
-              </ButtonGroup>
+              </div>
             </div>
           </div>
           <div className="run-bar">
-            <RunMoreButton
+            <RunPanel
               query={query}
               onQueryChange={onQueryChange}
               onRun={handleRun}
-              onExport={handleExport}
-              loading={queryExecutionState.loading}
+              loading={executionState.loading}
+              queryEngines={queryEngines}
+              moreMenu={runMoreMenu}
             />
-            {queryExecutionState.isLoading() && (
-              <AnchoredQueryTimer startTime={queryExecutionState.intermediate?.startTime} />
-            )}
-            {queryExecution?.result && (
-              <TalariaExtraInfo
-                queryExecution={queryExecution}
-                onStats={() => onStats(statsTaskId!)}
+            {executionState.isLoading() && (
+              <ExecutionTimerPanel
+                execution={executionState.intermediate}
+                onCancel={() => queryManager.cancelCurrent()}
               />
             )}
-            {(queryExecution || queryExecutionState.error) && (
-              <Button
-                className="reset"
-                icon={IconNames.CROSS}
-                minimal
-                onClick={() => {
+            {(execution || executionState.error) && (
+              <ExecutionSummaryPanel
+                execution={execution}
+                onExecutionDetail={() => onDetails(statsTaskId!)}
+                onReset={() => {
                   queryManager.reset();
-                  onQueryChange(props.query.changeLastQueryId(undefined));
-                  TalariaQueryStateCache.deleteState(id);
+                  onQueryChange(props.query.changeLastExecution(undefined));
+                  ExecutionStateCache.deleteState(id);
                 }}
               />
             )}
           </div>
         </div>
         <div className="output-section">
-          {queryExecutionState.isInit() && (
+          {executionState.isInit() && (
             <div className="init-placeholder">
               {query.isEmptyQuery() ? (
                 <p>
@@ -325,33 +393,37 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               )}
             </div>
           )}
-          {queryExecution &&
-            (queryExecution.result ? (
-              <QueryOutput2
-                runeMode={runeMode}
-                queryResult={queryExecution.result}
-                onExport={handleExport}
+          {execution &&
+            (execution.result ? (
+              <ResultTablePane
+                runeMode={execution.engine === 'native'}
+                queryResult={execution.result}
                 onQueryAction={handleQueryAction}
               />
-            ) : queryExecution.isSuccessfulInsert() ? (
-              <InsertSuccess
-                insertQueryExecution={queryExecution}
-                onStats={() => onStats(statsTaskId!)}
-                onQueryChange={handleQueryStringChange}
+            ) : execution.isSuccessfulInsert() ? (
+              <IngestSuccessPane
+                execution={execution}
+                onDetails={onDetails}
+                onQueryTab={onQueryTab}
               />
-            ) : queryExecution.error ? (
-              <div className="stats-container">
-                <TalariaQueryError taskError={queryExecution.error} />
-                {queryExecution.stages && (
-                  <TalariaStats stages={queryExecution.stages} error={queryExecution.error} />
+            ) : execution.error ? (
+              <div className="error-container">
+                <ExecutionErrorPane execution={execution} />
+                {execution.stages && (
+                  <ExecutionStagesPane
+                    execution={execution}
+                    onErrorClick={() => onDetails(statsTaskId!, 'error')}
+                    onWarningClick={() => onDetails(statsTaskId!, 'warnings')}
+                    goToIngestion={goToIngestion}
+                  />
                 )}
               </div>
             ) : (
               <div>Unknown query execution state</div>
             ))}
-          {queryExecutionState.error && (
-            <QueryError
-              error={queryExecutionState.error}
+          {executionState.error && (
+            <QueryErrorPane
+              error={executionState.error}
               moveCursorTo={position => {
                 moveToPosition(position);
               }}
@@ -359,19 +431,17 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
               onQueryStringChange={handleQueryStringChange}
             />
           )}
-          {queryExecutionState.isLoading() &&
-            (queryExecutionState.intermediate ? (
-              <div className="stats-container">
-                <StageProgress
-                  queryExecution={queryExecutionState.intermediate}
-                  onCancel={() => queryManager.cancelCurrent()}
-                  onToggleLiveReports={() => setShowLiveReports(!showLiveReports)}
-                  showLiveReports={showLiveReports}
-                />
-                {queryExecutionState.intermediate.stages && showLiveReports && (
-                  <TalariaStats stages={queryExecutionState.intermediate.stages} />
-                )}
-              </div>
+          {executionState.isLoading() &&
+            (executionState.intermediate ? (
+              <ExecutionProgressPane
+                execution={executionState.intermediate}
+                intermediateError={executionState.intermediateError}
+                goToIngestion={goToIngestion}
+                onCancel={() => {
+                  queryManager.cancelCurrent();
+                }}
+                allowLiveReportsPane
+              />
             ) : (
               <Loader
                 cancelText="Cancel query"
@@ -382,14 +452,6 @@ export const QueryTab = React.memo(function QueryTab(props: QueryTabProps) {
             ))}
         </div>
       </SplitterLayout>
-      {exportDialogQuery && (
-        <ExportDialog
-          talariaQuery={exportDialogQuery}
-          onClose={() => {
-            setExportDialogQuery(undefined);
-          }}
-        />
-      )}
     </div>
   );
 });

@@ -32,8 +32,6 @@ import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.Segment;
-import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -75,10 +73,10 @@ public class IpAddressGroupByQueryTest
     );
     this.useRealtimeSegments = useRealtimeSegments;
     if (useRealtimeSegments) {
-      this.segments = ImmutableList.of(IpAddressTestUtils.createDefaultHourlyIncrementalIndex());
+      this.segments = ImmutableList.of(IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex());
     } else {
       tempFolder.create();
-      this.segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+      this.segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
     }
   }
 
@@ -134,11 +132,11 @@ public class IpAddressGroupByQueryTest
     ) {
       // since we happen to implement a string dimension selector so that we can re-use dictionary encoded column
       // indexing, group by v1 and v2 work because of the "we'll do it live! fuck it!" principle
-      verifyResults(
+      IpAddressTestUtils.verifyResults(
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 1L},
+              new Object[]{null, 2L},
               new Object[]{"1.2.3.4", 2L},
               new Object[]{"10.10.10.11", 2L},
               new Object[]{"100.200.123.12", 2L},
@@ -148,11 +146,11 @@ public class IpAddressGroupByQueryTest
       );
     } else {
       // the vector engine behaves according to the underlying types, so it does the "expected" thing and groups on null
-      verifyResults(
+      IpAddressTestUtils.verifyResults(
           groupQuery.getResultRowSignature(),
           results,
           ImmutableList.of(
-              new Object[]{null, 10L}
+              new Object[]{null, 11L}
           )
       );
     }
@@ -198,11 +196,11 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    verifyResults(
+    IpAddressTestUtils.verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"1.2.3.4", 2L},
             new Object[]{"10.10.10.11", 2L},
             new Object[]{"100.200.123.12", 2L},
@@ -229,7 +227,7 @@ public class IpAddressGroupByQueryTest
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
                                           .setInterval(Intervals.ETERNITY)
-                                          .setDimensions(new DefaultDimensionSpec("ipv4", "ipv4", IpAddressModule.TYPE))
+                                          .setDimensions(new DefaultDimensionSpec("ipv4", "ipv4", IpAddressModule.ADDRESS_TYPE))
                                           .setAggregatorSpecs(new CountAggregatorFactory("count"))
                                           .setContext(getContext())
                                           .build();
@@ -270,11 +268,11 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    verifyResults(
+    IpAddressTestUtils.verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"1.2.3.4", 2L},
             new Object[]{"10.10.10.11", 2L},
             new Object[]{"100.200.123.12", 2L},
@@ -328,7 +326,7 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    verifyResults(
+    IpAddressTestUtils.verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
@@ -381,7 +379,7 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    verifyResults(
+    IpAddressTestUtils.verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
@@ -422,11 +420,11 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    verifyResults(
+    IpAddressTestUtils.verifyResults(
         groupQuery.getResultRowSignature(),
         results,
         ImmutableList.of(
-            new Object[]{null, 1L},
+            new Object[]{null, 2L},
             new Object[]{"::ffff:102:304", 2L},
             new Object[]{"::ffff:1616:1718", 2L},
             new Object[]{"::ffff:506:708", 1L},
@@ -434,21 +432,5 @@ public class IpAddressGroupByQueryTest
             new Object[]{"::ffff:a0a:a0b", 2L}
         )
     );
-  }
-
-  private static void verifyResults(RowSignature rowSignature, List<ResultRow> results, List<Object[]> expected)
-  {
-    Assert.assertEquals(expected.size(), results.size());
-    for (int i = 0; i < expected.size(); i++) {
-      final Object[] resultRow = results.get(i).getArray();
-      Assert.assertEquals(expected.get(i).length, resultRow.length);
-      for (int j = 0; j < resultRow.length; j++) {
-        if (rowSignature.getColumnType(j).map(t -> t.anyOf(ValueType.DOUBLE, ValueType.FLOAT)).orElse(false)) {
-          Assert.assertEquals((Double) resultRow[j], (Double) expected.get(i)[j], 0.01);
-        } else {
-          Assert.assertEquals(resultRow[j], expected.get(i)[j]);
-        }
-      }
-    }
   }
 }

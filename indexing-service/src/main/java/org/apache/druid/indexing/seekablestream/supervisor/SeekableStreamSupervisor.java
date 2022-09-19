@@ -1454,6 +1454,12 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
       checkCurrentTaskState();
 
+      // If supervisor is already stopping, don't contend for stateChangeLock since the block can be skipped
+      if (stateManager.getSupervisorState().getBasicState().equals(SupervisorStateManager.BasicState.STOPPING)) {
+        generateAndLogReport();
+        return;
+      }
+
       synchronized (stateChangeLock) {
         // if supervisor is not suspended, ensure required tasks are running
         // if suspended, ensure tasks have been requested to gracefully stop
@@ -1471,11 +1477,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
         }
       }
 
-      if (log.isDebugEnabled()) {
-        log.debug(generateReport(true).toString());
-      } else {
-        log.info(generateReport(false).toString());
-      }
+      generateAndLogReport();
     }
     catch (Exception e) {
       stateManager.recordThrowableEvent(e);
@@ -1483,6 +1485,15 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
     }
     finally {
       stateManager.markRunFinished();
+    }
+  }
+
+  private void generateAndLogReport()
+  {
+    if (log.isDebugEnabled()) {
+      log.debug(generateReport(true).toString());
+    } else {
+      log.info(generateReport(false).toString());
     }
   }
 
@@ -2967,7 +2978,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
 
                 killTask(
                     taskId,
-                    "An exception occured while waiting for task [%s] to pause: [%s]",
+                    "An exception occurred while waiting for task [%s] to pause: [%s]",
                     taskId,
                     pauseException
                 );
@@ -3916,9 +3927,19 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
       @NotNull SequenceOffsetType offsetFromMetadata
   )
   {
-    final SequenceOffsetType earliestOffset = getOffsetFromStreamForPartition(partition, true);
-    return earliestOffset != null
-           && makeSequenceNumber(earliestOffset).compareTo(makeSequenceNumber(offsetFromMetadata)) <= 0;
+    StreamPartition<PartitionIdType> streamPartition = StreamPartition.of(ioConfig.getStream(), partition);
+    OrderedSequenceNumber<SequenceOffsetType> sequenceNumber = makeSequenceNumber(offsetFromMetadata);
+    recordSupplierLock.lock();
+    if (!recordSupplier.getAssignment().contains(streamPartition)) {
+      // this shouldn't happen, but in case it does...
+      throw new IllegalStateException("Record supplier does not match current known partitions");
+    }
+    try {
+      return recordSupplier.isOffsetAvailable(streamPartition, sequenceNumber);
+    }
+    finally {
+      recordSupplierLock.unlock();
+    }
   }
 
   protected void emitNoticeProcessTime(String noticeType, long timeInMillis)

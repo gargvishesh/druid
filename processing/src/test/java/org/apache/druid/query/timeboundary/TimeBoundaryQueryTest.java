@@ -55,13 +55,13 @@ public class TimeBoundaryQueryTest
                                           .intervals("2013/2014")
                                           .context(
                                               ImmutableMap.of(
-                                                  "priority",
+                                                  QueryContexts.PRIORITY_KEY,
                                                   1,
-                                                  "useCache",
+                                                  QueryContexts.USE_CACHE_KEY,
                                                   true,
-                                                  "populateCache",
+                                                  QueryContexts.POPULATE_CACHE_KEY,
                                                   true,
-                                                  "finalize",
+                                                  QueryContexts.FINALIZE_KEY,
                                                   true
                                               )
                                           ).build();
@@ -78,11 +78,10 @@ public class TimeBoundaryQueryTest
         ), TimeBoundaryQuery.class
     );
 
-
-    Assert.assertEquals(new Integer(1), serdeQuery.getContextValue(QueryContexts.PRIORITY_KEY));
-    Assert.assertEquals(true, serdeQuery.getContextValue("useCache"));
-    Assert.assertEquals(true, serdeQuery.getContextValue("populateCache"));
-    Assert.assertEquals(true, serdeQuery.getContextValue("finalize"));
+    Assert.assertEquals(new Integer(1), serdeQuery.getQueryContext().getAsInt(QueryContexts.PRIORITY_KEY));
+    Assert.assertEquals(true, serdeQuery.getQueryContext().getAsBoolean(QueryContexts.USE_CACHE_KEY));
+    Assert.assertEquals(true, serdeQuery.getQueryContext().getAsBoolean(QueryContexts.POPULATE_CACHE_KEY));
+    Assert.assertEquals(true, serdeQuery.getQueryContext().getAsBoolean(QueryContexts.FINALIZE_KEY));
   }
 
   @Test
@@ -93,13 +92,13 @@ public class TimeBoundaryQueryTest
                                           .intervals("2013/2014")
                                           .context(
                                               ImmutableMap.of(
-                                                  "priority",
+                                                  QueryContexts.PRIORITY_KEY,
                                                   "1",
-                                                  "useCache",
+                                                  QueryContexts.USE_CACHE_KEY,
                                                   "true",
-                                                  "populateCache",
+                                                  QueryContexts.POPULATE_CACHE_KEY,
                                                   "true",
-                                                  "finalize",
+                                                  QueryContexts.FINALIZE_KEY,
                                                   "true"
                                               )
                                           ).build();
@@ -117,9 +116,9 @@ public class TimeBoundaryQueryTest
     );
 
 
-    Assert.assertEquals("1", serdeQuery.getContextValue(QueryContexts.PRIORITY_KEY));
-    Assert.assertEquals("true", serdeQuery.getContextValue("useCache"));
-    Assert.assertEquals("true", serdeQuery.getContextValue("populateCache"));
-    Assert.assertEquals("true", serdeQuery.getContextValue("finalize"));
+    Assert.assertEquals("1", serdeQuery.getQueryContext().getAsString(QueryContexts.PRIORITY_KEY));
+    Assert.assertEquals("true", serdeQuery.getQueryContext().getAsString(QueryContexts.USE_CACHE_KEY));
+    Assert.assertEquals("true", serdeQuery.getQueryContext().getAsString(QueryContexts.POPULATE_CACHE_KEY));
+    Assert.assertEquals("true", serdeQuery.getQueryContext().getAsString(QueryContexts.FINALIZE_KEY));
   }
 }

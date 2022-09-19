@@ -56,7 +56,7 @@ public class IpAddressDimensionHandler implements DimensionHandler<Integer, Inte
   @Override
   public DimensionSpec getDimensionSpec()
   {
-    return new DefaultDimensionSpec(name, name, IpAddressModule.TYPE);
+    return new DefaultDimensionSpec(name, name, IpAddressModule.ADDRESS_TYPE);
   }
 
   @Override

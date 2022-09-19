@@ -19,7 +19,7 @@
 @import '../../variables';
 
 $column-tree-width: 250px;
-$work-panel-width: 250px;
+$recent-query-task-panel-width: 250px;
 
 .workbench-view {
   height: 100%;
@@ -34,12 +34,12 @@ $work-panel-width: 250px;
     @include card-like;
   }
 
-  .work-panel {
+  .recent-query-task-panel {
     position: absolute;
     top: 0;
     right: 0;
     height: 100%;
-    width: $work-panel-width;
+    width: $recent-query-task-panel-width;
   }
 
   .center-panel {
@@ -47,54 +47,60 @@ $work-panel-width: 250px;
     top: 0;
     height: 100%;
     left: $column-tree-width + $thin-padding;
-    right: $work-panel-width + $thin-padding;
+    right: $recent-query-task-panel-width + $thin-padding;
 
-    .query-tabs {
+    .tab-and-tool-bar {
       position: absolute;
       top: 0;
       left: 0;
-      right: 215px;
-      white-space: nowrap;
-      overflow: hidden;
+      right: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 10px;
 
-      .tab-button {
-        &.active {
-          @include card-like;
-          border-bottom-left-radius: 0;
-          border-bottom-right-radius: 0;
-          border-bottom: 2px solid #a1a6ba;
-        }
+      .tab-bar {
+        flex: 1;
+        white-space: nowrap;
+        overflow: auto;
 
-        .tab-name .#{$bp-ns}-button-text {
-          max-width: 240px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
+        .tab-button {
+          display: inline-block;
 
-        .tab-extra {
-          opacity: 0;
-        }
+          &.active {
+            @include card-like;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom: 2px solid #a1a6ba;
+          }
 
-        &.active,
-        &:hover {
-          .tab-extra {
-            opacity: 1;
+          .tab-name .#{$bp-ns}-button-text {
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 150%;
+          }
+
+          .tab-close {
+            opacity: 0;
+            margin: 0 3px;
+          }
+
+          &.active,
+          &:hover {
+            .tab-close {
+              opacity: 1;
+            }
           }
         }
-      }
 
-      .add-tab {
-        display: inline-block;
-        vertical-align: top;
-        padding: 6px 14px;
-        margin-left: 4px;
+        .add-tab {
+          display: inline-block;
+          vertical-align: top;
+          padding: 6px 14px;
+          margin-left: 4px;
+        }
       }
-    }
-
-    .toolbar {
-      position: absolute;
-      top: 0;
-      right: 0;
     }
 
     .query-tab {

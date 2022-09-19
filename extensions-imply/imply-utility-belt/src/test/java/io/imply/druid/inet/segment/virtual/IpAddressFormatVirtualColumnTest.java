@@ -16,8 +16,10 @@ import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.java.util.common.granularity.Granularities;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.segment.ColumnCache;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.Cursor;
 import org.apache.druid.segment.DimensionSelector;
@@ -97,7 +99,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testDimensionSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -109,7 +111,10 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
     QueryableIndex index = segments.get(0).asQueryableIndex();
     SimpleAscendingOffset offset = new SimpleAscendingOffset(index.getNumRows());
 
-    DimensionSelector selector = virtualColumn.makeDimensionSelector(DefaultDimensionSpec.of("ipv4"), index, offset);
+    Closer closer = Closer.create();
+    DimensionSelector selector = virtualColumn.makeDimensionSelector(
+        DefaultDimensionSpec.of("ipv4"), new ColumnCache(index, closer), offset
+    );
     Assert.assertTrue(selector.nameLookupPossibleInAdvance());
     Assert.assertEquals(6, selector.getValueCardinality());
     List<Object> results = new ArrayList<>();
@@ -126,6 +131,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
             "22.22.23.24",
             "100.200.123.12",
             null,
+            null,
             "1.2.3.4",
             "10.10.10.11",
             "22.22.23.24",
@@ -133,12 +139,13 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
   }
 
   @Test
   public void testDimensionSelectorWithColumnSelectorFactory() throws Exception
   {
-    Segment segment = IpAddressTestUtils.createDefaultHourlyIncrementalIndex();
+    Segment segment = IpAddressTestUtils.createIpAddressDefaultHourlyIncrementalIndex();
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -170,6 +177,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
             "22.22.23.24",
             "100.200.123.12",
             null,
+            null,
             "1.2.3.4",
             "10.10.10.11",
             "22.22.23.24",
@@ -182,7 +190,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
   @Test
   public void testSingleValueDimensionVectorSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -194,9 +202,10 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
     QueryableIndex index = segments.get(0).asQueryableIndex();
     VectorOffset offset = new NoFilterVectorOffset(4, 0, index.getNumRows());
 
+    Closer closer = Closer.create();
     SingleValueDimensionVectorSelector selector = virtualColumn.makeSingleValueVectorDimensionSelector(
         DefaultDimensionSpec.of("ipv4"),
-        index,
+        new ColumnCache(index, closer),
         offset
     );
     Assert.assertEquals(offset.getMaxVectorSize(), selector.getMaxVectorSize());
@@ -220,6 +229,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
             "22.22.23.24",
             "100.200.123.12",
             null,
+            null,
             "1.2.3.4",
             "10.10.10.11",
             "22.22.23.24",
@@ -227,12 +237,13 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
   }
 
   @Test
   public void testVectorObjectSelector() throws Exception
   {
-    List<Segment> segments = IpAddressTestUtils.createDefaultHourlySegments(helper, tempFolder);
+    List<Segment> segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
 
     IpAddressFormatVirtualColumn virtualColumn = new IpAddressFormatVirtualColumn(
         "stringifyV4",
@@ -241,11 +252,12 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         false
     );
 
+    Closer closer = Closer.create();
     QueryableIndex index = segments.get(0).asQueryableIndex();
     VectorOffset offset = new NoFilterVectorOffset(4, 0, index.getNumRows());
     VectorObjectSelector selector = virtualColumn.makeVectorObjectSelector(
         "ipv4",
-        index,
+        new ColumnCache(index, closer),
         offset
     );
     Assert.assertEquals(offset.getMaxVectorSize(), selector.getMaxVectorSize());
@@ -267,6 +279,7 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
             "22.22.23.24",
             "100.200.123.12",
             null,
+            null,
             "1.2.3.4",
             "10.10.10.11",
             "22.22.23.24",
@@ -274,5 +287,18 @@ public class IpAddressFormatVirtualColumnTest extends InitializedNullHandlingTes
         ),
         results
     );
+    closer.close();
+  }
+
+  @Test
+  public void testGetCacheKey()
+  {
+    IpAddressFormatVirtualColumn virtualColumn1 = new IpAddressFormatVirtualColumn("v0", "field1", true, false);
+    IpAddressFormatVirtualColumn virtualColumn2 = new IpAddressFormatVirtualColumn("v0", "field1", true, false);
+    IpAddressFormatVirtualColumn virtualColumn3 = new IpAddressFormatVirtualColumn("v0", "field1", false, true);
+    IpAddressFormatVirtualColumn virtualColumn4 = new IpAddressFormatVirtualColumn("v0", "field2", true, false);
+    Assert.assertTrue(Arrays.equals(virtualColumn1.getCacheKey(), virtualColumn2.getCacheKey()));
+    Assert.assertFalse(Arrays.equals(virtualColumn1.getCacheKey(), virtualColumn3.getCacheKey()));
+    Assert.assertFalse(Arrays.equals(virtualColumn1.getCacheKey(), virtualColumn4.getCacheKey()));
   }
 }

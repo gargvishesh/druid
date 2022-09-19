@@ -21,7 +21,7 @@ import { IconNames } from '@blueprintjs/icons';
 import { SqlExpression, SqlFunction, SqlLiteral } from 'druid-query-toolkit';
 import React from 'react';
 
-import { compact, oneOf } from '../../../utils';
+import { compact, oneOf, tickIcon } from '../../../utils';
 
 const OPTIONS: { label: string; value: string }[] = [
   { label: 'Second', value: 'PT1S' },
@@ -84,14 +84,14 @@ export const TimeFloorMenuItem = function TimeFloorMenuItem(props: TimeFloorMenu
   return (
     <MenuItem icon={IconNames.TIME} text="Floor time">
       <MenuItem
-        icon={currentDuration ? IconNames.BLANK : IconNames.TICK}
+        icon={tickIcon(!currentDuration)}
         text="None"
         onClick={() => changeTimeFloor(undefined)}
       />
       {OPTIONS.map(({ label, value }) => (
         <MenuItem
           key={value}
-          icon={currentDuration === value ? IconNames.TICK : IconNames.BLANK}
+          icon={tickIcon(currentDuration === value)}
           text={label}
           label={value}
           onClick={() => changeTimeFloor(value)}

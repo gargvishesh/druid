@@ -10,8 +10,8 @@
 package io.imply.clarity;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.emitter.core.Event;
+import org.apache.druid.java.util.emitter.core.EventMap;
 
 import java.util.Map;
 
@@ -37,14 +37,14 @@ public class TestEvent implements Event
 
   @Override
   @JsonValue
-  public Map<String, Object> toMap()
+  public EventMap toMap()
   {
-    ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-    builder.put("feed", feed);
-    builder.put("identity", identity);
-    builder.put("remoteAddress", remoteAddress);
-    builder.put("metrics", metricsMap);
-    return builder.build();
+    return EventMap.builder()
+                   .put("feed", feed)
+                   .put("identity", identity)
+                   .put("remoteAddress", remoteAddress)
+                   .put("metrics", metricsMap)
+                   .build();
   }
 
   @Override

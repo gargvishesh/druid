@@ -23,10 +23,10 @@ const snarkdown = require('snarkdown');
 
 const writefile = 'lib/sql-docs.js';
 
-const MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS = 150;
+const MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS = 162;
 const MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES = 14;
 
-// BEGIN: Imply-added code for Talaria execution
+// BEGIN: Imply-added code
 const IMPLY_FUNCTION_DOCS = {
   TABLE: [
     [
@@ -43,36 +43,68 @@ const IMPLY_FUNCTION_DOCS = {
         `The EXTERN function takes three parameters:
 1. \`inputSource\` - any Druid input source, as a JSON-encoded string.
 2. \`inputFormat\` - any Druid input format, as a JSON-encoded string.
-3. \`rowSignature\` - as a JSON-encoded array of column descriptors. Each column descriptor must have a name and a type. The type can be \`string\`, \`long\`, \`double\`, or \`float\`. This row signature will be used to map the external data into the SQL layer.`,
+3. \`signature\` - as a JSON-encoded array of column descriptors. Each column descriptor must have a name and a type. The type can be \`string\`, \`long\`, \`double\`, or \`float\`. This row signature will be used to map the external data into the SQL layer.`,
       ),
     ],
   ],
-  JSON_GET_PATH: [
+
+  // JSON stuff
+  JSON_VALUE: [
     [
-      'jsonExpression, selectorPath',
+      'expr, path',
       convertMarkdownToHtml(
-        'Gets the `selectorPath` out of the `jsonExpression`. The `selectorPath` must be expressed as a jq like selector.',
+        'Extract a Druid literal (`STRING`, `LONG`, `DOUBLE`) value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path`',
       ),
     ],
+  ],
+  JSON_QUERY: [
+    [
+      'expr, path',
+      convertMarkdownToHtml(
+        'Extract a `COMPLEX<json>` value from a `COMPLEX<json>` column or input `expr` using JSONPath syntax of `path`',
+      ),
+    ],
+  ],
+  JSON_OBJECT: [
+    [
+      'KEY expr1 VALUE expr2[, KEY expr3 VALUE expr4 ...]',
+      convertMarkdownToHtml(
+        'Construct a `COMPLEX<json>` storing the results of `VALUE` expressions at `KEY` expressions',
+      ),
+    ],
+  ],
+  PARSE_JSON: [
+    [
+      'expr',
+      convertMarkdownToHtml(
+        'Deserialize a JSON `STRING` into a `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs.',
+      ),
+    ],
+  ],
+  TO_JSON: [
+    [
+      'expr',
+      convertMarkdownToHtml(
+        'Convert any input type to `COMPLEX<json>` to be used with expressions which operate on `COMPLEX<json>` inputs, like a `CAST` operation (rather than deserializing `STRING` values like `PARSE_JSON`)',
+      ),
+    ],
+  ],
+  TO_JSON_STRING: [
+    ['expr', convertMarkdownToHtml('Convert a `COMPLEX<json>` input into a JSON `STRING` value')],
   ],
   JSON_KEYS: [
     [
-      'jsonExpression, selectorPath',
+      'expr, path',
       convertMarkdownToHtml(
-        'Returns an array of keys located under the `selectorPath` path within `jsonExpression`.',
+        'Get array of field names in `expr` at the specified JSONPath `path`, or null if the data does not exist or have any fields',
       ),
     ],
   ],
   JSON_PATHS: [
-    [
-      'jsonExpression, selectorPath',
-      convertMarkdownToHtml(
-        'Returns an array of all the paths located under the `selectorPath` path within `jsonExpression`.',
-      ),
-    ],
+    ['expr', convertMarkdownToHtml('Get array of all JSONPath paths available in `expr`')],
   ],
 };
-// END: Imply-modified code for Talaria execution
+// END: Imply-added code
 
 function hasHtmlTags(str) {
   return /<(a|br|span|div|p|code)\/?>/.test(str);
@@ -111,13 +143,14 @@ const readDoc = async () => {
     await fs.readFile('../docs/querying/sql-scalar.md', 'utf-8'),
     await fs.readFile('../docs/querying/sql-aggregations.md', 'utf-8'),
     await fs.readFile('../docs/querying/sql-multivalue-string-functions.md', 'utf-8'),
+    await fs.readFile('../docs/querying/sql-json-functions.md', 'utf-8'),
     await fs.readFile('../docs/querying/sql-operators.md', 'utf-8'),
   ].join('\n');
 
   const lines = data.split('\n');
 
   const functionDocs = {};
-  const dataTypeDocs = [];
+  const dataTypeDocs = {};
   for (let line of lines) {
     const functionMatch = line.match(/^\|\s*`(\w+)\(([^|]*)\)`\s*\|([^|]+)\|(?:([^|]+)\|)?$/);
     if (functionMatch) {
@@ -131,34 +164,30 @@ const readDoc = async () => {
 
     const dataTypeMatch = line.match(/^\|([A-Z]+)\|([A-Z]+)\|([^|]*)\|([^|]*)\|$/);
     if (dataTypeMatch) {
-      dataTypeDocs.push([
-        dataTypeMatch[1],
-        dataTypeMatch[2],
-        convertMarkdownToHtml(dataTypeMatch[4]),
-      ]);
+      dataTypeDocs[dataTypeMatch[1]] = [dataTypeMatch[2], convertMarkdownToHtml(dataTypeMatch[4])];
     }
   }
 
   // Make sure there are enough functions found
   const numFunction = Object.keys(functionDocs).length;
-  if (numFunction < MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS) {
+  if (!(MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS <= numFunction)) {
     throw new Error(
       `Did not find enough function entries did the structure of '${readfile}' change? (found ${numFunction} but expected at least ${MINIMUM_EXPECTED_NUMBER_OF_FUNCTIONS})`,
     );
   }
 
   // Make sure there are at least 10 data types for sanity
-  const numDataTypes = dataTypeDocs.length;
-  if (numDataTypes < MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES) {
+  const numDataTypes = Object.keys(dataTypeDocs).length;
+  if (!(MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES <= numDataTypes)) {
     throw new Error(
       `Did not find enough data type entries did the structure of '${readfile}' change? (found ${numDataTypes} but expected at least ${MINIMUM_EXPECTED_NUMBER_OF_DATA_TYPES})`,
     );
   }
 
-  // BEGIN: Imply-added code for Talaria execution
+  // BEGIN: Imply-added code for Multi Stage Query execution
   console.log(`Adding ${Object.keys(IMPLY_FUNCTION_DOCS).length} Imply only functions`);
   Object.assign(functionDocs, IMPLY_FUNCTION_DOCS);
-  // END: Imply-modified code for Talaria execution
+  // END: Imply-modified code for Multi Stage Query execution
 
   const content = `/*
  * Licensed to the Apache Software Foundation (ASF) under one

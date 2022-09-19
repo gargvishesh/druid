@@ -10,8 +10,10 @@
 package io.imply.druid.inet.column;
 
 import inet.ipaddr.IPAddress;
+import inet.ipaddr.IPAddressSeqRange;
 import inet.ipaddr.IPAddressString;
 import inet.ipaddr.ipv6.IPv6Address;
+import io.imply.druid.inet.utils.IpAddressUtils;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.java.util.common.parsers.ParseException;
@@ -21,6 +23,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 
 public class IpAddressBlob implements Comparable<IpAddressBlob>
 {
@@ -113,17 +116,23 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
     return addr.toFullString();
   }
 
-  public IpAddressBlob toPrefix(int length)
+  public IpPrefixBlob toPrefix(int length)
   {
     IPAddress addr = new IPv6Address(bytes);
+    IPv6Address iPv6Address;
     if (addr.isIPv4Convertible()) {
-      return new IpAddressBlob(addr.toIPv4().toPrefixBlock(length).toIPv6().getBytes());
+      iPv6Address = addr.toIPv4().toPrefixBlock(length).toIPv6();
+    } else {
+      iPv6Address = addr.toIPv6().toPrefixBlock(length);
     }
-    return new IpAddressBlob(addr.toPrefixBlock(length).getBytes());
+    return IpPrefixBlob.ofIpv6Address(iPv6Address);
   }
 
   public boolean matches(String toMatch)
   {
+    if (toMatch == null) {
+      return false;
+    }
     IPAddress addr = new IPv6Address(bytes);
     IPAddressString stringAddr = new IPAddressString(toMatch);
     if (!stringAddr.isValid()) {
@@ -131,6 +140,21 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
     }
     IPAddress matchAddr = stringAddr.getAddress().toIPv6();
     return matchAddr.toPrefixBlock().contains(addr);
+  }
+
+  public boolean searches(String toMatch)
+  {
+    if (toMatch == null) {
+      return false;
+    }
+    List<IPAddressSeqRange> ranges = IpAddressUtils.getPossibleRangesFromIncompleteIp(toMatch);
+    IPAddress addr = new IPv6Address(bytes);
+    for (IPAddressSeqRange range : ranges) {
+      if (range.contains(addr)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String asCompressedString()

@@ -29,9 +29,9 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.sql.IpAddressSqlOperatorConversions;
-import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.guice.LazySingleton;
+import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.junit.Assert;
@@ -39,11 +39,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,69 +48,43 @@ import java.util.stream.Collectors;
 public class IpAddressModuleTest
 {
   private static final Set<Class<? extends ExprMacroTable.ExprMacro>> IP_ADDRESS_EXPRESSIONS = ImmutableSet.of(
-      IpAddressExpressions.ParseExprMacro.class,
-      IpAddressExpressions.TryParseExprMacro.class,
+      IpAddressExpressions.AddressParseExprMacro.class,
+      IpAddressExpressions.AddressTryParseExprMacro.class,
       IpAddressExpressions.StringifyExprMacro.class,
       IpAddressExpressions.PrefixExprMacro.class,
-      IpAddressExpressions.MatchExprMacro.class
+      IpAddressExpressions.MatchExprMacro.class,
+      IpAddressExpressions.SearchExprMacro.class,
+      IpAddressExpressions.HostExprMacro.class
   );
 
   private static final Set<Class<? extends SqlOperatorConversion>> IP_ADDRESS_SQL_OPERATORS = ImmutableSet.of(
-      IpAddressSqlOperatorConversions.ParseOperatorConversion.class,
-      IpAddressSqlOperatorConversions.TryParseOperatorConversion.class,
+      IpAddressSqlOperatorConversions.AddressParseOperatorConversion.class,
+      IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion.class,
       IpAddressSqlOperatorConversions.StringifyOperatorConversion.class,
       IpAddressSqlOperatorConversions.PrefixOperatorConversion.class,
-      IpAddressSqlOperatorConversions.MatchOperatorConversion.class
+      IpAddressSqlOperatorConversions.MatchOperatorConversion.class,
+      IpAddressSqlOperatorConversions.SearchOperatorConversion.class,
+      IpAddressSqlOperatorConversions.HostOperatorConversion.class
   );
-
-  @Mock
-  private ImplyLicenseManager implyLicenseManager;
 
   @Mock
   private ExprMacroTable.ExprMacro exprMacro;
   @Mock
   private SqlOperatorConversion sqlOperatorConversion;
 
-  private Set<SqlOperatorConversion> sqlOperatorConversions;
   private Injector injector;
   private IpAddressModule target;
 
   @Before
   public void setup()
   {
-    sqlOperatorConversions = new HashSet<>();
-    Mockito.when(implyLicenseManager.isFeatureEnabled(IpAddressModule.FEATURE_NAME)).thenReturn(false);
     target = new IpAddressModule();
-    target.setImplyLicenseManager(implyLicenseManager);
   }
 
-  @Test
-  public void testGetJacksonModulesShouldReturnEmptyList()
-  {
-    injector = createInjector();
-    Assert.assertEquals(Collections.emptyList(), target.getJacksonModules());
-  }
 
   @Test
-  public void testExpressionsShouldNotBeBound()
+  public void testExpressionsShouldBeBound()
   {
-    injector = createInjector();
-    Set<ExprMacroTable.ExprMacro> exprMacros =
-        injector.getInstance(Key.get(new TypeLiteral<Set<ExprMacroTable.ExprMacro>>()
-        {
-        }));
-    Set<Class<? extends ExprMacroTable.ExprMacro>> expressionMacroClasses =
-        exprMacros.stream()
-                  .map(ExprMacroTable.ExprMacro::getClass)
-                  .collect(
-                      Collectors.toSet());
-    Assert.assertEquals(Collections.emptySet(), Sets.intersection(IP_ADDRESS_EXPRESSIONS, expressionMacroClasses));
-  }
-
-  @Test
-  public void testExpressionsWhenLicenseEnabledShouldBeBound()
-  {
-    Mockito.when(implyLicenseManager.isFeatureEnabled(IpAddressModule.FEATURE_NAME)).thenReturn(true);
     injector = createInjector();
     Set<ExprMacroTable.ExprMacro> exprMacros =
         injector.getInstance(Key.get(new TypeLiteral<Set<ExprMacroTable.ExprMacro>>()
@@ -128,25 +99,8 @@ public class IpAddressModuleTest
   }
 
   @Test
-  public void testSqlOperatorConversionsShouldNotBeBound()
+  public void testSqlOperatorConversionsShouldBeBound()
   {
-    injector = createInjector();
-    Set<SqlOperatorConversion> sqlOperators =
-        injector.getInstance(Key.get(new TypeLiteral<Set<SqlOperatorConversion>>()
-        {
-        }));
-    Set<Class<? extends SqlOperatorConversion>> sqlOperatorClasses =
-        sqlOperators.stream()
-                  .map(SqlOperatorConversion::getClass)
-                  .collect(
-                      Collectors.toSet());
-    Assert.assertEquals(Collections.emptySet(), Sets.intersection(IP_ADDRESS_SQL_OPERATORS, sqlOperatorClasses));
-  }
-
-  @Test
-  public void testSqlOperatorConversionsWhenLicenseEnabledShouldBeBound()
-  {
-    Mockito.when(implyLicenseManager.isFeatureEnabled(IpAddressModule.FEATURE_NAME)).thenReturn(true);
     injector = createInjector();
     Set<SqlOperatorConversion> sqlOperators =
         injector.getInstance(Key.get(new TypeLiteral<Set<SqlOperatorConversion>>()
@@ -160,20 +114,12 @@ public class IpAddressModuleTest
     Assert.assertEquals(IP_ADDRESS_SQL_OPERATORS, Sets.intersection(IP_ADDRESS_SQL_OPERATORS, sqlOperatorClasses));
   }
 
-  @Test
-  public void testGetJacksonModulesWithLicenseEnabledShouldReturnEmptyList()
-  {
-    Mockito.when(implyLicenseManager.isFeatureEnabled(IpAddressModule.FEATURE_NAME)).thenReturn(true);
-    injector = createInjector();
-    Assert.assertEquals(1, target.getJacksonModules().size());
-    Assert.assertEquals("IpAddressModule", target.getJacksonModules().get(0).getModuleName());
-  }
-
   private Injector createInjector()
   {
     return Guice.createInjector(
         target,
         new ExpressionModule(),
+        new JacksonModule(),
         binder -> {
           binder.bindScope(LazySingleton.class, Scopes.SINGLETON);
           Multibinder.newSetBinder(binder, ExprMacroTable.ExprMacro.class)

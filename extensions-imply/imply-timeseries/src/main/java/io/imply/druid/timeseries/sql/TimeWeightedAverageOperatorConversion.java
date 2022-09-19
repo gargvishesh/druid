@@ -21,9 +21,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
+import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
+import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.joda.time.Period;
 
@@ -31,7 +32,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
 
-public class TimeWeightedAverageOperatorConversion extends DirectOperatorConversion
+public class TimeWeightedAverageOperatorConversion implements SqlOperatorConversion
 {
   private static final String FUNCTION_NAME = "time_weighted_average";
   private static final SqlOperator FUNCTION = OperatorConversions
@@ -43,9 +44,21 @@ public class TimeWeightedAverageOperatorConversion extends DirectOperatorConvers
       .returnTypeInference(ReturnTypes.explicit(SqlTypeName.OTHER))
       .build();
 
-  public TimeWeightedAverageOperatorConversion()
+  @Override
+  public SqlOperator calciteOperator()
   {
-    super(FUNCTION, FUNCTION_NAME);
+    return FUNCTION;
+  }
+
+  @Nullable
+  @Override
+  public DruidExpression toDruidExpression(
+      PlannerContext plannerContext,
+      RowSignature rowSignature,
+      RexNode rexNode
+  )
+  {
+    return null;
   }
 
   @Nullable
