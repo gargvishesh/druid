@@ -287,7 +287,7 @@ public class KafkaRecordSupplierTest
     KafkaRecordSupplier recordSupplier = new KafkaRecordSupplier(
             properties,
             OBJECT_MAPPER,
-        null
+            null
     );
 
     Assert.assertTrue(recordSupplier.getAssignment().isEmpty()); //just test recordSupplier is initiated
@@ -305,7 +305,7 @@ public class KafkaRecordSupplierTest
     KafkaRecordSupplier recordSupplier = new KafkaRecordSupplier(
             properties,
             OBJECT_MAPPER,
-        null
+            null
     );
 
     Assert.assertTrue(recordSupplier.getAssignment().isEmpty()); //just test recordSupplier is initiated
