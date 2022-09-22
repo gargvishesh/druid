@@ -65,13 +65,10 @@ public class DruidTestModule implements Module
         new DruidNode("integration-tests", "localhost", false, 9191, null, null, true, false)
     );
 
-    // imply only changes start
+    // Required for MSQIndexingModule
     binder.bind(new TypeLiteral<Set<NodeRole>>()
     {
-    }).annotatedWith(Self.class).toInstance(ImmutableSet.of());
-
-    // imply only changes end
-
+    }).annotatedWith(Self.class).toInstance(ImmutableSet.of(NodeRole.PEON));
   }
 
   @Provides
