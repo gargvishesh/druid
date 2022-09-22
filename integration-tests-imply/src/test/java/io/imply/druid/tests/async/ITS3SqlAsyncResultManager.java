@@ -75,17 +75,16 @@ public class ITS3SqlAsyncResultManager extends AbstractS3InputSourceParallelInde
 
         Assert.assertEquals(testClient.getStatus(asyncResultId).getState(), State.COMPLETE);
         List<Map<String, Object>> results = testClient.getResults(asyncResultId);
-        final boolean correctResults = QueryResultVerifier.compareResults(
+        final QueryResultVerifier.ResultVerificationObject resultVerificationObject = QueryResultVerifier.compareResults(
             results,
             sqlQueryWithResults.getExpectedResults(),
             sqlQueryWithResults.getFieldsToTest()
         );
-        if (!correctResults) {
+        if (!resultVerificationObject.isSuccess()) {
           LOG.error(
-              "Failed while executing query %s \n expectedResults: %s \n actualResults : %s",
+              "Mismatch while comparing the results for the query %s. Mismatch message:\n%s.",
               query,
-              jsonMapper.writeValueAsString(sqlQueryWithResults.getExpectedResults()),
-              jsonMapper.writeValueAsString(results)
+              resultVerificationObject.getErrorMessage()
           );
           failed = true;
         } else {
