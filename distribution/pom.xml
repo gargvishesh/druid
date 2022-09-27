@@ -616,6 +616,8 @@
                                         <argument>org.apache.druid.extensions.contrib:statsd-emitter</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-polaris-secrets-provider</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-kubernetes-extensions</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
