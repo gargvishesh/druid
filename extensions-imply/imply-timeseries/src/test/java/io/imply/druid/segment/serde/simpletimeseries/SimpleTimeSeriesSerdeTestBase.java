@@ -10,25 +10,23 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import org.apache.druid.segment.serde.cell.StagedSerde;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-@SuppressWarnings({"UnconstructableJUnitTestCase", "NewClassNamingConvention"})
-@Ignore
-public class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
+public abstract class SimpleTimeSeriesSerdeTestBase implements SimpleTimeSeriesSerdeTest
 {
   private static final SimpleTimeSeries EMPTY_SIMPLE_TIME_SERIES = SimpleTimeSeriesTestUtil.buildTimeSeries(0, 0);
 
-  protected final SimpleTimeSeriesTestingSerde serializer;
+  protected final StagedSerde<SimpleTimeSeries> serializer;
   protected final TestCasesConfig<SimpleTimeSeriesSerdeTest> testCasesConfig;
 
   public SimpleTimeSeriesSerdeTestBase(
-      SimpleTimeSeriesTestingSerde serializer,
+      StagedSerde<SimpleTimeSeries> serializer,
       TestCasesConfig<SimpleTimeSeriesSerdeTest> testCasesConfig
   )
   {

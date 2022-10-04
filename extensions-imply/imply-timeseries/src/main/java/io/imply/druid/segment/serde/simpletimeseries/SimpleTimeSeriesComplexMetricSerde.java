@@ -29,7 +29,7 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   public static final String TYPE_NAME = "imply-ts-simple";
   public static final Interval ALL_TIME_WINDOW = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
 
-  static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_BASIC_SERDE =
+  static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_OBJECT_STRATEGY =
       new SimpleTimeSeriesObjectStrategy();
 
   @Override
@@ -71,7 +71,7 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
     SimpleTimeSeriesComplexColumn.Factory complexColumnFactory =
-        new SimpleTimeSeriesComplexColumn.Factory(buffer, NativeClearedByteBufferProvider.DEFAULT);
+        new SimpleTimeSeriesComplexColumn.Factory(buffer);
 
     builder.setComplexColumnSupplier(complexColumnFactory::create);
   }
@@ -79,6 +79,6 @@ public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy<SimpleTimeSeries> getObjectStrategy()
   {
-    return SIMPLE_TIME_SERIES_BASIC_SERDE;
+    return SIMPLE_TIME_SERIES_OBJECT_STRATEGY;
   }
 }

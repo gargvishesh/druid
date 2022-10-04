@@ -10,6 +10,7 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Objects;
+import org.apache.druid.segment.serde.cell.LongSerializer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -14,10 +14,10 @@ public class LongSimpleTimeSeriesSerdeTest extends SimpleTimeSeriesSerdeTestBase
   public LongSimpleTimeSeriesSerdeTest()
   {
     super(
-        new SimpleTimeSeriesSerdeToTestingSerde(
-            new SimpleTimeSeriesSerde(
-                new LongDeltaTimestampsEncoderDecoder(
-                    new LongDeltaEncoderDecoder(SimpleTimeSeriesTestUtil.START_DATE_TIME.getMillis())))),
+        new SimpleTimeSeriesSerde(
+            new LongDeltaTimestampsEncoderDecoder(
+                new LongDeltaEncoderDecoder(SimpleTimeSeriesTestUtil.START_DATE_TIME.getMillis()))
+        ),
         new TestCasesConfig<>(SimpleTimeSeriesSerdeTest.class, SimpleTimeSeriesSerdeTestBase.class)
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testEmptyList, TestCaseResult.of(new byte[0]))
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testNull, TestCaseResult.of(new byte[0]))

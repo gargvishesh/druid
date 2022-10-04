@@ -12,10 +12,10 @@ package io.imply.druid.timeseries;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
-import io.imply.druid.segment.serde.simpletimeseries.StorableBuffer;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
+import org.apache.druid.segment.serde.cell.StorableBuffer;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;

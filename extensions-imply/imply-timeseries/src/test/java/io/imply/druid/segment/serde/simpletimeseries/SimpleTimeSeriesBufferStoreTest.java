@@ -12,6 +12,9 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.query.aggregation.SerializedStorage;
+import org.apache.druid.segment.serde.cell.IOIterator;
+import org.apache.druid.segment.serde.cell.NativeClearedByteBufferProvider;
 import org.apache.druid.segment.writeout.HeapByteBufferWriteOutBytes;
 import org.apache.druid.segment.writeout.OnHeapMemorySegmentWriteOutMedium;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
@@ -54,7 +57,7 @@ public class SimpleTimeSeriesBufferStoreTest
   public void setup() throws Exception
   {
     simpleTimeSeriesBufferStore = new SimpleTimeSeriesBufferStore(
-        writeOutMedium.makeWriteOutBytes()
+        new SerializedStorage<>(writeOutMedium.makeWriteOutBytes(), SimpleTimeSeriesColumnSerializer.SERDE)
     );
   }
 
@@ -150,7 +153,7 @@ public class SimpleTimeSeriesBufferStoreTest
     SerializedColumnHeader columnHeader = simpleTimeSeriesBufferStore.createColumnHeader();
 
     HeapByteBufferWriteOutBytes channel = new HeapByteBufferWriteOutBytes();
-    try (ResourceHolder<ByteBuffer> resourceHolder = NativeClearedByteBufferProvider.DEFAULT.get()) {
+    try (ResourceHolder<ByteBuffer> resourceHolder = NativeClearedByteBufferProvider.INSTANCE.get()) {
       columnHeader.transferTo(channel);
 
       ByteBuffer byteBuffer = resourceHolder.get();
@@ -174,7 +177,7 @@ public class SimpleTimeSeriesBufferStoreTest
     SerializedColumnHeader columnHeader = simpleTimeSeriesBufferStore.createColumnHeader();
 
     HeapByteBufferWriteOutBytes channel = new HeapByteBufferWriteOutBytes();
-    try (ResourceHolder<ByteBuffer> resourceHolder = NativeClearedByteBufferProvider.DEFAULT.get()) {
+    try (ResourceHolder<ByteBuffer> resourceHolder = NativeClearedByteBufferProvider.INSTANCE.get()) {
       columnHeader.transferTo(channel);
 
       ByteBuffer byteBuffer = resourceHolder.get();

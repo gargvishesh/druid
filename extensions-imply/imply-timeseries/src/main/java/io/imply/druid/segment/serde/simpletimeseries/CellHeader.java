@@ -12,7 +12,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class RowHeader
+public class CellHeader
 {
   // header size is 4 bytes for word alignment for LZ4 (minmatch) compression
   private static final int HEADER_SIZE_BYTES = 4;
