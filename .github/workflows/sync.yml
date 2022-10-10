@@ -35,7 +35,7 @@ jobs:
           echo "APACHE_COMMIT=$(git log upstream/master -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
           echo "APACHE_COMMITER=$(git log upstream/master -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
       - name: Slack Notification for job failed
-        if: ${{ failure() }}
+        if: ${{ failure() && env.HOUR_NOW%12 <= 2}}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
           SLACK_USERNAME: "barista bob"
