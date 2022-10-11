@@ -62,6 +62,14 @@ public class ClarityGenericQueryMetrics<QueryType extends Query<?>> extends Defa
   }
 
   @Override
+  public void sqlQueryId(String sqlQueryId)
+  {
+    if (sqlQueryId != null) {
+      setDimension("sqlQueryId", sqlQueryId);
+    }
+  }
+
+  @Override
   public void subQueryId(QueryType query)
   {
     if (query.getSubQueryId() != null) {

@@ -58,6 +58,14 @@ public class ClarityGroupByQueryMetrics extends DefaultGroupByQueryMetrics
   }
 
   @Override
+  public void sqlQueryId(String sqlQueryId)
+  {
+    if (sqlQueryId != null) {
+      setDimension("sqlQueryId", sqlQueryId);
+    }
+  }
+
+  @Override
   public void subQueryId(GroupByQuery query)
   {
     if (query.getSubQueryId() != null) {
