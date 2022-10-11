@@ -58,6 +58,14 @@ public class ClarityTopNQueryMetrics extends DefaultTopNQueryMetrics
   }
 
   @Override
+  public void sqlQueryId(String sqlQueryId)
+  {
+    if (sqlQueryId != null) {
+      setDimension("sqlQueryId", sqlQueryId);
+    }
+  }
+
+  @Override
   public void subQueryId(TopNQuery query)
   {
     if (query.getSubQueryId() != null) {
