@@ -50,7 +50,7 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
 
   public IpPrefixDictionaryEncodedColumnIndexer(boolean hasBitmapIndexes, boolean useMaxMemoryEstimates)
   {
-    super(new DimensionDictionary<>(IpPrefixBlob.class));
+    super(new IpPrefixDimensionDictionary(!useMaxMemoryEstimates));
     this.hasBitmapIndexes = hasBitmapIndexes;
     this.useMaxMemoryEstimates = useMaxMemoryEstimates;
   }
