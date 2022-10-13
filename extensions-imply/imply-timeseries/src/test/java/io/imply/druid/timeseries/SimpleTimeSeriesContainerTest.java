@@ -16,18 +16,20 @@ import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerdeTest;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerdeTestBase;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesTestUtil;
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesTestingSerde;
 import io.imply.druid.segment.serde.simpletimeseries.TestCaseResult;
 import io.imply.druid.segment.serde.simpletimeseries.TestCasesConfig;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.segment.serde.cell.StagedSerde;
+import org.apache.druid.segment.serde.cell.StorableBuffer;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -132,7 +134,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
     Assert.assertFalse(holder.isNull());
   }
 
-  public static class SimpleTimeSeriesContainerTestingSerde implements SimpleTimeSeriesTestingSerde
+  public static class SimpleTimeSeriesContainerTestingSerde implements StagedSerde<SimpleTimeSeries>
   {
     private final Interval window;
     private final int maxEntries;
@@ -144,9 +146,32 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
     }
 
     @Override
-    public byte[] serialize(SimpleTimeSeries simpleTimeSeries)
+    public StorableBuffer serializeDelayed(@Nullable SimpleTimeSeries value)
     {
-      return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries).getSerializedBytes();
+      byte[] serializedBytes = SimpleTimeSeriesContainer.createFromInstance(value).getSerializedBytes();
+
+      return new StorableBuffer()
+      {
+        @Override
+        public void store(ByteBuffer byteBuffer)
+        {
+          byteBuffer.put(serializedBytes);
+        }
+
+        @Override
+        public int getSerializedSize()
+        {
+          return serializedBytes.length;
+        }
+      };
+    }
+
+    @Override
+    public byte[] serialize(SimpleTimeSeries value)
+    {
+      byte[] serializedBytes = SimpleTimeSeriesContainer.createFromInstance(value).getSerializedBytes();
+
+      return serializedBytes;
     }
 
     @Override
@@ -155,5 +180,4 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
       return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, window, maxEntries).getSimpleTimeSeries();
     }
   }
-
 }

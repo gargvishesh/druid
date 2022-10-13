@@ -13,18 +13,18 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.segment.serde.cell.StagedSerde;
+import org.apache.druid.segment.serde.cell.StorableBuffer;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
-public class SimpleTimeSeriesSerde
+public class SimpleTimeSeriesSerde implements StagedSerde<SimpleTimeSeries>
 {
   private static final int SINGLE_ITEM_LIST_SIZE_BYTES = Long.BYTES + Double.BYTES;
   private static final byte EXPECTED_ROW_HEADER_VERSION = 0;
 
-  private final RowHeader.Reader headerReader = new RowHeader.Reader();
-  private final RowHeader.Writer headerWriter = new RowHeader.Writer();
+  private final CellHeader.Reader headerReader = new CellHeader.Reader();
+  private final CellHeader.Writer headerWriter = new CellHeader.Writer();
   private final TimestampsEncoderDecoder timeStampsEncoderDecoder;
 
   public SimpleTimeSeriesSerde(TimestampsEncoderDecoder timeStampsEncoderDecoder)
@@ -47,16 +47,7 @@ public class SimpleTimeSeriesSerde
     return timeSeriesSerde;
   }
 
-  public byte[] serialize(SimpleTimeSeries simpleTimeSeries)
-  {
-    StorableBuffer storableBuffer = serializeDelayed(simpleTimeSeries);
-    ByteBuffer serialized = ByteBuffer.allocate(storableBuffer.getSerializedSize()).order(ByteOrder.nativeOrder());
-
-    storableBuffer.store(serialized);
-
-    return serialized.array();
-  }
-
+  @Override
   public StorableBuffer serializeDelayed(SimpleTimeSeries simpleTimeSeries)
   {
     if (simpleTimeSeries == null) {
@@ -97,7 +88,7 @@ public class SimpleTimeSeriesSerde
                   .setTimestampsRle(encodedTimestamps.isRle())
                   .setValuesRle(encodedValues.isRle());
 
-      int sizeBytes = RowHeader.getSerializedSize()
+      int sizeBytes = CellHeader.getSerializedSize()
                       + encodedTimestamps.getSerializedSize()
                       + encodedValues.getSerializedSize();
 
@@ -126,7 +117,7 @@ public class SimpleTimeSeriesSerde
    * @param byteBuffer - must be in order(ByteOrder.nativeOrder()). position() is restored after reading
    * @return deserialized {@link SimpleTimeSeries}
    */
-  @Nullable
+  @Override
   public SimpleTimeSeries deserialize(ByteBuffer byteBuffer)
   {
     if (byteBuffer.remaining() == 0) {
@@ -168,6 +159,5 @@ public class SimpleTimeSeriesSerde
           timestamps.size()
       );
     }
-
   }
 }

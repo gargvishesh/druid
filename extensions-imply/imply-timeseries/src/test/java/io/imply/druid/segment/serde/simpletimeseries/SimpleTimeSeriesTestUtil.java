@@ -26,7 +26,6 @@ public class SimpleTimeSeriesTestUtil
 {
   public static final DateTime START_DATE_TIME = DateTimes.of("2020-01-01");
   public static final Interval ALL_TIME_INTERVAL = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
-  public static final byte[] EMPTY_BYTES = new byte[0];
   public static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new byte[0]).order(ByteOrder.nativeOrder());
 
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset)

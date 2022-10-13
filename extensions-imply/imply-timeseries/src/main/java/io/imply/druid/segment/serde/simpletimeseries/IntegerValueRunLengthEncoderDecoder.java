@@ -130,6 +130,7 @@ public class IntegerValueRunLengthEncoderDecoder
       byteBuffer.putInt(value);
     }
 
+    @SuppressWarnings("NonFinalFieldReferenceInEquals")
     @Override
     public boolean equals(Object o)
     {
