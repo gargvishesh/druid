@@ -10,10 +10,13 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import com.google.common.base.Preconditions;
+import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
+import org.apache.druid.query.aggregation.SerializedStorage;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.GenericColumnSerializer;
+import org.apache.druid.segment.serde.cell.StagedSerde;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import java.io.IOException;
@@ -96,28 +99,18 @@ import java.nio.channels.WritableByteChannel;
 
 public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer<SimpleTimeSeriesContainer>
 {
-  private final NativeClearedByteBufferProvider byteBufferProvider;
+  public static final StagedSerde<SimpleTimeSeries> SERDE = new SimpleTimeSeriesSimpleStagedSerde();
+
   private final SegmentWriteOutMedium segmentWriteOutMedium;
 
   private State state = State.START;
   private SimpleTimeSeriesBufferStore buffer;
   private SimpleTimeSeriesBufferStore.TransferredBuffer transferredBuffer;
 
-  public SimpleTimeSeriesColumnSerializer(
-      SegmentWriteOutMedium segmentWriteOutMedium,
-      NativeClearedByteBufferProvider byteBufferProvider
-  )
+  public SimpleTimeSeriesColumnSerializer(SegmentWriteOutMedium segmentWriteOutMedium)
   {
     this.segmentWriteOutMedium = segmentWriteOutMedium;
-    this.byteBufferProvider = byteBufferProvider;
   }
-
-
-  public SimpleTimeSeriesColumnSerializer(SegmentWriteOutMedium writeOutMedium)
-  {
-    this(writeOutMedium, NativeClearedByteBufferProvider.DEFAULT);
-  }
-
 
   @Override
   public void open() throws IOException
@@ -125,7 +118,10 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
     Preconditions.checkState(state == State.START || state == State.OPEN, "open called in invalid state %s", state);
 
     if (state == State.START) {
-      buffer = new SimpleTimeSeriesBufferStore(segmentWriteOutMedium.makeWriteOutBytes());
+      buffer = new SimpleTimeSeriesBufferStore(new SerializedStorage<>(
+          segmentWriteOutMedium.makeWriteOutBytes(),
+          SERDE
+      ));
       state = State.OPEN;
     }
   }
@@ -161,15 +157,14 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
   {
     Preconditions.checkState(state != State.START, "writeTo called in invalid state %s", state);
     transferToRowWriterIfNecessary();
-    state = State.FINAL_CLOSED;
     transferredBuffer.writeTo(channel, smoosher);
   }
 
   private void transferToRowWriterIfNecessary() throws IOException
   {
     if (state == State.OPEN) {
-      transferredBuffer = buffer.transferToRowWriter(byteBufferProvider, segmentWriteOutMedium);
-      state = State.INTERMEDIATE_CLOSED;
+      transferredBuffer = buffer.transferToRowWriter(segmentWriteOutMedium);
+      state = State.CLOSED;
     }
   }
 
@@ -177,7 +172,6 @@ public class SimpleTimeSeriesColumnSerializer implements GenericColumnSerializer
   {
     START,
     OPEN,
-    INTERMEDIATE_CLOSED,
-    FINAL_CLOSED,
+    CLOSED,
   }
 }

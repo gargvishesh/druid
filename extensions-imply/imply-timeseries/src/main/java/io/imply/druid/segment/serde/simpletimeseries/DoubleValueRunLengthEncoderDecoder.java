@@ -134,6 +134,7 @@ public class DoubleValueRunLengthEncoderDecoder
       byteBuffer.putDouble(value);
     }
 
+    @SuppressWarnings("NonFinalFieldReferenceInEquals")
     @Override
     public boolean equals(Object o)
     {

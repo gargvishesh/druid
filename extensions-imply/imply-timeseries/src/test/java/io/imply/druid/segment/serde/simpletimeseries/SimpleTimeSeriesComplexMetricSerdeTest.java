@@ -11,7 +11,6 @@ package io.imply.druid.segment.serde.simpletimeseries;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
-import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
@@ -23,7 +22,6 @@ import org.apache.druid.segment.writeout.HeapByteBufferWriteOutBytes;
 import org.apache.druid.segment.writeout.OnHeapMemorySegmentWriteOutMedium;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 import org.joda.time.DateTime;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -47,8 +45,6 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
 
   private final Random random = new Random(100);
 
-  private ResourceHolder<ByteBuffer> rowIndexUncompressedBlockHolder;
-  private ResourceHolder<ByteBuffer> dataUncompressedBlockHolder;
   private SimpleTimeSeriesColumnSerializer columnSerializer;
   private SimpleTimeSeriesComplexMetricSerde complexMetricSerde;
 
@@ -67,15 +63,6 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
     complexMetricSerde = new SimpleTimeSeriesComplexMetricSerde();
     columnSerializer = (SimpleTimeSeriesColumnSerializer) complexMetricSerde.getSerializer(writeOutMedium, "unused");
     columnSerializer.open();
-    rowIndexUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();
-    dataUncompressedBlockHolder = NativeClearedByteBufferProvider.DEFAULT.get();
-  }
-
-  @After
-  public void tearDown()
-  {
-    rowIndexUncompressedBlockHolder.close();
-    dataUncompressedBlockHolder.close();
   }
 
   @Test
@@ -281,7 +268,6 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   {
     ColumnBuilder builder = new ColumnBuilder();
     complexMetricSerde.deserializeColumn(byteBuffer, builder);
-    // TODO: what all values of the builder must be set? (valueType IS needed, others don't seem to matter)
     builder.setType(ValueType.COMPLEX);
 
     ColumnHolder columnHolder = builder.build();

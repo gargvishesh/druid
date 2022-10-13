@@ -10,18 +10,17 @@
 package io.imply.druid.segment.serde.simpletimeseries;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
-import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.segment.data.ObjectStrategy;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTimeSeries>
 {
   private static final byte[] NULL_TIME_SERIES = new byte[0];
+  private static final SimpleTimeSeriesSimpleStagedSerde SERDE = new SimpleTimeSeriesSimpleStagedSerde();
 
   @Override
   public Class<? extends SimpleTimeSeries> getClazz()
@@ -32,24 +31,11 @@ public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTime
   @Override
   public SimpleTimeSeries fromByteBuffer(ByteBuffer buffer, int numBytes)
   {
-    if (numBytes == 0) {
-      return null;
-    }
+    ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer().order(buffer.order());
 
-    int count = buffer.getInt();
-    long[] timestampValues = new long[count];
-    buffer.asLongBuffer().get(timestampValues);
-    buffer.position(buffer.position() + Long.BYTES * count);
+    readOnlyBuffer.limit(numBytes);
 
-    ImplyLongArrayList timestamps = new ImplyLongArrayList(timestampValues);
-
-    double[] doubleValues = new double[count];
-    buffer.asDoubleBuffer().get(doubleValues);
-    buffer.position(buffer.position() + Double.BYTES * count);
-
-    ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(doubleValues);
-
-    return new SimpleTimeSeries(timestamps, dataPoints, SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, count);
+    return SERDE.deserialize(readOnlyBuffer);
   }
 
   @Override
@@ -58,20 +44,9 @@ public class SimpleTimeSeriesObjectStrategy implements ObjectStrategy<SimpleTime
   {
     if (val == null || val.size() == 0) {
       return NULL_TIME_SERIES;
+    } else {
+      return SERDE.serialize(val);
     }
-    // force flattening of recursive structures
-    val.computeSimple();
-    ImplyLongArrayList timestamps = val.getTimestamps();
-    ImplyDoubleArrayList dataPoints = val.getDataPoints();
-
-    int sizeBytes = (Integer.BYTES + timestamps.size() * Long.BYTES + dataPoints.size() * Double.BYTES);
-    ByteBuffer byteBuffer = ByteBuffer.allocate(sizeBytes).order(ByteOrder.nativeOrder());
-
-    byteBuffer.putInt(timestamps.size());
-    timestamps.forEach(byteBuffer::putLong);
-    dataPoints.forEach(byteBuffer::putDouble);
-
-    return byteBuffer.array();
   }
 
   @Override
