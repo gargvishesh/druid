@@ -87,7 +87,7 @@ public class SamplingGroupByTwoPassQueryEngine
           interval,
           VirtualColumns.create(virtualColumns),
           query.isDescending(),
-          QueryContexts.getVectorSize(query),
+          query.context().getVectorSize(),
           samplingGroupByQueryMetrics
       );
 

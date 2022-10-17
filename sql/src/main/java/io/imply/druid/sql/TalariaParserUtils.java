@@ -20,6 +20,6 @@ public class TalariaParserUtils
 
   public static boolean isTalaria(final PlannerContext plannerContext)
   {
-    return plannerContext.getQueryContext().getAsBoolean(CTX_MULTI_STAGE_QUERY, false);
+    return plannerContext.queryContext().getBoolean(CTX_MULTI_STAGE_QUERY, false);
   }
 }

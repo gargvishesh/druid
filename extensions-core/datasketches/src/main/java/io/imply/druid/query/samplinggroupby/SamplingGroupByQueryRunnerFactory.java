@@ -19,7 +19,6 @@ import org.apache.druid.guice.annotations.Global;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.DruidProcessingConfig;
-import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryRunnerFactory;
@@ -102,7 +101,7 @@ public class SamplingGroupByQueryRunnerFactory implements QueryRunnerFactory<Res
       Filter filter = Filters.convertToCNFFromQueryContext(query, Filters.toFilter(query.getFilter()));
       Interval interval = Iterables.getOnlyElement(query.getIntervals());
 
-      boolean doVectorize = QueryContexts.getVectorize(query).shouldVectorize(
+      boolean doVectorize = query.context().getVectorize().shouldVectorize(
           SamplingGroupByUtils.canVectorize(query, storageAdapter, filter)
       );
 
