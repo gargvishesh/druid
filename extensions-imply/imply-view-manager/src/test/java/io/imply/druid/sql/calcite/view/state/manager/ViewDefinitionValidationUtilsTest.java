@@ -472,7 +472,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     List<Object[]> results = getResults(
         PLANNER_CONFIG_DEFAULT,
         ImmutableMap.<String, Object>builder()
-                    .put(PlannerContext.CTX_SQL_QUERY_ID, DUMMY_SQL_ID)
+                    .put(QueryContexts.CTX_SQL_QUERY_ID, DUMMY_SQL_ID)
                     .put(PlannerContext.CTX_SQL_CURRENT_TIMESTAMP, "2000-01-01T00:00:00Z")
                     .put(QueryContexts.DEFAULT_TIMEOUT_KEY, QueryContexts.DEFAULT_TIMEOUT_MILLIS)
                     .put(QueryContexts.MAX_SCATTER_GATHER_BYTES_KEY, Long.MAX_VALUE)

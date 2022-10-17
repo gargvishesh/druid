@@ -547,7 +547,7 @@ public abstract class AbstractAuthConfigurationTest
   public void test_sqlQueryWithContext_datasourceOnlyUser_fail() throws Exception
   {
     final String query = "select count(*) from auth_test";
-    StatusResponseHolder responseHolder = makeSQLQueryRequest(
+    makeSQLQueryRequest(
         getHttpClient(User.DATASOURCE_ONLY_USER),
         query,
         ImmutableMap.of("auth_test_ctx", "should-be-denied"),
@@ -559,7 +559,7 @@ public abstract class AbstractAuthConfigurationTest
   public void test_sqlQueryWithContext_datasourceAndContextParamsUser_succeed() throws Exception
   {
     final String query = "select count(*) from auth_test";
-    StatusResponseHolder responseHolder = makeSQLQueryRequest(
+    makeSQLQueryRequest(
         getHttpClient(User.DATASOURCE_AND_CONTEXT_PARAMS_USER),
         query,
         ImmutableMap.of("auth_test_ctx", "should-be-allowed"),
