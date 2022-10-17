@@ -37,7 +37,7 @@ jobs:
       - name: Slack Notification for job failed
         # Adding condition that checking current hour is between 0 and 2 or 12 and 14 to post slack update.
         # This is done to reduce the noise on slack.
-        if: ${{ failure() && ((env.HOUR_NOW>=0 && env.HOUR_NOW<=2) || (env.HOUR_NOW>=12 && env.HOUR_NOW<=14)) }}
+        if: ${{ failure() && ((env.HOUR_NOW>=0 && env.HOUR_NOW<2) || (env.HOUR_NOW>=12 && env.HOUR_NOW<14 )) }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
           SLACK_USERNAME: "barista bob"
