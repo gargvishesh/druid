@@ -137,7 +137,7 @@ public class SqlAsyncQueryPool
   {
     Preconditions.checkState(resultSet.runnable());
 
-    final long timeout = getTimeout(resultSet.query().context());
+    final long timeout = getTimeout(new QueryContext(resultSet.query().context()));
     if (!hasTimeout(timeout)) {
       throw new BadRequestException("Query must have timeout");
     }
@@ -299,7 +299,7 @@ public class SqlAsyncQueryPool
 
   private static long getDefaultTimeout(QueryContext context)
   {
-    final long defaultTimeout = context.getAsLong(
+    final long defaultTimeout = context.getLong(
         QueryContexts.DEFAULT_TIMEOUT_KEY,
         QueryContexts.DEFAULT_TIMEOUT_MILLIS
     );
@@ -309,7 +309,7 @@ public class SqlAsyncQueryPool
 
   private static long getTimeout(QueryContext context)
   {
-    return context.getAsLong(QueryContexts.TIMEOUT_KEY, getDefaultTimeout(context));
+    return context.getLong(QueryContexts.TIMEOUT_KEY, getDefaultTimeout(context));
   }
 
   private static boolean hasTimeout(long timeout)
