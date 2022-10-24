@@ -202,4 +202,25 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>imply-saas</id>
+      <dependencies>
+        <dependency>
+          <groupId>io.confluent</groupId>
+          <artifactId>kafka-protobuf-provider</artifactId>
+          <version>${confluent.version}</version>
+          <exclusions>
+            <exclusion>
+              <artifactId>protobuf-java-util</artifactId>
+              <groupId>com.google.protobuf</groupId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
+
 </project>
