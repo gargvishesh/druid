@@ -957,7 +957,7 @@ public class BaseCalciteQueryTest extends CalciteTestBase implements QueryCompon
    * factory is specific to one test and one planner config. This method can be
    * overridden to control the objects passed to the factory.
    */
-  private SqlStatementFactory getSqlStatementFactory(
+  protected SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
       AuthConfig authConfig
   )

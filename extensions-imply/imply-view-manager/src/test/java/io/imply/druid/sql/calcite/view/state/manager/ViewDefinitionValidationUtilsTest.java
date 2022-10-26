@@ -11,36 +11,53 @@ package io.imply.druid.sql.calcite.view.state.manager;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import nl.jqno.equalsverifier.EqualsVerifier;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.java.util.common.Pair;
+import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.expression.TestExprMacroTable;
-import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.query.lookup.LookupExtractorFactoryContainerProvider;
+import org.apache.druid.query.lookup.LookupSerdeModule;
+import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.server.security.AuthTestUtils;
+import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceType;
+import org.apache.druid.sql.DirectStatement;
+import org.apache.druid.sql.SqlQueryPlus;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
+import org.apache.druid.sql.calcite.table.RowSignatures;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
+import org.apache.druid.sql.http.SqlParameter;
+import org.apache.druid.timeline.DataSegment;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +67,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   private ImplyViewManager viewManager;
   private PlannerFactory plannerFactory;
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
+  SqlTestFramework qf = queryFramework();
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
@@ -64,12 +82,12 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     );
 
     this.viewManager = new ImplyViewManager(
-        CalciteTests.DRUID_VIEW_MACRO_FACTORY
+        SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
-
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
-        conglomerate,
-        walker,
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
+        qf.conglomerate(),
+        qf.walker(),
         PLANNER_CONFIG_DEFAULT,
         viewManager,
         new NoopDruidSchemaManager(),
@@ -86,19 +104,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         CalciteTests.DRUID_SCHEMA_NAME,
         new CalciteRulesManager(ImmutableSet.of())
     );
-  }
-
-  @Override
-  public SqlStatementFactory getSqlStatementFactory(
-      PlannerConfig plannerConfig,
-      AuthConfig authConfig,
-      DruidOperatorTable operatorTable,
-      ExprMacroTable macroTable,
-      AuthorizerMapper authorizerMapper,
-      ObjectMapper objectMapper
-  )
-  {
-    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
   }
 
   @Test
@@ -495,5 +500,94 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         queryPlan,
         resources
     );
+  }
+
+  private Pair<RowSignature, List<Object[]>> getResults(
+      final PlannerConfig plannerConfig,
+      final Map<String, Object> queryContext,
+      final List<SqlParameter> parameters,
+      final String sql,
+      AuthenticationResult authResult
+  )
+  {
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
+        qf.conglomerate(),
+        qf.walker(),
+        new PlannerConfig(),
+        viewManager,
+        new NoopDruidSchemaManager(),
+        CalciteTests.TEST_AUTHORIZER_MAPPER
+    );
+    PlannerFactory plannerFactory = new PlannerFactory(
+        rootSchema,
+        CalciteTests.createOperatorTable(),
+        CalciteTests.createExprMacroTable(),
+        plannerConfig,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+        createQueryJsonMapper(),
+        CalciteTests.DRUID_SCHEMA_NAME,
+        new CalciteRulesManager(ImmutableSet.of())
+    );
+    final SqlStatementFactory sqlStatementFactory = CalciteTests.createSqlStatementFactory(
+        CalciteTests.createMockSqlEngine(qf.walker(), qf.conglomerate()), plannerFactory
+    );
+    final DirectStatement stmt = sqlStatementFactory.directStatement(
+        SqlQueryPlus.builder(sql)
+                    .context(queryContext)
+                    .sqlParameters(parameters)
+                    .auth(authResult)
+                    .build()
+    );
+    Sequence<Object[]> results = stmt.execute().getResults();
+    RelDataType rowType = stmt.prepareResult().getReturnedRowType();
+    return new Pair<>(
+        RowSignatures.fromRelDataType(rowType.getFieldNames(), rowType),
+        results.toList()
+    );
+  }
+
+  public ObjectMapper createQueryJsonMapper()
+  {
+    // ugly workaround, for some reason the static mapper from Calcite.INJECTOR seems to get messed up over
+    // multiple test runs, resulting in missing subtypes that cause this JSON serde round-trip test
+    // this should be nearly identical to CalciteTests.getJsonMapper()
+    ObjectMapper mapper = new DefaultObjectMapper().registerModules(getJacksonModules());
+    setMapperInjectableValues(mapper, new HashMap<>());
+    return mapper;
+  }
+
+  public final void setMapperInjectableValues(ObjectMapper mapper, Map<String, Object> injectables)
+  {
+    // duplicate the injectable values from CalciteTests.INJECTOR initialization, mainly to update the injectable
+    // macro table, or whatever else you feel like injecting to a mapper
+    LookupExtractorFactoryContainerProvider lookupProvider =
+        CalciteTests.INJECTOR.getInstance(LookupExtractorFactoryContainerProvider.class);
+    mapper.setInjectableValues(new InjectableValues.Std(injectables)
+                                   .addValue(ExprMacroTable.class.getName(), createMacroTable())
+                                   .addValue(ObjectMapper.class.getName(), mapper)
+                                   .addValue(
+                                       DataSegment.PruneSpecsHolder.class,
+                                       DataSegment.PruneSpecsHolder.DEFAULT
+                                   )
+                                   .addValue(
+                                       LookupExtractorFactoryContainerProvider.class.getName(),
+                                       lookupProvider
+                                   )
+    );
+  }
+
+  @Override
+  public ExprMacroTable createMacroTable()
+  {
+    return QueryFrameworkUtils.createExprMacroTable(CalciteTests.INJECTOR);
+  }
+
+  @Override
+  public Iterable<? extends Module> getJacksonModules()
+  {
+    final List<Module> modules = new ArrayList<>(new LookupSerdeModule().getJacksonModules());
+    modules.add(new SimpleModule().registerSubtypes(ExternalDataSource.class));
+    return modules;
   }
 }

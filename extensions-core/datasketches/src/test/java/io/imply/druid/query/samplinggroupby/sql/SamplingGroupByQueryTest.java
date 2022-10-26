@@ -10,11 +10,9 @@
 package io.imply.druid.query.samplinggroupby.sql;
 
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule;
@@ -22,6 +20,7 @@ import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryRunnerFactory;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryToolChest;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.sql.calcite.rule.DruidSamplingGroupByQueryRule;
+import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.io.Closer;
@@ -57,7 +56,7 @@ import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.QueryStackTests;
 import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.server.security.AuthTestUtils;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
@@ -68,7 +67,9 @@ import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
 import org.apache.druid.sql.calcite.view.InProcessViewManager;
 import org.junit.Assert;
 import org.junit.Before;
@@ -83,13 +84,18 @@ import java.util.function.Function;
 public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
 {
   private InterceptingJoinableFactoryWrapper joinableFactoryWrapper;
+  private QueryRunnerFactoryConglomerate conglomerate;
+  private SpecificSegmentsQuerySegmentWalker walker;
 
   @Before
-  @Override
   public void setUp() throws Exception
   {
-    conglomerate = new DelegatingQueryRunnerFactoryConglomerate(conglomerate, resourceCloser);
-    super.setUp();
+    Closer resourceCloser = Closer.create();
+    conglomerate = new DelegatingQueryRunnerFactoryConglomerate(
+        QueryStackTests.createQueryRunnerFactoryConglomerate(resourceCloser, () -> minTopNThreshold),
+        resourceCloser
+    );
+    walker = createQuerySegmentWalker(conglomerate);
   }
 
   @Override
@@ -97,7 +103,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   {
     SamplingGroupByQueryModule samplingGroupByQueryModule = new SamplingGroupByQueryModule();
     samplingGroupByQueryModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    return Iterables.concat(super.getJacksonModules(), samplingGroupByQueryModule.getJacksonModules());
+    return samplingGroupByQueryModule.getJacksonModules();
   }
 
   @Override
@@ -112,30 +118,27 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   @Override
   public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
-      AuthConfig authConfig,
-      DruidOperatorTable operatorTable,
-      ExprMacroTable macroTable,
-      AuthorizerMapper authorizerMapper,
-      ObjectMapper objectMapper
+      AuthConfig authConfig
   )
   {
-    InProcessViewManager viewManager = new InProcessViewManager(CalciteTests.DRUID_VIEW_MACRO_FACTORY);
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
+    InProcessViewManager viewManager = new InProcessViewManager(SqlTestFramework.DRUID_VIEW_MACRO_FACTORY);
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
         conglomerate,
         walker,
         plannerConfig,
         viewManager,
         new NoopDruidSchemaManager(),
-        authorizerMapper
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER
     );
 
     PlannerFactory plannerFactory = new PlannerFactory(
         rootSchema,
-        operatorTable,
-        macroTable,
+        createOperatorTable(),
+        CalciteTests.createExprMacroTable(),
         plannerConfig,
-        authorizerMapper,
-        objectMapper,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+        new DefaultObjectMapper().registerModules(getJacksonModules()),
         CalciteTests.DRUID_SCHEMA_NAME,
         new CalciteRulesManager(
             ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider())
@@ -149,7 +152,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
+  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate) throws IOException
   {
     joinableFactoryWrapper = new InterceptingJoinableFactoryWrapper(QueryStackTests.makeJoinableFactoryForLookup(
         CalciteTests.INJECTOR.getInstance(LookupExtractorFactoryContainerProvider.class)

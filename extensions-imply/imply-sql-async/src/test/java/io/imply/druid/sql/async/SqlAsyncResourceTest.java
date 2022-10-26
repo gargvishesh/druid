@@ -37,14 +37,23 @@ import org.apache.druid.query.expressions.SleepExprMacro;
 import org.apache.druid.query.sql.SleepOperatorConversion;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.AuthTestUtils;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.sql.SqlLifecycleManager;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
+import org.apache.druid.sql.calcite.planner.PlannerFactory;
+import org.apache.druid.sql.calcite.run.SqlEngine;
+import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
+import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
+import org.apache.druid.sql.calcite.view.InProcessViewManager;
 import org.apache.druid.sql.http.ResultFormat;
 import org.apache.druid.sql.http.SqlQuery;
 import org.joda.time.Duration;
@@ -158,13 +167,32 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         lifecycle
     );
     queryPool = poolProvider.get();
-    final SqlStatementFactory sqlLifecycleFactory = getSqlStatementFactory(
+
+    SqlTestFramework qf = queryFramework();
+    final SqlEngine engine = CalciteTests.createMockSqlEngine(qf.walker(), qf.conglomerate());
+    final InProcessViewManager viewManager = new InProcessViewManager(SqlTestFramework.DRUID_VIEW_MACRO_FACTORY);
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
+        qf.conglomerate(),
+        qf.walker(),
         new PlannerConfig(),
-        new AuthConfig(),
-        createOperatorTable(),
-        createMacroTable(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        CalciteTests.getJsonMapper()
+        viewManager,
+        new NoopDruidSchemaManager(),
+        CalciteTests.TEST_AUTHORIZER_MAPPER
+    );
+    PlannerFactory plannerFactory = new PlannerFactory(
+        rootSchema,
+        CalciteTests.createOperatorTable(),
+        CalciteTests.createExprMacroTable(),
+        PLANNER_CONFIG_DEFAULT,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
+        jsonMapper,
+        CalciteTests.DRUID_SCHEMA_NAME,
+        new CalciteRulesManager(ImmutableSet.of())
+    );
+    final SqlStatementFactory sqlLifecycleFactory = CalciteTests.createSqlStatementFactory(
+        engine,
+        plannerFactory
     );
     resource = new SqlAsyncResource(
         BROKER_ID,

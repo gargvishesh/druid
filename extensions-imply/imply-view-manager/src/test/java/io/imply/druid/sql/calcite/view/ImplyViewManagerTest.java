@@ -16,22 +16,21 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +44,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   private ImplyViewManager viewManager;
   private PlannerFactory plannerFactory;
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
+  SqlTestFramework qf = queryFramework();
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
@@ -53,12 +53,13 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   public void setUp2()
   {
     this.viewManager = new ImplyViewManager(
-        CalciteTests.DRUID_VIEW_MACRO_FACTORY
+        SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
 
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
-        conglomerate,
-        walker,
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
+        qf.conglomerate(),
+        qf.walker(),
         PLANNER_CONFIG_DEFAULT,
         viewManager,
         new NoopDruidSchemaManager(),
@@ -80,14 +81,10 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   @Override
   public SqlStatementFactory getSqlStatementFactory(
       PlannerConfig plannerConfig,
-      AuthConfig authConfig,
-      DruidOperatorTable operatorTable,
-      ExprMacroTable macroTable,
-      AuthorizerMapper authorizerMapper,
-      ObjectMapper objectMapper
+      AuthConfig authConfig
   )
   {
-    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
+    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(qf.walker(), qf.conglomerate()), plannerFactory);
   }
 
   @Test
