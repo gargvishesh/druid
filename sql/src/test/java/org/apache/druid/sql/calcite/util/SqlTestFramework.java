@@ -88,11 +88,17 @@ import java.util.Set;
  * extending {@link SqlTestFramework.StandardComponentSupplier StandardComponentSupplier}.
  * <p>
  * The framework should be built once per test class (not once per test method.)
- * Then, per method, call {@link #statementFactory(PlannerConfig, AuthConfig)} to
+ * Then, for each planner setup, call {@link #plannerFixture(PlannerConfig, AuthConfig)}
+ * to get a {@link PlannerFixture} with a view manager and planner factory. Call
+ * {@link PlannerFixture#statementFactory()} to
  * obtain a the test-specific planner and wrapper classes for that test. After
  * that, tests use the various SQL statement classes to run tests. For tests
  * based on {@code BaseCalciteQueryTest}, the statements are wrapped by the
  * various {@code testQuery()} methods.
+ * <p>
+ * For tests that use non-standard views, first create the {@code PlannerFixture},
+ * populate the views, then use the {@code QueryTestBuilder} directly, passing in
+ * the {@code PlannerFixture} with views populated.
  * <p>
  * The framework holds on to the framework components. You can obtain the injector,
  * object mapper and other items by calling the various methods. The objects
