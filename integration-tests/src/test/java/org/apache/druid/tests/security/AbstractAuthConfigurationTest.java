@@ -517,14 +517,14 @@ public abstract class AbstractAuthConfigurationTest
   public void test_avaticaQueryAuthFailure_broker() throws Exception
   {
     final Properties properties = getAvaticaConnectionPropertiesForInvalidAdmin();
-    testAvaticaAuthFailure(properties, getBrokerAvacticaUrl());
+    testAvaticaAuthzFailure(properties, getBrokerAvacticaUrl());
   }
 
   @Test
   public void test_avaticaQueryAuthFailure_router() throws Exception
   {
     final Properties properties = getAvaticaConnectionPropertiesForInvalidAdmin();
-    testAvaticaAuthFailure(properties, getRouterAvacticaUrl());
+    testAvaticaAuthzFailure(properties, getRouterAvacticaUrl());
   }
 
   @Test
@@ -663,11 +663,6 @@ public abstract class AbstractAuthConfigurationTest
     catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  protected void testAvaticaAuthFailure(Properties connectionProperties, String url) throws Exception
-  {
-    testAvaticaAuthFailure(connectionProperties, url, getExpectedAvaticaAuthError());
   }
 
   protected void testAvaticaAuthzFailure(Properties connectionProperties, String url) throws Exception
