@@ -67,7 +67,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   private ImplyViewManager viewManager;
   private PlannerFactory plannerFactory;
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-  SqlTestFramework qf = queryFramework();
+  SqlTestFramework qf;
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
@@ -84,6 +84,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     this.viewManager = new ImplyViewManager(
         SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
+    qf = queryFramework();
     DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
         CalciteTests.INJECTOR,
         qf.conglomerate(),
@@ -514,7 +515,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         CalciteTests.INJECTOR,
         qf.conglomerate(),
         qf.walker(),
-        new PlannerConfig(),
+        plannerConfig,
         viewManager,
         new NoopDruidSchemaManager(),
         CalciteTests.TEST_AUTHORIZER_MAPPER
@@ -525,7 +526,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         CalciteTests.createExprMacroTable(),
         plannerConfig,
         AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-        createQueryJsonMapper(),
+        jsonMapper,
         CalciteTests.DRUID_SCHEMA_NAME,
         new CalciteRulesManager(ImmutableSet.of())
     );
@@ -545,49 +546,5 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         RowSignatures.fromRelDataType(rowType.getFieldNames(), rowType),
         results.toList()
     );
-  }
-
-  public ObjectMapper createQueryJsonMapper()
-  {
-    // ugly workaround, for some reason the static mapper from Calcite.INJECTOR seems to get messed up over
-    // multiple test runs, resulting in missing subtypes that cause this JSON serde round-trip test
-    // this should be nearly identical to CalciteTests.getJsonMapper()
-    ObjectMapper mapper = new DefaultObjectMapper().registerModules(getJacksonModules());
-    setMapperInjectableValues(mapper, new HashMap<>());
-    return mapper;
-  }
-
-  public final void setMapperInjectableValues(ObjectMapper mapper, Map<String, Object> injectables)
-  {
-    // duplicate the injectable values from CalciteTests.INJECTOR initialization, mainly to update the injectable
-    // macro table, or whatever else you feel like injecting to a mapper
-    LookupExtractorFactoryContainerProvider lookupProvider =
-        CalciteTests.INJECTOR.getInstance(LookupExtractorFactoryContainerProvider.class);
-    mapper.setInjectableValues(new InjectableValues.Std(injectables)
-                                   .addValue(ExprMacroTable.class.getName(), createMacroTable())
-                                   .addValue(ObjectMapper.class.getName(), mapper)
-                                   .addValue(
-                                       DataSegment.PruneSpecsHolder.class,
-                                       DataSegment.PruneSpecsHolder.DEFAULT
-                                   )
-                                   .addValue(
-                                       LookupExtractorFactoryContainerProvider.class.getName(),
-                                       lookupProvider
-                                   )
-    );
-  }
-
-  @Override
-  public ExprMacroTable createMacroTable()
-  {
-    return QueryFrameworkUtils.createExprMacroTable(CalciteTests.INJECTOR);
-  }
-
-  @Override
-  public Iterable<? extends Module> getJacksonModules()
-  {
-    final List<Module> modules = new ArrayList<>(new LookupSerdeModule().getJacksonModules());
-    modules.add(new SimpleModule().registerSubtypes(ExternalDataSource.class));
-    return modules;
   }
 }

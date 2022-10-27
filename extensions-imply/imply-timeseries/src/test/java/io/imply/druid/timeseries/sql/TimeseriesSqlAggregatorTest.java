@@ -122,18 +122,10 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlEngine createEngine(
-      QueryLifecycleFactory qlf,
-      ObjectMapper queryJsonMapper
-  )
+  public void configureJsonMapper(ObjectMapper queryJsonMapper)
   {
     queryJsonMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
     queryJsonMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-    if (engine0 == null) {
-      return baseComponentSupplier.createEngine(qlf, queryJsonMapper);
-    } else {
-      return engine0;
-    }
   }
 
   @Test

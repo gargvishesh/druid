@@ -44,7 +44,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
   private ImplyViewManager viewManager;
   private PlannerFactory plannerFactory;
   private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-  SqlTestFramework qf = queryFramework();
+  SqlTestFramework qf;
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
@@ -56,6 +56,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
         SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
 
+    qf = queryFramework();
     DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
         CalciteTests.INJECTOR,
         qf.conglomerate(),
