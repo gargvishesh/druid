@@ -183,9 +183,6 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   private static final List<InputRow> ROWS =
       RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
 
-  private ExprMacroTable macroTable = createMacroTable();
-
-
   @Override
   public Iterable<? extends Module> getJacksonModules()
   {
@@ -199,7 +196,6 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate) throws IOException
   {
     IpAddressModule.registerHandlersAndSerde();
-    this.macroTable = createMacroTable();
     final QueryableIndex index =
         IndexBuilder.create()
                     .tmpDir(temporaryFolder.newFolder())
@@ -254,6 +250,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   @Test
   public void testGroupByFormat()
   {
+    ExprMacroTable macroTable = queryFramework().macroTable();
     cannotVectorize();
     testQuery(
         "SELECT "
@@ -369,6 +366,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   @Test
   public void testGroupByFormatFilterMatch()
   {
+    ExprMacroTable macroTable = queryFramework().macroTable();
     cannotVectorize();
     testQuery(
         "SELECT "
@@ -413,6 +411,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   @Test
   public void testGroupByFormatFilterSearchWithoutDot()
   {
+    ExprMacroTable macroTable = queryFramework().macroTable();
     cannotVectorize();
     testQuery(
         "SELECT "
@@ -457,6 +456,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   @Test
   public void testGroupByFormatFilterSearchWithDot()
   {
+    ExprMacroTable macroTable = queryFramework().macroTable();
     cannotVectorize();
     testQuery(
         "SELECT "

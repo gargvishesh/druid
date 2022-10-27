@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule;
@@ -20,7 +21,6 @@ import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryRunnerFactory;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryToolChest;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.sql.calcite.rule.DruidSamplingGroupByQueryRule;
-import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.io.Closer;
@@ -55,47 +55,40 @@ import org.apache.druid.segment.join.JoinType;
 import org.apache.druid.segment.join.JoinableFactory;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.QueryStackTests;
-import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthTestUtils;
-import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
-import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
-import org.apache.druid.sql.calcite.planner.PlannerConfig;
-import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
-import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
+import org.apache.druid.sql.calcite.rule.ExtensionCalciteRuleProvider;
 import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
-import org.apache.druid.sql.calcite.util.SqlTestFramework;
-import org.apache.druid.sql.calcite.view.InProcessViewManager;
+import org.apache.druid.sql.calcite.util.SqlTestFramework.Builder;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
 {
-  private InterceptingJoinableFactoryWrapper joinableFactoryWrapper;
-  private QueryRunnerFactoryConglomerate conglomerate;
-  private SpecificSegmentsQuerySegmentWalker walker;
+  // Static because the query framework is created once per class,
+  // but the class itself is instantiated once per test.
+  // Better to put this into the common injector, and pull it out when
+  // needed. Left as an exercise for later.
+  private static InterceptingJoinableFactoryWrapper joinableFactoryWrapper;
 
-  @Before
-  public void setUp() throws Exception
+  @Override
+  public QueryRunnerFactoryConglomerate createCongolmerate(
+      Builder builder,
+      Closer resourceCloser
+  )
   {
-    Closer resourceCloser = Closer.create();
-    conglomerate = new DelegatingQueryRunnerFactoryConglomerate(
-        QueryStackTests.createQueryRunnerFactoryConglomerate(resourceCloser, () -> minTopNThreshold),
-        resourceCloser
-    );
-    walker = createQuerySegmentWalker(conglomerate);
+    QueryRunnerFactoryConglomerate conglomerate = super.createCongolmerate(builder, resourceCloser);
+    return new DelegatingQueryRunnerFactoryConglomerate(conglomerate, resourceCloser);
   }
 
   @Override
@@ -103,7 +96,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   {
     SamplingGroupByQueryModule samplingGroupByQueryModule = new SamplingGroupByQueryModule();
     samplingGroupByQueryModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    return samplingGroupByQueryModule.getJacksonModules();
+    return Iterables.concat(super.getJacksonModules(), samplingGroupByQueryModule.getJacksonModules());
   }
 
   @Override
@@ -116,39 +109,9 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SqlStatementFactory getSqlStatementFactory(
-      PlannerConfig plannerConfig,
-      AuthConfig authConfig
-  )
+  public Set<ExtensionCalciteRuleProvider> calciteRules()
   {
-    InProcessViewManager viewManager = new InProcessViewManager(SqlTestFramework.DRUID_VIEW_MACRO_FACTORY);
-    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
-        CalciteTests.INJECTOR,
-        conglomerate,
-        walker,
-        plannerConfig,
-        viewManager,
-        new NoopDruidSchemaManager(),
-        AuthTestUtils.TEST_AUTHORIZER_MAPPER
-    );
-
-    PlannerFactory plannerFactory = new PlannerFactory(
-        rootSchema,
-        createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        plannerConfig,
-        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-        new DefaultObjectMapper().registerModules(getJacksonModules()),
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(
-            ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider())
-        )
-    );
-    return CalciteTests.createSqlStatementFactory(
-        CalciteTests.createMockSqlEngine(walker, conglomerate),
-        plannerFactory,
-        authConfig
-    );
+    return ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider());
   }
 
   @Override
@@ -293,7 +256,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   @Test
   public void testExtrapolationSamplingGroupByQuery()
   {
-    // don't check this test for correctnes of results as comapred to exact query
+    // don't check this test for correctness of results as compared to exact query
     // this is to test the functionality of sampling
     cannotVectorize();
     testQuery(

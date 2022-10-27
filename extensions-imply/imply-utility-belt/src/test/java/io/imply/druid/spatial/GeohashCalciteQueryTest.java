@@ -91,13 +91,10 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
   private static final List<InputRow> ROWS =
       RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
 
-  private ExprMacroTable macroTable;
-
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate) throws IOException
   {
     IpAddressModule.registerHandlersAndSerde();
-    this.macroTable = createMacroTable();
     final QueryableIndex index =
         IndexBuilder.create()
                     .tmpDir(temporaryFolder.newFolder())
@@ -146,6 +143,7 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
   @Test
   public void testSelectGeohash()
   {
+    ExprMacroTable macroTable = queryFramework().macroTable();
     testQuery(
         "SELECT ST_GEOHASH(lon, lat, 8) FROM druid.geohashtest",
         ImmutableList.of(
@@ -170,5 +168,4 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
         )
     );
   }
-
 }

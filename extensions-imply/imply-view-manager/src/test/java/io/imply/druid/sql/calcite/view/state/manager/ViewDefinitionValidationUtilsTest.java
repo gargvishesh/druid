@@ -10,101 +10,74 @@
 package io.imply.druid.sql.calcite.view.state.manager;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import nl.jqno.equalsverifier.EqualsVerifier;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.druid.jackson.DefaultObjectMapper;
-import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.expression.TestExprMacroTable;
-import org.apache.druid.query.lookup.LookupExtractorFactoryContainerProvider;
-import org.apache.druid.query.lookup.LookupSerdeModule;
-import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.server.security.AuthTestUtils;
-import org.apache.druid.server.security.AuthenticationResult;
+import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceType;
-import org.apache.druid.sql.DirectStatement;
-import org.apache.druid.sql.SqlQueryPlus;
-import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.external.ExternalDataSource;
-import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
-import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
-import org.apache.druid.sql.calcite.table.RowSignatures;
-import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
 import org.apache.druid.sql.calcite.util.SqlTestFramework;
-import org.apache.druid.sql.http.SqlParameter;
-import org.apache.druid.timeline.DataSegment;
+import org.apache.druid.sql.calcite.util.SqlTestFramework.PlannerFixture;
+import org.apache.druid.sql.calcite.view.ViewManager;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 {
-  private ImplyViewManager viewManager;
-  private PlannerFactory plannerFactory;
-  private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-  SqlTestFramework qf;
-
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void setUp2()
-  {
-    jsonMapper.setInjectableValues(
-        new InjectableValues.Std()
-            .addValue(ExprMacroTable.class.getName(), TestExprMacroTable.INSTANCE)
-            .addValue(ObjectMapper.class.getName(), jsonMapper)
-    );
+  private PlannerFixture plannerFixture;
 
-    this.viewManager = new ImplyViewManager(
+  @Override
+  public ExprMacroTable createMacroTable()
+  {
+    return TestExprMacroTable.INSTANCE;
+  }
+
+  @Override
+  public ViewManager createViewManager()
+  {
+    return new ImplyViewManager(
         SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
-    qf = queryFramework();
-    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
-        CalciteTests.INJECTOR,
-        qf.conglomerate(),
-        qf.walker(),
-        PLANNER_CONFIG_DEFAULT,
-        viewManager,
-        new NoopDruidSchemaManager(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER
-    );
+  }
 
-    this.plannerFactory = new PlannerFactory(
-        rootSchema,
-        CalciteTests.createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        PLANNER_CONFIG_DEFAULT,
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
+  @Override
+  public void populateViews(ViewManager viewManager, PlannerFactory plannerFactory)
+  {
+    // None of the standard, default views.
+  }
+
+  @Before
+  public void setupPlanner()
+  {
+    plannerFixture = queryFramework().plannerFixture(
+        BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
+        new AuthConfig()
     );
+  }
+
+  public ObjectMapper jsonMapper()
+  {
+    return queryFramework().queryJsonMapper();
   }
 
   @Test
@@ -113,7 +86,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo");
 
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -121,21 +94,29 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM foo");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
+  }
+
+  private void createView(String name, String stmt)
+  {
+    plannerFixture.viewManager().createView(
+        plannerFixture.plannerFactory(),
+        name,
+        stmt
+    );
   }
 
   @Test
   public void test_selectStart_withoutNamespace_viewWithSameName_allowed() throws Exception
   {
-    viewManager.createView(
-        plannerFactory,
+    createView(
         "foo",
         "SELECT * FROM druid.foo WHERE dim1 != 'aaaaa'"
     );
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM foo");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
 
     // Make sure that we queried the datasource, not the view with the same name
     Assert.assertEquals(
@@ -149,16 +130,15 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT dim1 FROM druid.foo WHERE dim1 = 'test'");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
-
 
   @Test
   public void test_withFilter_withNewLine_allowed() throws Exception
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT dim1 FROM \n" + "druid.foo WHERE dim1 = '\\ntest\n'");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -166,7 +146,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo WHERE druid.foo.dim1 = 'value'");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -174,7 +154,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo WHERE druid.foo.dim1 = UPPER(dim1)");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -182,7 +162,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   {
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT dim1 FROM druid.foo WHERE UPPER(dim1) = 'TEST'");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -193,7 +173,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT UPPER(dim1) FROM druid.foo WHERE UPPER(dim1) = 'TEST'");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -204,7 +184,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT CONCAT(dim1, dim2) FROM druid.foo");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -215,7 +195,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT CAST(m2 AS VARCHAR) FROM druid.foo");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -226,7 +206,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo LIMIT 10");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -237,7 +217,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo OFFSET 5");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -248,7 +228,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo ORDER BY __time");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -259,7 +239,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM druid.foo ORDER BY __time ASC");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -270,7 +250,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT dim1, COUNT(*) FROM druid.foo GROUP BY dim1");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -281,7 +261,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT * FROM lookup.lookyloo");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -292,7 +272,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT dim1, dim2 FROM druid.foo WHERE dim2 IN (SELECT dim2 FROM druid.foo)");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -303,7 +283,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT COUNT(*) AS cnt FROM ( SELECT * FROM druid.foo LIMIT 10 ) tmpA");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -314,7 +294,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
 
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources =
         getExplainPlanAndResources("SELECT COUNT(*) FROM druid.foo x, druid.foo y");
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -327,7 +307,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         "SELECT lookyloo.k, COUNT(*) FROM foo LEFT JOIN lookup.lookyloo ON foo.dim2 = lookyloo.k " +
         "WHERE lookyloo.v = '123' GROUP BY lookyloo.k"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -340,7 +320,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         "SELECT dim1, lookyloo.* FROM foo RIGHT JOIN lookup.lookyloo ON foo.dim1 = lookyloo.k\n" +
         "WHERE lookyloo.v <> 'xxx' OR lookyloo.v IS NULL"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -352,7 +332,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources = getExplainPlanAndResources(
         "SELECT COUNT(*) FROM foo UNION ALL SELECT SUM(cnt) FROM foo UNION ALL SELECT COUNT(*) FROM foo"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -364,7 +344,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources = getExplainPlanAndResources(
         "SELECT dim1, COUNT(*) FROM (SELECT dim1, m1 FROM foo UNION ALL SELECT dim1, m1 FROM foo2) GROUP BY dim1"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -378,7 +358,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
         + "FROM INFORMATION_SCHEMA.TABLES\n"
         + "WHERE TABLE_TYPE IN ('SYSTEM_TABLE', 'TABLE', 'VIEW')"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
@@ -390,14 +370,13 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources = getExplainPlanAndResources(
         "SELECT * from sys.segments"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
   public void test_viewOnView_denied() throws Exception
   {
-    viewManager.createView(
-        plannerFactory,
+    createView(
         "bview",
         "SELECT COUNT(*) FROM druid.foo\n"
         + "WHERE __time >= CURRENT_TIMESTAMP + INTERVAL '1' DAY AND __time < TIMESTAMP '2002-01-01 00:00:00'"
@@ -409,14 +388,13 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     ViewDefinitionValidationUtils.QueryPlanAndResources planAndResources = getExplainPlanAndResources(
         "SELECT * from view.bview"
     );
-    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper);
+    ViewDefinitionValidationUtils.validateQueryPlanAndResources(planAndResources, jsonMapper());
   }
 
   @Test
   public void test_extractQueryPlanAndResources() throws Exception
   {
-    viewManager.createView(
-        plannerFactory,
+    createView(
         "bview",
         "SELECT COUNT(*) FROM druid.foo\n"
         + "WHERE __time >= CURRENT_TIMESTAMP + INTERVAL '1' DAY AND __time < TIMESTAMP '2002-01-01 00:00:00'"
@@ -438,7 +416,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
       responseContent = makeExplainResponseContentFromQueryPlanAndResources(planAndResources);
       newPlanAndResources = ViewDefinitionValidationUtils.getQueryPlanAndResourcesFromExplainResponse(
           responseContent,
-          jsonMapper
+          jsonMapper()
       );
       Assert.assertEquals(planAndResources, newPlanAndResources);
     }
@@ -462,35 +440,35 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
       List<Map<String, Object>> responseStruct = ImmutableList.of(
           ImmutableMap.of(
               "PLAN", queryPlanAndResources.getQueryPlan(),
-              "RESOURCES", jsonMapper.writeValueAsString(queryPlanAndResources.getResources())
+              "RESOURCES", jsonMapper().writeValueAsString(queryPlanAndResources.getResources())
           )
       );
-      return jsonMapper.writeValueAsString(responseStruct);
+      return jsonMapper().writeValueAsString(responseStruct);
     }
     catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-
   public ViewDefinitionValidationUtils.QueryPlanAndResources getExplainPlanAndResources(final String sql) throws Exception
   {
-    List<Object[]> results = getResults(
-        PLANNER_CONFIG_DEFAULT,
-        ImmutableMap.<String, Object>builder()
+    List<Object[]> results = testBuilder()
+        .queryContext(
+              ImmutableMap.<String, Object>builder()
                     .put(QueryContexts.CTX_SQL_QUERY_ID, DUMMY_SQL_ID)
                     .put(PlannerContext.CTX_SQL_CURRENT_TIMESTAMP, "2000-01-01T00:00:00Z")
                     .put(QueryContexts.DEFAULT_TIMEOUT_KEY, QueryContexts.DEFAULT_TIMEOUT_MILLIS)
                     .put(QueryContexts.MAX_SCATTER_GATHER_BYTES_KEY, Long.MAX_VALUE)
-                    .put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "false").build(),
-        DEFAULT_PARAMETERS,
-        "EXPLAIN PLAN FOR " + sql,
-        CalciteTests.REGULAR_USER_AUTH_RESULT
-    ).rhs;
+                    .put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "false").build()
+         )
+        .sql("EXPLAIN PLAN FOR " + sql)
+        .plannerFixture(plannerFixture)
+        .results()
+        .results;
 
     String queryPlan = (String) results.get(0)[0];
     String resourceSetSerialized = (String) results.get(0)[1];
-    Set<Resource> resources = jsonMapper.readValue(
+    Set<Resource> resources = jsonMapper().readValue(
         resourceSetSerialized,
         new TypeReference<Set<Resource>>()
         {
@@ -500,51 +478,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
     return new ViewDefinitionValidationUtils.QueryPlanAndResources(
         queryPlan,
         resources
-    );
-  }
-
-  private Pair<RowSignature, List<Object[]>> getResults(
-      final PlannerConfig plannerConfig,
-      final Map<String, Object> queryContext,
-      final List<SqlParameter> parameters,
-      final String sql,
-      AuthenticationResult authResult
-  )
-  {
-    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
-        CalciteTests.INJECTOR,
-        qf.conglomerate(),
-        qf.walker(),
-        plannerConfig,
-        viewManager,
-        new NoopDruidSchemaManager(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER
-    );
-    PlannerFactory plannerFactory = new PlannerFactory(
-        rootSchema,
-        CalciteTests.createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        plannerConfig,
-        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-        jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
-    );
-    final SqlStatementFactory sqlStatementFactory = CalciteTests.createSqlStatementFactory(
-        CalciteTests.createMockSqlEngine(qf.walker(), qf.conglomerate()), plannerFactory
-    );
-    final DirectStatement stmt = sqlStatementFactory.directStatement(
-        SqlQueryPlus.builder(sql)
-                    .context(queryContext)
-                    .sqlParameters(parameters)
-                    .auth(authResult)
-                    .build()
-    );
-    Sequence<Object[]> results = stmt.execute().getResults();
-    RelDataType rowType = stmt.prepareResult().getReturnedRowType();
-    return new Pair<>(
-        RowSignatures.fromRelDataType(rowType.getFieldNames(), rowType),
-        results.toList()
     );
   }
 }
