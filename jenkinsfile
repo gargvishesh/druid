@@ -820,7 +820,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'imply-experimental'
+                        values 'dist', 'imply-saas', 'imply-hadoop3'
                     }
                 }
                 stages {
@@ -834,8 +834,8 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
-                                    echo "druid-experimental"
+                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                    echo "druid-hadoop3"
                                 else
                                     echo "druid"
                                 fi
@@ -843,8 +843,8 @@ pipeline {
                             ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid.saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
-                                    echo "druid.experimental"
+                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                    echo "druid.hadoop3"
                                 else
                                     echo "druid"
                                 fi
@@ -912,7 +912,11 @@ pipeline {
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
-                                        HADOOP_VERSION="2.8.5"
+                                        if [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                            HADOOP_VERSION="3.3.1"
+                                        else
+                                            HADOOP_VERSION="2.8.5"
+                                        fi
 
                                         MARIADB_CONNECTOR_VERSION="2.7.3"
 
@@ -2238,7 +2242,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'imply-experimental'
+                        values 'dist', 'imply-saas', 'imply-hadoop3'
                     }
                 }
                 stages {
@@ -2252,8 +2256,8 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-experimental" ]; then
-                                    echo "druid-experimental"
+                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                    echo "druid-hadoop3"
                                 else
                                     echo "druid"
                                 fi
@@ -2334,7 +2338,7 @@ pipeline {
                     echo "Setting BVT as Fail"
                     markBvtAsFail('druid', "${BUILD_VERSION}")
                     markBvtAsFail('druid-saas', "${BUILD_VERSION}")
-                    markBvtAsFail('druid-experimental', "{$BUILD_VERSION}")
+                    markBvtAsFail('druid-hadoop3', "{$BUILD_VERSION}")
                 }
             }
         }
