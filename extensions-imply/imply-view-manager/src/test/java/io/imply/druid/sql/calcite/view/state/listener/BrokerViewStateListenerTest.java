@@ -33,6 +33,8 @@ import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
 import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
+import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -71,13 +73,15 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
   {
     EmittingLogger.registerEmitter(EMITTER);
     EMITTER.start();
+    SqlTestFramework qf = queryFramework();
     this.viewManager = new ImplyViewManager(
-        CalciteTests.DRUID_VIEW_MACRO_FACTORY
+        SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
 
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
-        conglomerate,
-        walker,
+    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
+        CalciteTests.INJECTOR,
+        qf.conglomerate(),
+        qf.walker(),
         PLANNER_CONFIG_DEFAULT,
         viewManager,
         new NoopDruidSchemaManager(),

@@ -9,30 +9,21 @@
 
 package io.imply.druid.sql.calcite.view;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.sql.SqlPlanningException;
-import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
-import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
-import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.junit.Before;
+import org.apache.druid.sql.calcite.util.SqlTestFramework;
+import org.apache.druid.sql.calcite.util.SqlTestFramework.PlannerFixture;
+import org.apache.druid.sql.calcite.view.ViewManager;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,60 +33,38 @@ import java.io.IOException;
 
 public class ImplyViewManagerTest extends BaseCalciteQueryTest
 {
-  private ImplyViewManager viewManager;
-  private PlannerFactory plannerFactory;
-  private final ObjectMapper jsonMapper = new DefaultObjectMapper();
-
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void setUp2()
+  @Override
+  public ViewManager createViewManager()
   {
-    this.viewManager = new ImplyViewManager(
-        CalciteTests.DRUID_VIEW_MACRO_FACTORY
-    );
-
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
-        conglomerate,
-        walker,
-        PLANNER_CONFIG_DEFAULT,
-        viewManager,
-        new NoopDruidSchemaManager(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER
-    );
-
-    this.plannerFactory = new PlannerFactory(
-        rootSchema,
-        CalciteTests.createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        PLANNER_CONFIG_DEFAULT,
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
+    return new ImplyViewManager(
+        SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
   }
 
   @Override
-  public SqlStatementFactory getSqlStatementFactory(
-      PlannerConfig plannerConfig,
-      AuthConfig authConfig,
-      DruidOperatorTable operatorTable,
-      ExprMacroTable macroTable,
-      AuthorizerMapper authorizerMapper,
-      ObjectMapper objectMapper
-  )
+  public void populateViews(ViewManager viewManager, PlannerFactory plannerFactory)
   {
-    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
+    // None of the standard, default views.
+  }
+
+  private PlannerFixture plannerFixture()
+  {
+    return queryFramework().plannerFixture(
+        BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
+        new AuthConfig()
+    );
   }
 
   @Test
   public void testCreateAndDeleteView()
   {
+    PlannerFixture plannerFixture = plannerFixture();
     // create a view, the view query should work
-    viewManager.createView(
-        plannerFactory,
+    plannerFixture.viewManager().createView(
+        plannerFixture.plannerFactory(),
         "bview",
         "SELECT COUNT(*) FROM druid.foo\n"
         + "WHERE __time >= CURRENT_TIMESTAMP + INTERVAL '1' DAY AND __time < TIMESTAMP '2002-01-01 00:00:00'"
@@ -109,36 +78,38 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
                                   .context(QUERY_CONTEXT_DEFAULT)
                                   .build();
 
-    testQuery(
-        "SELECT * FROM view.bview",
-        ImmutableList.of(
-          query
-        ),
-        ImmutableList.of(
+    testBuilder()
+      .plannerFixture(plannerFixture)
+      .sql("SELECT * FROM view.bview")
+      .expectedQuery(query)
+      .expectedResults(
+         ImmutableList.of(
             new Object[]{5L}
-        )
-    );
+         )
+       )
+      .run();
 
     // Drop the view, the view query should fail
     expectedException.expect(SqlPlanningException.class);
     expectedException.expectMessage("Object 'bview' not found within 'view'");
 
-    viewManager.dropView("bview");
-    testQuery(
-        "SELECT * FROM view.bview",
-        ImmutableList.of(
-            query
-        ),
-        ImmutableList.of(
-            new Object[]{5L}
-        )
-    );
-
+    plannerFixture.viewManager().dropView("bview");
+    testBuilder()
+      .plannerFixture(plannerFixture)
+      .sql("SELECT * FROM view.bview")
+      .expectedQuery(query)
+      .expectedResults(
+          ImmutableList.of(
+              new Object[]{5L}
+          )
+       )
+      .run();
   }
 
   @Test
-  public void test_temporary_view_loader() throws IOException
+  public void testTemporaryViewLoader() throws IOException
   {
+    PlannerFixture plannerFixture = plannerFixture();
     ImplyViewCacheUpdateMessage message = new ImplyViewCacheUpdateMessage(
         ImmutableMap.of(
             "cloned_foo",
@@ -155,15 +126,15 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
     );
 
     TemporaryViewDefinitionLoader loader = new TemporaryViewDefinitionLoader(
-        jsonMapper,
-        plannerFactory,
-        viewManager
+        queryFramework().queryJsonMapper(),
+        plannerFixture.plannerFactory(),
+        plannerFixture.viewManager()
     );
 
     File testDefs = File.createTempFile("viewloadertest", null);
     loader.setFileToUse(testDefs);
 
-    jsonMapper.writeValue(testDefs, message);
+    queryFramework().queryJsonMapper().writeValue(testDefs, message);
 
     loader.start();
     loader.stop();
