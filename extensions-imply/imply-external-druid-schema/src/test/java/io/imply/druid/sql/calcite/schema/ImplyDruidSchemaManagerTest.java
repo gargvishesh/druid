@@ -9,33 +9,22 @@
 
 package io.imply.druid.sql.calcite.schema;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.discovery.DruidLeaderClient;
-import org.apache.druid.jackson.DefaultObjectMapper;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.server.security.AuthorizerMapper;
-import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
-import org.apache.druid.sql.calcite.planner.PlannerConfig;
-import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
+import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
 import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.apache.druid.sql.calcite.view.NoopViewManager;
-import org.junit.Before;
+import org.apache.druid.sql.calcite.util.SqlTestFramework.PlannerFixture;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -48,16 +37,13 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
 {
   private CoordinatorPollingExternalDruidSchemaCacheManager schemaCacheManager;
   private ImplyDruidSchemaManager schemaManager;
-  private PlannerFactory plannerFactory;
-  private final ObjectMapper jsonMapper = new DefaultObjectMapper();
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void setUp2()
+  @Override
+  public DruidSchemaManager createSchemaManager()
   {
-    NullHandling.sqlCompatible();
     this.schemaCacheManager =
         new CoordinatorPollingExternalDruidSchemaCacheManager(
             new ImplyExternalDruidSchemaCommonCacheConfig(
@@ -70,50 +56,29 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
                 null,
                 "http://test:9000"
             ),
-            jsonMapper,
+            queryFramework().queryJsonMapper(),
             Mockito.mock(DruidLeaderClient.class)
         );
     this.schemaManager = new ImplyDruidSchemaManager(
         schemaCacheManager
     );
-
-    DruidSchemaCatalog rootSchema = CalciteTests.createMockRootSchema(
-        conglomerate,
-        walker,
-        PLANNER_CONFIG_DEFAULT,
-        new NoopViewManager(),
-        schemaManager,
-        CalciteTests.TEST_AUTHORIZER_MAPPER
-    );
-
-    this.plannerFactory = new PlannerFactory(
-        rootSchema,
-        CalciteTests.createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        PLANNER_CONFIG_DEFAULT,
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
-    );
+    return this.schemaManager;
   }
 
-  @Override
-  public SqlStatementFactory getSqlStatementFactory(
-      PlannerConfig plannerConfig,
-      AuthConfig authConfig,
-      DruidOperatorTable operatorTable,
-      ExprMacroTable macroTable,
-      AuthorizerMapper authorizerMapper,
-      ObjectMapper objectMapper
-  )
+  private PlannerFixture plannerFixture()
   {
-    return CalciteTests.createSqlStatementFactory(CalciteTests.createMockSqlEngine(walker, conglomerate), plannerFactory);
+    return queryFramework().plannerFixture(
+        BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
+        new AuthConfig()
+    );
   }
 
   @Test
   public void testSchemaManager() throws Exception
   {
+    // Create this so that the schema manager is created and attached
+    // to the planner used for tests.
+    PlannerFixture plannerFixture = plannerFixture();
     Map<String, TableSchema> schemaMap = ImmutableMap.of(
         CalciteTests.DATASOURCE1,
         new TableSchema(
@@ -129,7 +94,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
         )
     );
     schemaCacheManager.updateTableSchemas(
-        jsonMapper.writeValueAsBytes(schemaMap)
+        queryFramework().queryJsonMapper().writeValueAsBytes(schemaMap)
     );
 
     ScanQuery query = Druids.newScanQueryBuilder()
@@ -162,13 +127,13 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
       );
     }
 
-    testQuery(
-        "SELECT * FROM druid.foo",
-        ImmutableList.of(
-          query
-        ),
-        expectedRows
-    );
+    // Use the test builder directly to reuse the existing planner.
+    testBuilder()
+      .plannerFixture(plannerFixture)
+      .sql("SELECT * FROM druid.foo")
+      .expectedQuery(query)
+      .expectedResults(expectedRows)
+      .run();
 
     // remove some columns, add non-existent column, and change type of m1,
     Map<String, TableSchema> schemaMap2 = ImmutableMap.of(
@@ -185,7 +150,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
         )
     );
     schemaCacheManager.updateTableSchemas(
-        jsonMapper.writeValueAsBytes(schemaMap2)
+        queryFramework().queryJsonMapper().writeValueAsBytes(schemaMap2)
     );
 
     ScanQuery query2 = Druids.newScanQueryBuilder()
@@ -217,12 +182,11 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
       );
     }
 
-    testQuery(
-        "SELECT * FROM druid.foo",
-        ImmutableList.of(
-            query2
-        ),
-        expectedRows
-    );
+    testBuilder()
+      .plannerFixture(plannerFixture)
+      .sql("SELECT * FROM druid.foo")
+      .expectedQuery(query2)
+      .expectedResults(expectedRows)
+      .run();
   }
 }

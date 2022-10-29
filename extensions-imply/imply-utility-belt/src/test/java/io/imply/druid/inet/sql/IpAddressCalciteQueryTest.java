@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.inject.Injector;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
 import io.imply.druid.inet.column.IpAddressTestUtils;
@@ -33,6 +34,7 @@ import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -54,6 +56,7 @@ import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import org.apache.druid.sql.calcite.util.TestDataBuilder;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.partition.LinearShardSpec;
 import org.junit.Test;
@@ -186,9 +189,9 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
       ));
 
   private static final List<InputRow> ROWS =
-      RAW_ROWS.stream().map(raw -> CalciteTests.createRow(raw, PARSER)).collect(Collectors.toList());
+      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
 
-  private ExprMacroTable macroTable;
+  private ExprMacroTable macroTable = createMacroTable();
 
 
   @Override
@@ -201,7 +204,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker() throws IOException
+  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate) throws IOException
   {
     IpAddressModule.registerHandlersAndSerde();
     this.macroTable = createMacroTable();
