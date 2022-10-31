@@ -46,7 +46,7 @@ public final class IndexedStringDictionaryEncodedStringValueIndex<TDictionary ex
   @Override
   public BitmapFactory getBitmapFactory()
   {
-    return null;
+    return bitmapFactory;
   }
 
   @Override

@@ -47,8 +47,10 @@ public class HashJoinSegment implements SegmentReference
   private static final Logger log = new Logger(HashJoinSegment.class);
 
   private final SegmentReference baseSegment;
+
   @Nullable
   private final Filter baseFilter;
+
   private final List<JoinableClause> clauses;
   private final JoinFilterPreAnalysis joinFilterPreAnalysis;
 

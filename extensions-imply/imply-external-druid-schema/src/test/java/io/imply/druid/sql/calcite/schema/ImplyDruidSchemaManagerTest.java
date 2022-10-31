@@ -68,6 +68,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
   private PlannerFixture plannerFixture()
   {
     return queryFramework().plannerFixture(
+        this,
         BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
         new AuthConfig()
     );

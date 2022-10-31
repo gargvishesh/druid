@@ -22,7 +22,6 @@ package org.apache.druid.sql.calcite.util;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
@@ -36,7 +35,6 @@ import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.lookup.LookupSerdeModule;
 import org.apache.druid.query.topn.TopNQueryConfig;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
-import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.server.QueryLifecycle;
 import org.apache.druid.server.QueryLifecycleFactory;
 import org.apache.druid.server.QueryStackTests;
@@ -91,7 +89,7 @@ import java.util.Set;
  * extending {@link SqlTestFramework.StandardComponentSupplier StandardComponentSupplier}.
  * <p>
  * The framework should be built once per test class (not once per test method.)
- * Then, for each planner setup, call {@link #plannerFixture(PlannerConfig, AuthConfig)}
+ * Then, for each planner setup, call {@link #plannerFixture(PlannerComponentSupplier, PlannerConfig, AuthConfig)}
  * to get a {@link PlannerFixture} with a view manager and planner factory. Call
  * {@link PlannerFixture#statementFactory()} to
  * obtain a the test-specific planner and wrapper classes for that test. After
@@ -145,7 +143,10 @@ public class SqlTestFramework
     void configureJsonMapper(ObjectMapper mapper);
 
     void configureGuice(DruidInjectorBuilder builder);
+  }
 
+  public interface PlannerComponentSupplier
+  {
     Set<ExtensionCalciteRuleProvider> calciteRules();
 
     ViewManager createViewManager();
@@ -153,6 +154,10 @@ public class SqlTestFramework
     void populateViews(ViewManager viewManager, PlannerFactory plannerFactory);
 
     DruidSchemaManager createSchemaManager();
+
+    JoinableFactoryWrapper createJoinableFactoryWrapper(Injector injector);
+
+    void finalizePlanner(PlannerFixture plannerFixture);
   }
 
   /**
@@ -250,7 +255,10 @@ public class SqlTestFramework
     public void configureGuice(DruidInjectorBuilder builder)
     {
     }
+  }
 
+  public static class StandardPlannerComponentSupplier implements PlannerComponentSupplier
+  {
     @Override
     public Set<ExtensionCalciteRuleProvider> calciteRules()
     {
@@ -316,6 +324,19 @@ public class SqlTestFramework
     {
       return new NoopDruidSchemaManager();
     }
+
+    @Override
+    public JoinableFactoryWrapper createJoinableFactoryWrapper(Injector injector)
+    {
+      return new JoinableFactoryWrapper(
+          QueryFrameworkUtils.createDefaultJoinableFactory(injector)
+      );
+    }
+
+    @Override
+    public void finalizePlanner(PlannerFixture plannerFixture)
+    {
+    }
   }
 
   /**
@@ -365,11 +386,11 @@ public class SqlTestFramework
 
     public PlannerFixture(
         final SqlTestFramework framework,
+        final PlannerComponentSupplier componentSupplier,
         final PlannerConfig plannerConfig,
         final AuthConfig authConfig
     )
     {
-      final QueryComponentSupplier componentSupplier = framework.componentSupplier;
       this.viewManager = componentSupplier.createViewManager();
       final DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
           framework.injector,
@@ -390,8 +411,9 @@ public class SqlTestFramework
           framework.queryJsonMapper(),
           CalciteTests.DRUID_SCHEMA_NAME,
           new CalciteRulesManager(componentSupplier.calciteRules()),
-          new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of()))
+          componentSupplier.createJoinableFactoryWrapper(framework.injector)
       );
+      componentSupplier.finalizePlanner(this);
       this.statementFactory = QueryFrameworkUtils.createSqlStatementFactory(
           framework.engine,
           plannerFactory,
@@ -518,11 +540,12 @@ public class SqlTestFramework
    * overridden to control the objects passed to the factory.
    */
   public PlannerFixture plannerFixture(
+      PlannerComponentSupplier componentSupplier,
       PlannerConfig plannerConfig,
       AuthConfig authConfig
   )
   {
-    return new PlannerFixture(this, plannerConfig, authConfig);
+    return new PlannerFixture(this, componentSupplier, plannerConfig, authConfig);
   }
 
   public void close()

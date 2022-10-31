@@ -12,14 +12,12 @@ package io.imply.druid.sql.calcite.view.state.listener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import io.imply.druid.sql.calcite.view.state.ViewStateManagementConfig;
 import io.imply.druid.sql.calcite.view.state.ViewStateUtils;
 import org.apache.druid.discovery.DruidLeaderClient;
-import org.apache.druid.jackson.DefaultObjectMapper;
-import org.apache.druid.java.util.common.FileUtils;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.core.NoopEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
@@ -27,14 +25,11 @@ import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.segment.TestHelper;
+import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.schema.DruidSchemaCatalog;
-import org.apache.druid.sql.calcite.schema.NoopDruidSchemaManager;
-import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.apache.druid.sql.calcite.util.QueryFrameworkUtils;
 import org.apache.druid.sql.calcite.util.SqlTestFramework;
+import org.apache.druid.sql.calcite.util.SqlTestFramework.PlannerFixture;
+import org.apache.druid.sql.calcite.view.ViewManager;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -46,6 +41,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
 public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
@@ -56,9 +52,6 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
       new NoopEmitter()
   );
 
-  private ImplyViewManager viewManager;
-  private PlannerFactory plannerFactory;
-  private final ObjectMapper jsonMapper = new DefaultObjectMapper();
   private final ObjectMapper smileMapper = TestHelper.makeSmileMapper();
   private DruidLeaderClient druidLeaderClient;
   private File tempDir;
@@ -68,62 +61,65 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void setUp2()
+  @Override
+  public ViewManager createViewManager()
   {
-    EmittingLogger.registerEmitter(EMITTER);
-    EMITTER.start();
-    SqlTestFramework qf = queryFramework();
-    this.viewManager = new ImplyViewManager(
+    return new ImplyViewManager(
         SqlTestFramework.DRUID_VIEW_MACRO_FACTORY
     );
+  }
 
-    DruidSchemaCatalog rootSchema = QueryFrameworkUtils.createMockRootSchema(
-        CalciteTests.INJECTOR,
-        qf.conglomerate(),
-        qf.walker(),
-        PLANNER_CONFIG_DEFAULT,
-        viewManager,
-        new NoopDruidSchemaManager(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER
-    );
+  @Override
+  public void finalizePlanner(PlannerFixture plannerFixture)
+  {
+    druidLeaderClient = EasyMock.createMock(DruidLeaderClient.class);
 
-    this.plannerFactory = new PlannerFactory(
-        rootSchema,
-        CalciteTests.createOperatorTable(),
-        CalciteTests.createExprMacroTable(),
-        PLANNER_CONFIG_DEFAULT,
-        CalciteTests.TEST_AUTHORIZER_MAPPER,
-        jsonMapper,
-        CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
-    );
-
-    this.druidLeaderClient = EasyMock.createMock(DruidLeaderClient.class);
-
-    this.tempDir = FileUtils.createTempDir();
-    this.stateManagementConfig = new ViewStateManagementConfig(
-        (long) 1000 * 60000, // extremely long polling period to avoid flakiness issues
+    try {
+      tempDir = temporaryFolder.newFolder();
+    }
+    catch (IOException e) {
+      throw new ISE(e, "Could not create temp file");
+    }
+    stateManagementConfig = new ViewStateManagementConfig(
+        1000 * 60000L, // extremely long polling period to avoid flakiness issues
         null,
         tempDir.getAbsolutePath(),
         1,
         null,
         null,
-        (long) 1000 * 60000, // extremely long polling period to avoid flakiness issues
+        1000 * 60000L, // extremely long polling period to avoid flakiness issues
         null
     );
-    this.viewStateListener = new BrokerViewStateListener(
+    viewStateListener = new BrokerViewStateListener(
         stateManagementConfig,
-        viewManager,
-        plannerFactory,
-        jsonMapper,
+        plannerFixture.viewManager(),
+        plannerFixture.plannerFactory(),
+        queryFramework().queryJsonMapper(),
         druidLeaderClient
+    );
+  }
+
+  @Before
+  public void setUp2()
+  {
+    EmittingLogger.registerEmitter(EMITTER);
+    EMITTER.start();
+  }
+
+  private PlannerFixture plannerFixture()
+  {
+    return queryFramework().plannerFixture(
+        this,
+        BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
+        new AuthConfig()
     );
   }
 
   @Test
   public void testStart_andUpdateFromCoordinator() throws Exception
   {
+    // Force the planner fixture to be created, along with our added listeners.
+    plannerFixture();
     Request request = EasyMock.createMock(Request.class);
     EasyMock.expect(request.addHeader(HttpHeaders.Names.ACCEPT, SmileMediaTypes.APPLICATION_JACKSON_SMILE))
             .andReturn(request).anyTimes();
@@ -247,6 +243,8 @@ public class BrokerViewStateListenerTest extends BaseCalciteQueryTest
   @Test
   public void testStart_coordinatorDown_loadFromDisk() throws Exception
   {
+    // Force the planner fixture to be created, along with our added listeners.
+    plannerFixture();
     Request request = EasyMock.createMock(Request.class);
     EasyMock.expect(request.addHeader(HttpHeaders.Names.ACCEPT, SmileMediaTypes.APPLICATION_JACKSON_SMILE))
             .andReturn(request).anyTimes();
