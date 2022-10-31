@@ -354,7 +354,8 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
                           "(\"dim1\" == \"j0.d0\")",
                           JoinType.INNER,
                           null,
-                          ExprMacroTable.nil()
+                          ExprMacroTable.nil(),
+                          joinableFactoryWrapper
                       )
                   )
                   .columns("j0.d0", "m1")
@@ -418,7 +419,8 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
                                 "(\"dim1\" == \"j0.d0\")",
                                 JoinType.INNER,
                                 null,
-                                ExprMacroTable.nil()
+                                ExprMacroTable.nil(),
+                                joinableFactoryWrapper
                             )
                         )
                         .setDimensions(new DefaultDimensionSpec("j0.a0", "d0", ColumnType.DOUBLE))

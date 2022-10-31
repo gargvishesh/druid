@@ -22,6 +22,7 @@ package org.apache.druid.sql.calcite.util;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
@@ -34,6 +35,8 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.lookup.LookupSerdeModule;
 import org.apache.druid.query.topn.TopNQueryConfig;
+import org.apache.druid.segment.join.JoinableFactoryWrapper;
+import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.server.QueryLifecycle;
 import org.apache.druid.server.QueryLifecycleFactory;
 import org.apache.druid.server.QueryStackTests;
@@ -386,7 +389,8 @@ public class SqlTestFramework
           framework.authorizerMapper,
           framework.queryJsonMapper(),
           CalciteTests.DRUID_SCHEMA_NAME,
-          new CalciteRulesManager(componentSupplier.calciteRules())
+          new CalciteRulesManager(componentSupplier.calciteRules()),
+          new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of()))
       );
       this.statementFactory = QueryFrameworkUtils.createSqlStatementFactory(
           framework.engine,
