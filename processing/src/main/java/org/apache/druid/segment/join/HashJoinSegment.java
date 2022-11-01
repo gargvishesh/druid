@@ -39,7 +39,7 @@ import java.util.Optional;
 
 /**
  * Represents a deep, left-heavy join of a left-hand side baseSegment onto a series of right-hand side clauses.
- *
+ * <p>
  * In other words, logically the operation is: join(join(join(baseSegment, clauses[0]), clauses[1]), clauses[2]) etc.
  */
 public class HashJoinSegment implements SegmentReference
@@ -47,8 +47,10 @@ public class HashJoinSegment implements SegmentReference
   private static final Logger log = new Logger(HashJoinSegment.class);
 
   private final SegmentReference baseSegment;
+
   @Nullable
   private final Filter baseFilter;
+
   private final List<JoinableClause> clauses;
   private final JoinFilterPreAnalysis joinFilterPreAnalysis;
 
@@ -147,16 +149,5 @@ public class HashJoinSegment implements SegmentReference
       log.warn(e, "Exception encountered while trying to acquire reference");
       return Optional.empty();
     }
-  }
-
-  @Nullable
-  public Filter getBaseFilter()
-  {
-    return baseFilter;
-  }
-
-  public List<JoinableClause> getClauses()
-  {
-    return clauses;
   }
 }

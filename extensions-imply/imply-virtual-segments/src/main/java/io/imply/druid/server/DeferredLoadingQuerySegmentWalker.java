@@ -51,7 +51,6 @@ import org.apache.druid.query.metadata.metadata.SegmentAnalysis;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.segment.SegmentReference;
-import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.server.SegmentManager;
 import org.apache.druid.server.coordination.ServerManager;
@@ -158,15 +157,13 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
     }
 
     // segmentMapFn maps each base Segment into a joined Segment if necessary.
-    final Function<SegmentReference, SegmentReference> segmentMapFn = joinableFactoryWrapper.createSegmentMapFn(
-        analysis.getJoinBaseTableFilter().map(Filters::toFilter).orElse(null),
-        analysis.getPreJoinableClauses(),
-        cpuTimeAccumulator,
-        analysis.getBaseQuery().orElse(query)
+    final Function<SegmentReference, SegmentReference> segmentMapFn = query.getDataSource().createSegmentMapFunction(
+        query,
+        cpuTimeAccumulator
     );
     // We compute the join cache key here itself so it doesn't need to be re-computed for every segment
     final Optional<byte[]> cacheKeyPrefix = analysis.isJoin()
-        ? joinableFactoryWrapper.computeJoinDataSourceCacheKey(analysis)
+        ? Optional.of(query.getDataSource().getCacheKey())
         : Optional.of(StringUtils.EMPTY_BYTES);
 
     // This is where the code diverges. We have to diverge the code here instead of inside `buildQueryRunnerForSegment`

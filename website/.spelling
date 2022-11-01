@@ -240,6 +240,7 @@ blobstore
 boolean
 breakpoint
 broadcasted
+bucketSize
 checksums
 classpath
 clickstream
@@ -319,6 +320,7 @@ isAllowList
 jackson-jq
 javadoc
 joinable
+jsonCompression
 json_keys
 json_object
 json_paths
@@ -449,6 +451,7 @@ ssl
 sslmode
 stdout
 storages
+stringDictionaryEncoding
 stringified
 subarray
 subnet
@@ -631,6 +634,8 @@ multiStageQuery.payload.status
 multiStageQuery.payload.status.status
 multiStageQuery.payload.status.startTime 
 multiStageQuery.payload.status.durationMs
+multiStageQuery.payload.status.pendingTasks
+multiStageQuery.payload.status.runningTasks
 multiStageQuery.payload.status.errorReport
 multiStageQuery.payload.status.errorReport.taskId
 multiStageQuery.payload.status.errorReport.host
@@ -691,7 +696,8 @@ WorkerRpcFailed
 # MSQ context parameters
 maxNumTasks 
 taskAssignment 
-finalizeAggregations 
+finalizeAggregations
+indexSpec
 rowsInMemory 
 segmentSortOrder 
 rowsPerSegment 
