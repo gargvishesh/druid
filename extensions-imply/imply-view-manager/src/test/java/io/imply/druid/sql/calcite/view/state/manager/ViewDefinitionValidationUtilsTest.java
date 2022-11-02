@@ -70,6 +70,7 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   public void setupPlanner()
   {
     plannerFixture = queryFramework().plannerFixture(
+        this,
         BaseCalciteQueryTest.PLANNER_CONFIG_DEFAULT,
         new AuthConfig()
     );

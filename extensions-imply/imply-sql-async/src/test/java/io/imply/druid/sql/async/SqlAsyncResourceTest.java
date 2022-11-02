@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManagerImpl;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataStorageTableConfig;
@@ -35,6 +36,8 @@ import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.expressions.SleepExprMacro;
 import org.apache.druid.query.sql.SleepOperatorConversion;
+import org.apache.druid.segment.join.JoinableFactoryWrapper;
+import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthTestUtils;
@@ -188,7 +191,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         AuthTestUtils.TEST_AUTHORIZER_MAPPER,
         jsonMapper,
         CalciteTests.DRUID_SCHEMA_NAME,
-        new CalciteRulesManager(ImmutableSet.of())
+        new CalciteRulesManager(ImmutableSet.of()),
+        new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of()))
     );
     final SqlStatementFactory sqlLifecycleFactory = CalciteTests.createSqlStatementFactory(
         engine,
