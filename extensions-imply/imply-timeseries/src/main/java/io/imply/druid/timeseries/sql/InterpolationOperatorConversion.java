@@ -69,7 +69,8 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
         plannerContext,
         rowSignature,
         operands.get(0),
-        postAggregatorVisitor
+        postAggregatorVisitor,
+        false
     );
 
     if (timeseries == null) {
