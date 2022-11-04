@@ -75,7 +75,8 @@ public class SessionAvgScoreToHistogramFilteringOperatorConversion implements Sq
         plannerContext,
         querySignature,
         operands.get(0),
-        postAggregatorVisitor
+        postAggregatorVisitor,
+        false
     );
 
     if (firstOperand == null) {

@@ -75,7 +75,8 @@ public class TimeWeightedAverageOperatorConversion implements SqlOperatorConvers
         plannerContext,
         rowSignature,
         operands.get(0),
-        postAggregatorVisitor
+        postAggregatorVisitor,
+        false
     );
 
     if (timeseries == null) {
