@@ -197,35 +197,29 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       )
                   ))
                   .postAggregators(
-                      /* this is the post-agg that should be generated
-                      new FinalizingFieldAccessPostAggregator("p0", "a0:agg"),
-                       */
-                      new FieldAccessPostAggregator("p0", "a0:agg"),
-                      new FieldAccessPostAggregator("p1", "a1:agg"),
-                      new FieldAccessPostAggregator("p2", "a2:agg"),
                       new InterpolationPostAggregator(
-                          "p4",
-                          new FieldAccessPostAggregator("p3", "a0:agg"),
+                          "p1",
+                          new FieldAccessPostAggregator("p0", "a0:agg"),
                           Interpolator.LINEAR,
                           12 * 60 * 60 * 1000L
                       ),
                       new InterpolationPostAggregator(
-                          "p6",
-                          new FieldAccessPostAggregator("p5", "a3:agg"),
+                          "p3",
+                          new FieldAccessPostAggregator("p2", "a3:agg"),
                           Interpolator.PADDING,
                           12 * 60 * 60 * 1000L
                       ),
                       new TimeWeightedAveragePostAggregator(
-                          "p8",
-                          new FieldAccessPostAggregator("p7", "a0:agg"),
+                          "p5",
+                          new FieldAccessPostAggregator("p4", "a0:agg"),
                           Interpolator.LINEAR,
                           86400000L
                       ),
                       new TimeWeightedAveragePostAggregator(
-                          "p11",
+                          "p8",
                           new InterpolationPostAggregator(
-                              "p10",
-                              new FieldAccessPostAggregator("p9", "a4:agg"),
+                              "p7",
+                              new FieldAccessPostAggregator("p6", "a4:agg"),
                               Interpolator.BACKFILL,
                               12 * 60 * 60 * 1000L
                           ),
@@ -238,26 +232,16 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(
             new Object[]{
-                "\"AACsz2rcAAAAAf//////////AAAAAAAA8L///////////wAAAAAAAPC/AAAAAAMAAAAAAAAAAFwmBQBcJgUDAAAAAAAAAAAA8D8AAAAAAAAAQAAAAAAAAAhA\"",
-                /* save this value for when planner is fixed to properly finalize
-                                          "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                                              + "\"dataPoints\":[1.0,2.0,3.0],"
-                                              + "\"timestamps\":[946684800000,946771200000,946857600000],"
-                                              + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                 */
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                // this result is wrong due to a bug,
-                  + "\"bucketStarts\":[946684800000,946771200000,946857600000],"
-                // which leads to non-finalization of aggregations,
-                  + "\"countPoints\":[1,1,1],"
-                  + "\"sumPoints\":[1.0,2.0,3.0],"
-                  + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                    + "\"dataPoints\":[1.0,2.0,3.0],"
+                    + "\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
-                  + "\"timeBucketGranularity\":{\"type\":\"duration\",\"duration\":86400000,\"origin\":\"1970-01-01T00:00:00.000Z\"},"
-                  + "\"timestamps\":[946684800000,946684800000,946771200000,946771200000,946857600000,946857600000],"
-                  + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                    + "\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                    + "\"dataPoints\":[0.0,0.0,0.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                   + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.5],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
