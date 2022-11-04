@@ -119,6 +119,7 @@ InputSource
 InputSources
 Integer.MAX_VALUE
 ioConfig
+Istio
 JBOD
 JDBC
 JDK
@@ -184,6 +185,7 @@ S3
 SDK
 SIGAR
 SPNEGO
+Splunk
 SqlInputSource
 SQLServer
 SSD
@@ -326,11 +328,14 @@ json_object
 json_paths
 json_query
 json_value
+karlkfi
 kerberos
 keystore
 keytool
 keytab
 kubernetes
+kubexit
+k8s
 laning
 lifecycle
 localhost
@@ -378,6 +383,7 @@ pathParts
 performant
 plaintext
 pluggable
+podSpec
 postgres
 postgresql
 pre-aggregated
@@ -439,6 +445,7 @@ secondaryPartitionPruning
 seekable-stream
 servlet
 setProcessingThreadNames
+sigterm
 simple-client-sslcontext
 sharded
 sharding

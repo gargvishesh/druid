@@ -68,7 +68,8 @@ public class SessionSampleRateOperatorConversion implements SqlOperatorConversio
         plannerContext,
         rowSignature,
         operands.get(0),
-        postAggregatorVisitor
+        postAggregatorVisitor,
+        false
     );
 
     if (firstOperand == null) {
