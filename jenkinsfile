@@ -337,7 +337,7 @@ def s3DeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true \
                         ${hadoopProfile}
                     """,
-                       label: "s3-deep-storage with ${jvmRuntimeOpt}" + hadoopProfile != '' ? "and ${hadoopProfile}" : ""
+                       label: "s3-deep-storage with ${jvmRuntimeOpt}" + (hadoopProfile != '' ? " and ${hadoopProfile}" : "")
                 }
                 finally {
                     dockerCleanup()
@@ -370,7 +370,7 @@ def kinesisDeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                             -ff \${MAVEN_SKIP} -Djacoco.skip=true \
                             ${hadoopProfile}
                         """,
-                           label: "kinesis-deep-storage with ${jvmRuntimeOpt}" + hadoopProfile != '' ? "and ${hadoopProfile}" : ""
+                           label: "kinesis-deep-storage with ${jvmRuntimeOpt}" + (hadoopProfile != '' ? " and ${hadoopProfile}" : "")
                     } finally {
                         dockerCleanup()
                     }
@@ -420,7 +420,7 @@ def azureDeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true \
                         ${hadoopProfile}
                     """,
-                       label: "azure-deep-storage with ${jvmRuntimeOpt}" + hadoopProfile != '' ? "and ${hadoopProfile}" : ""
+                       label: "azure-deep-storage with ${jvmRuntimeOpt}" + (hadoopProfile != '' ? " and ${hadoopProfile}" : "")
                 }
                 finally {
                     dockerCleanup()
@@ -469,7 +469,7 @@ def gcsDeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                         -ff \${MAVEN_SKIP} -Djacoco.skip=true \
                         ${hadoopProfile} \
                     """,
-                       label: "gcs-deep-storage with ${jvmRuntimeOpt}" + hadoopProfile != '' ? "and ${hadoopProfile}" : ""
+                       label: "gcs-deep-storage with ${jvmRuntimeOpt}" + (hadoopProfile != '' ? " and ${hadoopProfile}" : "")
                 } finally {
                     dockerCleanup()
                     sh script: "gsutil -o Credentials:gs_service_key_file=\${WORKSPACE}/jenkins/gcs/creds.json rm -r gs://${bucket}/${cloudpath}"
@@ -502,7 +502,7 @@ def hdfsDeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                     -ff \${MAVEN_SKIP} -Djacoco.skip=true \
                     ${hadoopProfile}
                 """,
-                   label: "hdfs-deep-storage with ${jvmRuntimeOpt}" + hadoopProfile != '' ? "and ${hadoopProfile}" : ""
+                   label: "hdfs-deep-storage with ${jvmRuntimeOpt}" + (hadoopProfile != '' ? " and ${hadoopProfile}" : "")
             } finally {
                 dockerCleanup()
             }
@@ -820,7 +820,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'imply-hadoop3'
+                        values 'dist', 'imply-saas', 'dist-hadoop3'
                     }
                 }
                 stages {
@@ -834,7 +834,7 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                elif [ "${BUILD_PROFILE}" == "dist-hadoop3" ]; then
                                     echo "druid-hadoop3"
                                 else
                                     echo "druid"
@@ -843,7 +843,7 @@ pipeline {
                             ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid.saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                elif [ "${BUILD_PROFILE}" == "dist-hadoop3" ]; then
                                     echo "druid.hadoop3"
                                 else
                                     echo "druid"
@@ -912,7 +912,7 @@ pipeline {
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
-                                        if [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                        if [ "${BUILD_PROFILE}" == "dist-hadoop3" ]; then
                                             HADOOP_VERSION="3.3.1"
                                         else
                                             HADOOP_VERSION="2.8.5"
@@ -2242,7 +2242,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'imply-hadoop3'
+                        values 'dist', 'imply-saas', 'dist-hadoop3'
                     }
                 }
                 stages {
@@ -2256,7 +2256,7 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "imply-hadoop3" ]; then
+                                elif [ "${BUILD_PROFILE}" == "dist-hadoop3" ]; then
                                     echo "druid-hadoop3"
                                 else
                                     echo "druid"
