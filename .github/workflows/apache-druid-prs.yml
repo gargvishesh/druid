@@ -8,6 +8,7 @@ jobs:
   communityPRs:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Create jira tickets for community PRs
         env:
           JIRA_BASE_URL: "https://implydata.atlassian.net"
