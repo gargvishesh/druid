@@ -1970,6 +1970,7 @@
                                 <exclude>.github/workflows/*.yml</exclude>
                                 <exclude>.github/jira_task.json.template</exclude>
                                 <exclude>.github/create_jira_ticket.sh</exclude>
+                                <exclude>.github/create_jira_ticket_for_untracked_community_prs.py</exclude>
                                 <exclude>docker/*.conf</exclude>
                                 <exclude>docker/service-supervisords/*.conf</exclude>
                                 <exclude>**/target/**</exclude>
