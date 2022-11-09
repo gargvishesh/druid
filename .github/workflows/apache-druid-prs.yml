@@ -17,7 +17,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_FOR_GITHUB_ACTION }}
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install requests jira github
+          python3 -m pip install requests jira PyGithub
           output=$(python3 ${GITHUB_WORKSPACE}/.github/create_jira_ticket_for_untracked_community_prs.py)
           echo "::set-output name=tickets::$output"
 
