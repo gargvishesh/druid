@@ -87,7 +87,7 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public Set<ExtensionCalciteRuleProvider> calciteRules()
+  public Set<ExtensionCalciteRuleProvider> extensionCalciteRules()
   {
     return ImmutableSet.of(new DruidSamplingGroupByQueryRule.DruidSamplingGroupByQueryRuleProvider());
   }

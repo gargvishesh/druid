@@ -43,6 +43,7 @@ import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
+import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
@@ -193,7 +194,10 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate) throws IOException
+  public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
+      QueryRunnerFactoryConglomerate conglomerate,
+      JoinableFactoryWrapper joinableFactory
+  ) throws IOException
   {
     IpAddressModule.registerHandlersAndSerde();
     final QueryableIndex index =
