@@ -17,54 +17,44 @@
  * under the License.
  */
 
-package org.apache.druid.indexing.seekablestream.supervisor;
+package org.apache.druid.msq.indexing;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 
-import javax.annotation.Nullable;
+import javax.validation.constraints.Min;
 
-/**
- * Defines if and when {@link SeekableStreamSupervisor} can become idle.
- */
-public class IdleConfig
+public class DurableStorageCleanerConfig
 {
-  private final boolean enabled;
-  private final Long inactiveAfterMillis;
 
-  @JsonCreator
-  public IdleConfig(
-      @Nullable @JsonProperty("enabled") Boolean enabled,
-      @Nullable @JsonProperty("inactiveAfterMillis") Long inactiveAfterMillis
-  )
-  {
-    Preconditions.checkArgument(
-        inactiveAfterMillis == null || inactiveAfterMillis > 0,
-        "inactiveAfterMillis should be a postive number"
-    );
-    this.enabled = enabled != null && enabled;
-    this.inactiveAfterMillis = inactiveAfterMillis;
-  }
-
+  /**
+   * Whether the {@link DurableStorageCleaner} helper should be enabled or not
+   */
   @JsonProperty
+  public boolean enabled = false;
+
+  /**
+   * The delay (in seconds) after the last run post which the durable storage cleaner would clean the outputs
+   */
+  @JsonProperty
+  @Min(1)
+  public long delaySeconds = 86400L;
+
   public boolean isEnabled()
   {
-    return this.enabled;
+    return enabled;
   }
 
-  @JsonProperty
-  public Long getInactiveAfterMillis()
+  public long getDelaySeconds()
   {
-    return this.inactiveAfterMillis;
+    return delaySeconds;
   }
 
   @Override
   public String toString()
   {
-    return "idleConfig{" +
+    return "DurableStorageCleanerConfig{" +
            "enabled=" + enabled +
-           ", inactiveAfterMillis=" + inactiveAfterMillis +
+           ", delaySeconds=" + delaySeconds +
            '}';
   }
 }
