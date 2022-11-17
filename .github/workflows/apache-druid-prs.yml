@@ -18,15 +18,16 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install requests jira PyGithub
-          output=$(python3 ${GITHUB_WORKSPACE}/.github/create_jira_ticket_for_untracked_community_prs.py)
-          echo "::set-output name=tickets::$output"
-
+          echo "PYTHON_OUTPUT=$(python3 ${GITHUB_WORKSPACE}/.github/create_jira_ticket_for_untracked_community_prs.py)" >> $GITHUB_ENV
+          echo ${{ env.PYTHON_OUTPUT }}
       - name: Slack Notification for job failed
+        if: ${{ failure() }}
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
           SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
-          SLACK_MESSAGE: "The following tickets were created for community PR tracking - ```${{ steps.step1.outputs.tickets }}```"
-          SLACK_TITLE: "Community PR author in apache druid"
+          SLACK_MESSAGE: "Community PR monitoring failed with the following error - ```${{ env.PYTHON_OUTPUT }}```"
+          SLACK_TITLE: "[FAILED] Error while creating jira for community PRs"
+          SLACK_COLOR: "danger"
           SLACK_CHANNEL: espresso-machine
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
