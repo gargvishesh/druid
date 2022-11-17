@@ -18,7 +18,6 @@ import io.imply.druid.inet.IpAddressModule;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.column.ValueType;
@@ -30,42 +29,12 @@ import org.apache.druid.segment.data.WritableSupplier;
 import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
 {
-  static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
-  {
-    @Override
-    public Class<? extends ByteBuffer> getClazz()
-    {
-      return GenericIndexed.BYTE_BUFFER_STRATEGY.getClazz();
-    }
-
-    @Nullable
-    @Override
-    public ByteBuffer fromByteBuffer(ByteBuffer buffer, int numBytes)
-    {
-      return GenericIndexed.BYTE_BUFFER_STRATEGY.fromByteBuffer(buffer, numBytes);
-    }
-
-    @Nullable
-    @Override
-    public byte[] toBytes(@Nullable ByteBuffer val)
-    {
-      return GenericIndexed.BYTE_BUFFER_STRATEGY.toBytes(val);
-    }
-
-    @Override
-    public int compare(ByteBuffer o1, ByteBuffer o2)
-    {
-      return Comparators.<ByteBuffer>naturalNullsFirst().compare(o1, o2);
-    }
-  };
-
   public static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
 
   public static final IpPrefixComplexTypeSerde INSTANCE = new IpPrefixComplexTypeSerde();
@@ -106,7 +75,7 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
 
       final GenericIndexed<ByteBuffer> dictionaryBytes = GenericIndexed.read(
           buffer,
-          NULLABLE_BYTE_BUFFER_STRATEGY,
+          IpAddressComplexTypeSerde.NULLABLE_BYTE_BUFFER_STRATEGY,
           builder.getFileMapper()
       );
 

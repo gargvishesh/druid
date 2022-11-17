@@ -362,7 +362,7 @@ public class IpAddressTestUtils
 
     GenericIndexed<ByteBuffer> dictionary = GenericIndexed.read(
         dictionaryBuffer,
-        IpPrefixComplexTypeSerde.NULLABLE_BYTE_BUFFER_STRATEGY
+        IpAddressComplexTypeSerde.NULLABLE_BYTE_BUFFER_STRATEGY
     );
 
     GenericIndexed<ImmutableBitmap> bitmaps = GenericIndexed.read(
