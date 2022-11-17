@@ -29,6 +29,8 @@ def filter_pr_with_no_jira(prs):
             search_result = jira.search_issues(jql_str=f'summary ~ {search_string}')
             if not search_result:
                 no_jira_prs = no_jira_prs + [pr]
+        if len(no_jira_prs) == 5: # Maximum of 5 PRs will be created in one run.
+            break
     return no_jira_prs
 
 
