@@ -6,7 +6,7 @@ on:
 
 jobs:
   communityPRs:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - name: Create jira tickets for community PRs

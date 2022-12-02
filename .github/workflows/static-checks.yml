@@ -36,7 +36,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: setup java 8
@@ -51,7 +51,7 @@ jobs:
           ${MVN} install -q -ff -pl 'distribution' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
 
   animal_sniffer_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
       - run: ${MVN} animal-sniffer:check --fail-at-end
 
   checkstyle:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
       - run: ${MVN} checkstyle:checkstyle --fail-at-end
 
   enforcer_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -90,7 +90,7 @@ jobs:
       - run: ${MVN} enforcer:enforce --fail-at-end
 
   forbidden_api_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -103,7 +103,7 @@ jobs:
       - run: ${MVN} forbiddenapis:check forbiddenapis:testCheck --fail-at-end
 
   pmd_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -116,7 +116,7 @@ jobs:
       - run: ${MVN} pmd:check --fail-at-end  # TODO: consider adding pmd:cpd-check
 
   spotbugs_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -129,7 +129,7 @@ jobs:
       - run: ${MVN} spotbugs:check --fail-at-end -pl '!benchmarks'
 
   license_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     strategy:
       matrix:
@@ -153,14 +153,14 @@ jobs:
           distribution/bin/check-licenses.py licenses.yaml target/license-reports
 
   script_checks:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         # who watches the watchers?
       - run: ./check_test_suite_test.py
 
   analyze_dependencies:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     needs: [build]
     strategy:
       matrix:
@@ -178,7 +178,7 @@ jobs:
           ./.github/scripts/display_dependency_analysis_error_message.sh
 
   openjdk11_strict_compilation:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: setup java 11
