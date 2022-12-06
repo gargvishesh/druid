@@ -9,18 +9,16 @@
 
 package io.imply.druid.query.samplinggroupby.sql;
 
-import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryRunnerFactory;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryToolChest;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.sql.calcite.rule.DruidSamplingGroupByQueryRule;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.io.Closer;
@@ -47,8 +45,6 @@ import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.join.JoinType;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.rule.ExtensionCalciteRuleProvider;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SqlTestFramework.Builder;
@@ -70,20 +66,10 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    SamplingGroupByQueryModule samplingGroupByQueryModule = new SamplingGroupByQueryModule();
-    samplingGroupByQueryModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    return Iterables.concat(super.getJacksonModules(), samplingGroupByQueryModule.getJacksonModules());
-  }
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(
-        ImmutableSet.of(new SamplingRateSqlAggregator(), new SumSqlAggregator()),
-        ImmutableSet.of()
-    );
+    super.configureGuice(builder);
+    builder.addModule(new SamplingGroupByQueryModule());
   }
 
   @Override

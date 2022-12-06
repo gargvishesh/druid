@@ -19,8 +19,8 @@
 
 package org.apache.druid.guice;
 
-import io.imply.druid.license.ImplyLicenseModule;
 import com.google.inject.util.Providers;
+import io.imply.druid.license.ImplyLicenseModule;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.math.expr.ExpressionProcessingModule;
 import org.apache.druid.utils.RuntimeInfo;

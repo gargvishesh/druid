@@ -10,10 +10,9 @@
 package io.imply.druid.polaris;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import org.apache.druid.jackson.DefaultObjectMapper;
+import io.imply.druid.UtilityBeltModule;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.junit.Test;
 
@@ -23,14 +22,10 @@ import java.util.Map;
 public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryTest
 {
   @Override
-  public DruidOperatorTable createOperatorTable()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    return new DruidOperatorTable(
-        ImmutableSet.of(),
-        ImmutableSet.of(
-            new PolarisExplainTableOperatorConversion(new PolarisExplainTableMacro(new DefaultObjectMapper()))
-        )
-    );
+    super.configureGuice(builder);
+    builder.addModule(new UtilityBeltModule());
   }
 
   @Test

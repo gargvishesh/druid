@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Provides;
+import io.imply.druid.license.TestImplyLicenseManagerModule;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.guice.LazySingleton;
@@ -62,7 +63,6 @@ import org.apache.druid.sql.calcite.view.ViewManager;
 import org.apache.druid.timeline.DataSegment;
 
 import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -528,6 +528,7 @@ public class SqlTestFramework
     Properties properties = new Properties();
     this.componentSupplier.gatherProperties(properties);
     Injector startupInjector = new StartupInjectorBuilder()
+        .add(new TestImplyLicenseManagerModule())
         .withProperties(properties)
         .build();
     DruidInjectorBuilder injectorBuilder = new CoreInjectorBuilder(startupInjector)

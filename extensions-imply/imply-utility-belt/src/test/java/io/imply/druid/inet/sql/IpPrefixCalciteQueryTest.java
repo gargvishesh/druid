@@ -12,15 +12,13 @@
 
 package io.imply.druid.inet.sql;
 
-import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import com.google.inject.Injector;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import io.imply.druid.inet.column.IpPrefixDimensionSchema;
-import io.imply.druid.inet.expression.IpAddressExpressions;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -30,14 +28,13 @@ import org.apache.druid.data.input.impl.MapInputRowParser;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
 import org.apache.druid.data.input.impl.TimestampSpec;
-import org.apache.druid.guice.ExpressionModule;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
-import org.apache.druid.query.expression.LookupExprMacro;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
@@ -52,7 +49,6 @@ import org.apache.druid.sql.calcite.aggregation.builtin.BuiltinApproxCountDistin
 import org.apache.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
-import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
 import org.apache.druid.timeline.DataSegment;
@@ -60,7 +56,6 @@ import org.apache.druid.timeline.partition.LinearShardSpec;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -68,20 +63,6 @@ import java.util.stream.Collectors;
 public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
 {
   private static final String DATA_SOURCE = "iptest";
-
-  private static final DruidOperatorTable OPERATOR_TABLE = new DruidOperatorTable(
-      ImmutableSet.of(
-          new CountSqlAggregator(new ApproxCountDistinctSqlAggregator(new BuiltinApproxCountDistinctSqlAggregator()))
-      ),
-      ImmutableSet.of(
-          new IpAddressSqlOperatorConversions.PrefixParseOperatorConversion(),
-          new IpAddressSqlOperatorConversions.PrefixTryParseOperatorConversion(),
-          new IpAddressSqlOperatorConversions.StringifyOperatorConversion(),
-          new IpAddressSqlOperatorConversions.MatchOperatorConversion(),
-          new IpAddressSqlOperatorConversions.SearchOperatorConversion(),
-          new IpAddressSqlOperatorConversions.HostOperatorConversion()
-      )
-  );
 
   private static final List<ImmutableMap<String, Object>> RAW_ROWS = ImmutableList.of(
       ImmutableMap.<String, Object>builder()
@@ -185,18 +166,17 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
       RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
 
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    return Iterables.concat(
-        super.getJacksonModules(),
-        IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE.getJacksonModules()
-    );
+    super.configureGuice(builder);
+    builder.addModule(IpAddressTestUtils.LICENSED_IP_ADDRESS_MODULE);
   }
 
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
       QueryRunnerFactoryConglomerate conglomerate,
-      JoinableFactoryWrapper joinableFactory
+      JoinableFactoryWrapper joinableFactory,
+      Injector injector
   ) throws IOException
   {
     IpAddressModule.registerHandlersAndSerde();
@@ -226,29 +206,6 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                    .build(),
         index
     );
-  }
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return OPERATOR_TABLE;
-  }
-
-  @Override
-  public ExprMacroTable createMacroTable()
-  {
-    final List<ExprMacroTable.ExprMacro> exprMacros = new ArrayList<>();
-    for (Class<? extends ExprMacroTable.ExprMacro> clazz : ExpressionModule.EXPR_MACROS) {
-      exprMacros.add(CalciteTests.INJECTOR.getInstance(clazz));
-    }
-    exprMacros.add(CalciteTests.INJECTOR.getInstance(LookupExprMacro.class));
-    exprMacros.add(new IpAddressExpressions.PrefixParseExprMacro());
-    exprMacros.add(new IpAddressExpressions.PrefixTryParseExprMacro());
-    exprMacros.add(new IpAddressExpressions.StringifyExprMacro());
-    exprMacros.add(new IpAddressExpressions.MatchExprMacro());
-    exprMacros.add(new IpAddressExpressions.SearchExprMacro());
-    exprMacros.add(new IpAddressExpressions.HostExprMacro());
-    return new ExprMacroTable(exprMacros);
   }
 
   @Test

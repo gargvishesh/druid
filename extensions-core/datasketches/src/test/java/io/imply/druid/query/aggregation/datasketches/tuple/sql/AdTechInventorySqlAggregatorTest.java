@@ -9,13 +9,11 @@
 
 package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 
-import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import io.imply.druid.license.TestingImplyLicenseManager;
+import com.google.inject.Injector;
 import io.imply.druid.query.aggregation.datasketches.tuple.AdTechInventoryAggregatorFactory;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
@@ -33,7 +31,6 @@ import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
@@ -49,17 +46,17 @@ public class AdTechInventorySqlAggregatorTest extends BaseCalciteQueryTest
   private static final String NAME = AdTechInventorySqlAggregator.NAME;
 
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    ImplyArrayOfDoublesSketchModule module = new ImplyArrayOfDoublesSketchModule();
-    module.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    return Iterables.concat(super.getJacksonModules(), module.getJacksonModules());
+    super.configureGuice(builder);
+    builder.addModules(new ImplyArrayOfDoublesSketchModule());
   }
 
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
       QueryRunnerFactoryConglomerate conglomerate,
-      JoinableFactoryWrapper joinableFactory
+      JoinableFactoryWrapper joinableFactory,
+      Injector injector
   ) throws IOException
   {
     /*
@@ -105,12 +102,6 @@ public class AdTechInventorySqlAggregatorTest extends BaseCalciteQueryTest
                    .build(),
         index
     );
-  }
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(ImmutableSet.of(new AdTechInventorySqlAggregator()), ImmutableSet.of());
   }
 
   @Test
