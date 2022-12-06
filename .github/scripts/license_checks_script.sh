@@ -13,24 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!bin/bash
+#!/bin/bash
 
-${MVN} ${MAVEN_SKIP} dependency:analyze -DoutputXML=true -DignoreNonCompile=true -DfailOnWarning=true ${HADOOP_PROFILE} ||
-{ echo "
-    The dependency analysis has found a dependency that is either:
+set -e
 
-    1) Used and undeclared: These are available as a transitive dependency but should be explicitly
-    added to the POM to ensure the dependency version. The XML to add the dependencies to the POM is
-    shown above.
-
-    2) Unused and declared: These are not needed and removing them from the POM will speed up the build
-    and reduce the artifact size. The dependencies to remove are shown above.
-
-    If there are false positive dependency analysis warnings, they can be suppressed:
-    https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html#usedDependencies
-    https://maven.apache.org/plugins/maven-dependency-plugin/examples/exclude-dependencies-from-dependency-analysis.html
-
-    For more information, refer to:
-    https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html
-
-    " && false; }
+./.github/scripts/setup_generate_license.sh
+${MVN} apache-rat:check -Prat --fail-at-end \
+-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn \
+-Drat.consoleOutput=true ${HADOOP_PROFILE}
+# Generate dependency reports and checks they are valid.
+mkdir -p target
+distribution/bin/generate-license-dependency-reports.py . target --clean-maven-artifact-transfer --parallel 2
+distribution/bin/check-licenses.py licenses.yaml target/license-reports
