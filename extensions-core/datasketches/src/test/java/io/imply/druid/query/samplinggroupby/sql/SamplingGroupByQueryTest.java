@@ -13,7 +13,8 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import com.google.inject.Binder;
+import com.google.inject.util.Modules;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule;
@@ -21,6 +22,8 @@ import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryRunnerFactory;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryToolChest;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.sql.calcite.rule.DruidSamplingGroupByQueryRule;
+import org.apache.druid.guice.DruidInjectorBuilder;
+import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.io.Closer;
@@ -47,14 +50,13 @@ import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.join.JoinType;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.rule.ExtensionCalciteRuleProvider;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SqlTestFramework.Builder;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Set;
 
 public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
@@ -70,19 +72,48 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    SamplingGroupByQueryModule samplingGroupByQueryModule = new SamplingGroupByQueryModule();
-    samplingGroupByQueryModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    return Iterables.concat(super.getJacksonModules(), samplingGroupByQueryModule.getJacksonModules());
-  }
+    super.configureGuice(builder);
+    // This is a hack to override a druid module such that only the QueryRunnerFactory bindings are overriden.
+    // The earlier interface used to provide separate hooks for expressions and sql bindings which worked fine.
+    // The new interface requires to bind a single module with both, but incase of SamplingGroupBy the expressions,
+    // sql bindings and query runner factory are attached to the same module. So, adding that module fails since the
+    // QueryRunnerFactory doesn't find required bindings.
+    // We supply testing QueryRunnerFactory for SamplingGroupBy via createCongolmerate method.
+    SamplingGroupByQueryModule originalModule = new SamplingGroupByQueryModule();
+    originalModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
+    com.google.inject.Module overriddenModule = Modules.override(originalModule).with(
+        binder -> binder.bind(SamplingGroupByQueryRunnerFactory.class)
+              .toInstance(new SamplingGroupByQueryRunnerFactory(
+                  new SamplingGroupByQueryToolChest(DefaultSamplingGroupByQueryMetricsFactory.instance()),
+                  new DruidProcessingConfig()
+                  {
+                    @Override
+                    public String getFormatString()
+                    {
+                      return null;
+                    }
+                  },
+                  null,
+                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
+              ))
+    );
+    builder.addModule(
+        new DruidModule()
+        {
+          @Override
+          public void configure(Binder binder)
+          {
+            binder.install(overriddenModule);
+          }
 
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(
-        ImmutableSet.of(new SamplingRateSqlAggregator(), new SumSqlAggregator()),
-        ImmutableSet.of()
+          @Override
+          public List<? extends Module> getJacksonModules()
+          {
+            return originalModule.getJacksonModules();
+          }
+        }
     );
   }
 

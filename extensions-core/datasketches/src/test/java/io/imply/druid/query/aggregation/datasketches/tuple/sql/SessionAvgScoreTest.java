@@ -12,8 +12,7 @@ package io.imply.druid.query.aggregation.datasketches.tuple.sql;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import com.google.inject.Injector;
 import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.expressions.MurmurHashExprMacros;
 import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprMacro;
@@ -23,6 +22,7 @@ import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHist
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramPostAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionSampleRatePostAggregator;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
@@ -52,7 +52,6 @@ import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFacto
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
@@ -85,24 +84,19 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   }
 
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
     ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
     arrayOfDoublesSketch.configure(null);
-    ImplyArrayOfDoublesSketchModule implyArrayOfDoublesSketchModule = new ImplyArrayOfDoublesSketchModule();
-    implyArrayOfDoublesSketchModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-
-    return Iterables.concat(
-        super.getJacksonModules(),
-        arrayOfDoublesSketch.getJacksonModules(),
-        implyArrayOfDoublesSketchModule.getJacksonModules()
-    );
+    super.configureGuice(builder);
+    builder.addModules(arrayOfDoublesSketch, new ImplyArrayOfDoublesSketchModule());
   }
 
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
       QueryRunnerFactoryConglomerate conglomerate,
-      JoinableFactoryWrapper joinableFactory
+      JoinableFactoryWrapper joinableFactory,
+      Injector injector
   ) throws IOException
   {
     ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
@@ -143,31 +137,6 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
         index
     );
     return walker;
-  }
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(
-        ImmutableSet.of(
-            new SessionAvgScoreObjectSqlAggregator()
-        ),
-        ImmutableSet.of(
-            new SessionAvgScoreToEstimateOperatorConversion(),
-            new SessionAvgScoreToHistogramOperatorConversion(),
-            new SessionAvgScoreToHistogramFilteringOperatorConversion(),
-            new MurmurHashOperatorConversions.Murmur3OperatorConversion(),
-            new MurmurHashOperatorConversions.Murmur3_64OperatorConversion(),
-            new SessionFilterOperatorConversion(),
-            new SessionSampleRateOperatorConversion()
-        )
-    );
-  }
-
-  @Override
-  public ExprMacroTable createMacroTable()
-  {
-    return new ExprMacroTable(macros);
   }
 
   @Test

@@ -10,13 +10,10 @@
 package io.imply.druid.timeseries.sql;
 
 import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import io.imply.druid.license.TestingImplyLicenseManager;
+import com.google.inject.Injector;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
@@ -24,6 +21,7 @@ import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
 import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
@@ -34,13 +32,11 @@ import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
-import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
@@ -54,29 +50,19 @@ import java.util.Collections;
 public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
 {
   @Override
-  public Iterable<? extends Module> getJacksonModules()
+  public void configureGuice(DruidInjectorBuilder builder)
   {
-    TimeSeriesModule timeseries = new TimeSeriesModule();
-    timeseries.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-
-    return Iterables.concat(
-        super.getJacksonModules(),
-        timeseries.getJacksonModules()
-    );
+    super.configureGuice(builder);
+    builder.addModules(new TimeSeriesModule());
   }
 
   @Override
   public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
       QueryRunnerFactoryConglomerate conglomerate,
-      JoinableFactoryWrapper joinableFactory
+      JoinableFactoryWrapper joinableFactory,
+      Injector injector
   ) throws IOException
   {
-    TimeSeriesModule timeseries = new TimeSeriesModule();
-    timeseries.setImplyLicenseManager(new TestingImplyLicenseManager(null));
-    for (Module mod : timeseries.getJacksonModules()) {
-      CalciteTests.getJsonMapper().registerModule(mod);
-      TestHelper.JSON_MAPPER.registerModule(mod);
-    }
     final QueryableIndex index = IndexBuilder.create()
                                              .tmpDir(temporaryFolder.newFolder())
                                              .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
@@ -103,24 +89,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         index
     );
     return walker;
-  }
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(
-        ImmutableSet.of(
-            new SimpleTimeSeriesObjectSqlAggregator(),
-            new MeanDeltaTimeSeriesObjectSqlAggregator(MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType.MEAN_TIMESERIES),
-            new MeanDeltaTimeSeriesObjectSqlAggregator(MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType.DELTA_TIMESERIES)
-        ),
-        ImmutableSet.of(
-            new InterpolationOperatorConversion.LinearInterpolationOperatorConversion(),
-            new InterpolationOperatorConversion.PaddingInterpolationOperatorConversion(),
-            new InterpolationOperatorConversion.BackfillInterpolationOperatorConversion(),
-            new TimeWeightedAverageOperatorConversion()
-        )
-    );
   }
 
   @Override

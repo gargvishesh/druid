@@ -64,7 +64,6 @@ public class IpAddressTestUtils
 
   static {
     LICENSED_IP_ADDRESS_MODULE = new IpAddressModule();
-    ImplyLicenseManager manager = Mockito.mock(ImplyLicenseManager.class);
     JSON_MAPPER = TestHelper.makeJsonMapper();
     JSON_MAPPER.registerModules(LICENSED_IP_ADDRESS_MODULE.getJacksonModules());
   }

@@ -23,19 +23,13 @@ import io.imply.druid.sql.async.result.LocalSqlAsyncResultManagerConfig;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import io.imply.druid.sql.async.result.SqlAsyncResults;
 import org.apache.druid.common.config.NullHandling;
-import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.emitter.EmittingLogger;
-import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExprMacroTable.ExprMacro;
 import org.apache.druid.metadata.MetadataStorageConnectorConfig;
 import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.query.QueryCapacityExceededException;
-import org.apache.druid.query.expression.LookupExprMacro;
-import org.apache.druid.query.expressions.SleepExprMacro;
-import org.apache.druid.query.sql.SleepOperatorConversion;
 import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.segment.join.MapJoinableFactory;
 import org.apache.druid.server.metrics.NoopServiceEmitter;
@@ -47,7 +41,6 @@ import org.apache.druid.sql.SqlLifecycleManager;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.run.SqlEngine;
@@ -108,27 +101,6 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
 
   @Mock
   private Clock clock;
-
-  @Override
-  public DruidOperatorTable createOperatorTable()
-  {
-    return new DruidOperatorTable(
-        ImmutableSet.of(),
-        ImmutableSet.of(new SleepOperatorConversion())
-    );
-  }
-
-  @Override
-  public ExprMacroTable createMacroTable()
-  {
-    final List<ExprMacro> exprMacros = new ArrayList<>();
-    for (Class<? extends ExprMacroTable.ExprMacro> clazz : ExpressionModule.EXPR_MACROS) {
-      exprMacros.add(CalciteTests.INJECTOR.getInstance(clazz));
-    }
-    exprMacros.add(CalciteTests.INJECTOR.getInstance(LookupExprMacro.class));
-    exprMacros.add(new SleepExprMacro());
-    return new ExprMacroTable(exprMacros);
-  }
 
   @Before
   public void setupTest() throws IOException

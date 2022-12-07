@@ -16,9 +16,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.view.ImplyViewManager;
 import nl.jqno.equalsverifier.EqualsVerifier;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryContexts;
-import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceType;
@@ -45,12 +43,6 @@ public class ViewDefinitionValidationUtilsTest extends BaseCalciteQueryTest
   public final ExpectedException expectedException = ExpectedException.none();
 
   private PlannerFixture plannerFixture;
-
-  @Override
-  public ExprMacroTable createMacroTable()
-  {
-    return TestExprMacroTable.INSTANCE;
-  }
 
   @Override
   public ViewManager createViewManager()
