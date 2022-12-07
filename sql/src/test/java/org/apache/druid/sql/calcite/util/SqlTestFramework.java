@@ -473,13 +473,15 @@ public class SqlTestFramework
       binder.bind(DataSegment.PruneSpecsHolder.class).toInstance(DataSegment.PruneSpecsHolder.DEFAULT);
     }
 
-    @Provides @Singleton
+    @Provides
+    @Singleton
     public QueryRunnerFactoryConglomerate conglomerate()
     {
       return componentSupplier.createCongolmerate(builder, resourceCloser);
     }
 
-    @Provides @Singleton
+    @Provides
+    @Singleton
     public JoinableFactoryWrapper joinableFactoryWrapper(final Injector injector)
     {
       return builder.componentSupplier.createJoinableFactoryWrapper(
@@ -487,7 +489,8 @@ public class SqlTestFramework
       );
     }
 
-    @Provides @Singleton
+    @Provides
+    @LazySingleton
     public SpecificSegmentsQuerySegmentWalker segmentsQuerySegmentWalker(final Injector injector)
     {
       try {
@@ -504,7 +507,8 @@ public class SqlTestFramework
       }
     }
 
-    @Provides @Singleton
+    @Provides
+    @Singleton
     public QueryLifecycleFactory queryLifecycleFactory(final Injector injector)
     {
       return QueryFrameworkUtils.createMockQueryLifecycleFactory(
