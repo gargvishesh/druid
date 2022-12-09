@@ -420,7 +420,7 @@
           </execution>
         </executions>
         <configuration>
-          <basedir>${project.build.directory}/generated-sources/annotations/org/apache/druid/sql/calcite/parser</basedir>
+          <basedir>${project.build.directory}/generated-sources/org/apache/druid/sql/calcite/parser</basedir>
           <includes>
             <include>**/DruidSqlParserImpl.java</include>
           </includes>
