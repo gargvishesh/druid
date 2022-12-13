@@ -36,10 +36,12 @@ import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.InputSplit;
+import org.apache.druid.data.input.InputStats;
 import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
 import org.apache.druid.data.input.impl.CsvInputFormat;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.InputStatsImpl;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.initialization.DruidModule;
@@ -320,7 +322,8 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
         null
     );
 
-    CloseableIterator<InputRow> iterator = reader.read();
+    final InputStats inputStats = new InputStatsImpl();
+    CloseableIterator<InputRow> iterator = reader.read(inputStats);
 
     while (iterator.hasNext()) {
       InputRow nextRow = iterator.next();
@@ -328,6 +331,7 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
       Assert.assertEquals("hello", nextRow.getDimension("dim1").get(0));
       Assert.assertEquals("world", nextRow.getDimension("dim2").get(0));
     }
+    Assert.assertEquals(2 * CONTENT.length, inputStats.getProcessedBytes());
   }
 
   @Test
@@ -365,7 +369,8 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
         null
     );
 
-    CloseableIterator<InputRow> iterator = reader.read();
+    final InputStats inputStats = new InputStatsImpl();
+    CloseableIterator<InputRow> iterator = reader.read(inputStats);
 
     while (iterator.hasNext()) {
       InputRow nextRow = iterator.next();
@@ -373,6 +378,7 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
       Assert.assertEquals("hello", nextRow.getDimension("dim1").get(0));
       Assert.assertEquals("world", nextRow.getDimension("dim2").get(0));
     }
+    Assert.assertEquals(2 * CONTENT.length, inputStats.getProcessedBytes());
   }
 
   private static void addExpectedPrefixObjects(URI prefix, List<URI> uris) throws IOException
