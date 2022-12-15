@@ -69,7 +69,7 @@ public class VirtualSegmentResource
     segmentManger.getDataSourceNames().forEach(
         dataSource -> {
           final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
-              segmentManger.getTimeline(DataSourceAnalysis.forDataSource(TableDataSource.create(dataSource)));
+              segmentManger.getTimeline((TableDataSource.create(dataSource)).getAnalysis());
 
           if (maybeTimeline.isPresent()) {
 
