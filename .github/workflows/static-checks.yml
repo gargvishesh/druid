@@ -167,6 +167,7 @@ jobs:
           curl https://bootstrap.pypa.io/pip/3.5/get-pip.py | sudo -H python3
           pip3 install wheel  # install wheel first explicitly
           pip3 install --upgrade pyyaml
+          npm install -g npx
           sudo npx playwright install-deps # needed for playwright
           web-console/script/druid build
           web-console/script/druid start
