@@ -168,7 +168,7 @@ jobs:
           pip3 install wheel  # install wheel first explicitly
           pip3 install --upgrade pyyaml
           echo "Setup playwright (start)"
-          sudo apt-get install libatk1.0-0 libatk-bridge2.0-0 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libatspi2.0-0 libwayland-client0
+          sudo apt-get install libatk1.0-0 libatk-bridge2.0-0 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libatspi2.0-0 libwayland-client0 -y
           echo "Setup playwright (end)"
           web-console/script/druid build
           web-console/script/druid start
