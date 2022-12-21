@@ -16,7 +16,6 @@ import io.imply.druid.segment.VirtualReferenceCountingSegment;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.TableDataSource;
-import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.segment.ReferenceCountingSegment;
 import org.apache.druid.server.SegmentManager;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
@@ -69,7 +68,7 @@ public class VirtualSegmentResource
     segmentManger.getDataSourceNames().forEach(
         dataSource -> {
           final Optional<VersionedIntervalTimeline<String, ReferenceCountingSegment>> maybeTimeline =
-              segmentManger.getTimeline(DataSourceAnalysis.forDataSource(TableDataSource.create(dataSource)));
+              segmentManger.getTimeline((TableDataSource.create(dataSource)).getAnalysis());
 
           if (maybeTimeline.isPresent()) {
 
