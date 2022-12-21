@@ -39,7 +39,6 @@ import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.QuerySegmentWalker;
 import org.apache.druid.query.TableDataSource;
-import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.segment.IndexIO;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.ReferenceCountingSegment;
@@ -135,7 +134,7 @@ public class ITVirtualSegmentLoaderTest
     handler.addSegment(makeSegment("test", "segment-2"), DataSegmentChangeCallback.NOOP);
     SegmentManager segmentManager = injector.getInstance(SegmentManager.class);
     VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = segmentManager
-        .getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource("test")))
+        .getTimeline((new TableDataSource("test")).getAnalysis())
         .orElseThrow(() -> new IllegalStateException("Null timeline"));
     Assert.assertEquals(2, timeline.getNumObjects());
     VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) timeline
@@ -175,7 +174,7 @@ public class ITVirtualSegmentLoaderTest
     handler.addSegment(makeSegment("test", "segment-2"), DataSegmentChangeCallback.NOOP);
     SegmentManager segmentManager = injector.getInstance(SegmentManager.class);
     VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = segmentManager
-        .getTimeline(DataSourceAnalysis.forDataSource(new TableDataSource("test")))
+        .getTimeline((new TableDataSource("test")).getAnalysis())
         .orElseThrow(() -> new IllegalStateException("Null timeline"));
     Assert.assertEquals(2, timeline.getNumObjects());
     VirtualReferenceCountingSegment segment = (VirtualReferenceCountingSegment) timeline

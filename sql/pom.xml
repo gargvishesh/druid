@@ -306,30 +306,6 @@
         </executions>
       </plugin>
 
-      <!-- Edit the parser. Add an additional clause to the table function
-           rule. This produces a new parser, DruidParser.jj.
-           -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <executions>
-          <execution>
-           <id>edit-parser</id>
-           <phase>generate-sources</phase>
-           <goals>
-             <goal>exec</goal>
-           </goals>
-           <configuration>
-             <executable>python3</executable>
-             <workingDirectory>${project.basedir}</workingDirectory>
-             <arguments>
-               <argument>edit-parser.py</argument>
-             </arguments>
-           </configuration>
-         </execution>
-        </executions>
-      </plugin>
-
       <!-- Copy the templates present in the codegen directory of druid-sql containing custom SQL rules to
         ${project.build.directory}/codegen -->
       <plugin>
@@ -402,10 +378,8 @@
       <!-- This plugin is used to replace the production rule for FROM clause in the calcite grammar.
            It is done by a search and replace since calcite doesn't allow to override production rules generally
            in its grammar (override is possible only if there's a hook for it in the grammar). And the FROM clause
-           doesn't contain any hook for extension. This can be removed once either
-           https://issues.apache.org/jira/browse/CALCITE-5074 or https://issues.apache.org/jira/browse/CALCITE-5084
-           are resolved and the calcite version in druid is bumped to use it. For the custom changes done in
-           extension, please check from.ftl file in sql module
+           doesn't contain any hook for extension. For the custom changes done in
+           extension, please check from.ftl file in sql module.
       -->
       <plugin>
         <groupId>com.google.code.maven-replacer-plugin</groupId>
@@ -427,7 +401,7 @@
           <replacements>
             <replacement>
               <token>fromClause = FromClause</token>
-              <value>fromClause = ImplyFromClause</value>
+              <value>fromClause = DruidFromClause</value>
             </replacement>
           </replacements>
         </configuration>

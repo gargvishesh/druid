@@ -36,6 +36,7 @@ import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.CPUTimeMetricQueryRunner;
+import org.apache.druid.query.DataSource;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
@@ -138,7 +139,8 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
     }
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final DataSourceAnalysis analysis = DataSourceAnalysis.forDataSource(query.getDataSource());
+    final DataSource dataSourceFromQuery = query.getDataSource();
+    final DataSourceAnalysis analysis = dataSourceFromQuery.getAnalysis();
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline;
@@ -146,8 +148,8 @@ public class DeferredLoadingQuerySegmentWalker extends ServerManager
         segmentManager.getTimeline(analysis);
 
     // Make sure this query type can handle the subquery, if present.
-    if (analysis.isQuery() && !toolChest.canPerformSubquery(((QueryDataSource) analysis.getDataSource()).getQuery())) {
-      throw new ISE("Cannot handle subquery: %s", analysis.getDataSource());
+    if ((dataSourceFromQuery instanceof QueryDataSource) && !toolChest.canPerformSubquery(((QueryDataSource) dataSourceFromQuery).getQuery())) {
+      throw new ISE("Cannot handle subquery: %s", dataSourceFromQuery);
     }
 
     if (maybeTimeline.isPresent()) {
