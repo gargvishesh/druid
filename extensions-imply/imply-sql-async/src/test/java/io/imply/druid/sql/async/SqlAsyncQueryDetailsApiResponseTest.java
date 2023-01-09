@@ -16,6 +16,7 @@ import io.imply.druid.sql.async.query.SqlAsyncQueryDetails.State;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsApiResponse;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.jackson.DefaultObjectMapper;
+import org.apache.druid.query.QueryException;
 import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.sql.http.ResultFormat;
 import org.junit.Assert;
@@ -59,7 +60,7 @@ public class SqlAsyncQueryDetailsApiResponseTest
         ResultFormat.OBJECT,
         0,
         new QueryTimeoutException(
-            QueryTimeoutException.ERROR_CODE,
+            QueryException.QUERY_TIMEOUT_ERROR_CODE,
             QueryTimeoutException.ERROR_MESSAGE,
             QueryTimeoutException.class.getName(),
             "testHost"

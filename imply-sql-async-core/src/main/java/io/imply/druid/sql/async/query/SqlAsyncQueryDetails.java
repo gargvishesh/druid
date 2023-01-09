@@ -318,28 +318,28 @@ public class SqlAsyncQueryDetails
       // should store its type when it is serialized, so that we can know the exact type when it is deserialized.
       switch (queryException.getErrorCode()) {
         // The below is the list of exceptions that can be thrown in historicals and propagated to the broker.
-        case QueryTimeoutException.ERROR_CODE:
+        case QueryException.QUERY_TIMEOUT_ERROR_CODE:
           return new QueryTimeoutException(
               queryException.getErrorCode(),
               queryException.getMessage(),
               queryException.getErrorClass(),
               queryException.getHost()
           );
-        case QueryCapacityExceededException.ERROR_CODE:
+        case QueryException.QUERY_CAPACITY_EXCEEDED_ERROR_CODE:
           return new QueryCapacityExceededException(
               queryException.getErrorCode(),
               queryException.getMessage(),
               queryException.getErrorClass(),
               queryException.getHost()
           );
-        case QueryUnsupportedException.ERROR_CODE:
+        case QueryException.QUERY_UNSUPPORTED_ERROR_CODE:
           return new QueryUnsupportedException(
               queryException.getErrorCode(),
               queryException.getMessage(),
               queryException.getErrorClass(),
               queryException.getHost()
           );
-        case ResourceLimitExceededException.ERROR_CODE:
+        case QueryException.RESOURCE_LIMIT_EXCEEDED_ERROR_CODE:
           return new ResourceLimitExceededException(
               queryException.getErrorCode(),
               queryException.getMessage(),
