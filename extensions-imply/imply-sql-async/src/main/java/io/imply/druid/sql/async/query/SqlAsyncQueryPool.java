@@ -25,10 +25,7 @@ import org.apache.druid.java.util.common.guava.Yielders;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.lifecycle.LifecycleStop;
 import org.apache.druid.java.util.emitter.EmittingLogger;
-import org.apache.druid.query.QueryCapacityExceededException;
-import org.apache.druid.query.QueryContext;
-import org.apache.druid.query.QueryContexts;
-import org.apache.druid.query.QueryInterruptedException;
+import org.apache.druid.query.*;
 import org.apache.druid.server.initialization.jetty.BadRequestException;
 import org.apache.druid.sql.DirectStatement.ResultSet;
 import org.apache.druid.sql.SqlRowTransformer;
@@ -91,7 +88,7 @@ public class SqlAsyncQueryPool
               final boolean updated = metadataManager.updateQueryDetails(
                   details.get().toError(
                       new QueryInterruptedException(
-                          QueryInterruptedException.QUERY_INTERRUPTED,
+                          QueryException.QUERY_INTERRUPTED_ERROR_CODE,
                           "Interrupted by broker shutdown",
                           null,
                           null
