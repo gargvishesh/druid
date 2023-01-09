@@ -342,17 +342,21 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
         @Override
         public double estimateSelectivity(int totalRows)
         {
-          return (double) getBitmap(
-              localDictionary.indexOf(stringDictionary.indexOf(StringUtils.toUtf8ByteBuffer(value)))
-          ).size() / totalRows;
+          final int globalId = stringDictionary.indexOf(StringUtils.toUtf8ByteBuffer(value));
+          if (globalId < 0) {
+            return 0.0;
+          }
+          return (double) getBitmap(localDictionary.indexOf(globalId)).size() / totalRows;
         }
 
         @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
         {
-          return bitmapResultFactory.wrapDimensionValue(
-              getBitmap(localDictionary.indexOf(stringDictionary.indexOf(StringUtils.toUtf8ByteBuffer(value))))
-          );
+          final int globalId = stringDictionary.indexOf(StringUtils.toUtf8ByteBuffer(value));
+          if (globalId < 0) {
+            return bitmapResultFactory.wrapDimensionValue(bitmapFactory.makeEmptyImmutableBitmap());
+          }
+          return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(globalId)));
         }
       };
     }
@@ -570,6 +574,7 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
     @Override
     public BitmapColumnIndex forValue(@Nullable String value)
     {
+      final boolean inputNull = value == null;
       final Long longValue = GuavaUtils.tryParseLong(value);
       return new SimpleBitmapColumnIndex()
       {
@@ -580,22 +585,34 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
         public double estimateSelectivity(int totalRows)
         {
           if (longValue == null) {
-            return (double) getBitmap(localDictionary.indexOf(0)).size() / totalRows;
+            if (inputNull) {
+              return (double) getBitmap(localDictionary.indexOf(0)).size() / totalRows;
+            } else {
+              return 0.0;
+            }
           }
-          return (double) getBitmap(
-              localDictionary.indexOf(longDictionary.indexOf(longValue) + adjustLongId)
-          ).size() / totalRows;
+          final int globalId = longDictionary.indexOf(longValue);
+          if (globalId < 0) {
+            return 0.0;
+          }
+          return (double) getBitmap(localDictionary.indexOf(globalId + adjustLongId)).size() / totalRows;
         }
 
         @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
         {
           if (longValue == null) {
-            return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(0)));
+            if (inputNull) {
+              return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(0)));
+            } else {
+              return bitmapResultFactory.wrapDimensionValue(bitmapFactory.makeEmptyImmutableBitmap());
+            }
           }
-          return bitmapResultFactory.wrapDimensionValue(
-              getBitmap(localDictionary.indexOf(longDictionary.indexOf(longValue) + adjustLongId))
-          );
+          final int globalId = longDictionary.indexOf(longValue);
+          if (globalId < 0) {
+            return bitmapResultFactory.wrapDimensionValue(bitmapFactory.makeEmptyImmutableBitmap());
+          }
+          return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(globalId + adjustLongId)));
         }
       };
     }
@@ -765,6 +782,7 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
     @Override
     public BitmapColumnIndex forValue(@Nullable String value)
     {
+      final boolean inputNull = value == null;
       final Double doubleValue = Strings.isNullOrEmpty(value) ? null : Doubles.tryParse(value);
       return new SimpleBitmapColumnIndex()
       {
@@ -774,22 +792,34 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
         public double estimateSelectivity(int totalRows)
         {
           if (doubleValue == null) {
-            return (double) getBitmap(localDictionary.indexOf(0)).size() / totalRows;
+            if (inputNull) {
+              return (double) getBitmap(localDictionary.indexOf(0)).size() / totalRows;
+            } else {
+              return 0.0;
+            }
           }
-          return (double) getBitmap(
-              localDictionary.indexOf(doubleDictionary.indexOf(doubleValue) + adjustDoubleId)
-          ).size() / totalRows;
+          final int globalId = doubleDictionary.indexOf(doubleValue);
+          if (globalId < 0) {
+            return 0.0;
+          }
+          return (double) getBitmap(localDictionary.indexOf(globalId + adjustDoubleId)).size() / totalRows;
         }
 
         @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
         {
           if (doubleValue == null) {
-            return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(0)));
+            if (inputNull) {
+              return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(0)));
+            } else {
+              return bitmapResultFactory.wrapDimensionValue(bitmapFactory.makeEmptyImmutableBitmap());
+            }
           }
-          return bitmapResultFactory.wrapDimensionValue(
-              getBitmap(localDictionary.indexOf(doubleDictionary.indexOf(doubleValue) + adjustDoubleId))
-          );
+          final int globalId = doubleDictionary.indexOf(doubleValue);
+          if (globalId < 0) {
+            return bitmapResultFactory.wrapDimensionValue(bitmapFactory.makeEmptyImmutableBitmap());
+          }
+          return bitmapResultFactory.wrapDimensionValue(getBitmap(localDictionary.indexOf(globalId + adjustDoubleId)));
         }
       };
     }
@@ -970,25 +1000,31 @@ public class NestedFieldLiteralColumnIndexSupplier<TStringDictionary extends Ind
 
       // multi-type, return all that match
       int globalId = stringDictionary.indexOf(StringUtils.toUtf8ByteBuffer(value));
-      int localId = localDictionary.indexOf(globalId);
-      if (localId >= 0) {
-        intList.add(localId);
+      if (globalId >= 0) {
+        int localId = localDictionary.indexOf(globalId);
+        if (localId >= 0) {
+          intList.add(localId);
+        }
       }
       Long someLong = GuavaUtils.tryParseLong(value);
       if (someLong != null) {
         globalId = longDictionary.indexOf(someLong);
-        localId = localDictionary.indexOf(globalId + adjustLongId);
-        if (localId >= 0) {
-          intList.add(localId);
+        if (globalId >= 0) {
+          int localId = localDictionary.indexOf(globalId + adjustLongId);
+          if (localId >= 0) {
+            intList.add(localId);
+          }
         }
       }
 
       Double someDouble = Doubles.tryParse(value);
       if (someDouble != null) {
         globalId = doubleDictionary.indexOf(someDouble);
-        localId = localDictionary.indexOf(globalId + adjustDoubleId);
-        if (localId >= 0) {
-          intList.add(localId);
+        if (globalId >= 0) {
+          int localId = localDictionary.indexOf(globalId + adjustDoubleId);
+          if (localId >= 0) {
+            intList.add(localId);
+          }
         }
       }
       return intList;
