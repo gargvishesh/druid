@@ -22,4 +22,6 @@ public class ImplyAggregationUtil
   public static final byte DELTA_TIMESERIES_CACHE_ID = (byte) -6;
   public static final byte INTERPOLATION_POST_AGG_CACHE_ID = (byte) -7;
   public static final byte TWA_POST_AGG_CACHE_ID = (byte) -8;
+
+  public static final byte STRING_BASED = Byte.MIN_VALUE;
 }

@@ -18,11 +18,13 @@ import io.imply.druid.query.aggregation.datasketches.expressions.MurmurHashExprM
 import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprMacro;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreAggregatorFactory;
+import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreSummaryStatsPostAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramFilteringPostAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionAvgScoreToHistogramPostAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.SessionSampleRatePostAggregator;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
 import org.apache.druid.guice.DruidInjectorBuilder;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
@@ -60,12 +62,14 @@ import org.apache.druid.timeline.partition.LinearShardSpec;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -111,31 +115,59 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
       CalciteTests.getJsonMapper().registerModule(mod);
       TestHelper.JSON_MAPPER.registerModule(mod);
     }
-    final QueryableIndex index = IndexBuilder.create()
-                                             .tmpDir(temporaryFolder.newFolder())
-                                             .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
-                                             .schema(
-                                                 new IncrementalIndexSchema.Builder()
-                                                     .withMetrics(
-                                                         new CountAggregatorFactory("cnt"),
-                                                         new DoubleSumAggregatorFactory("m1", "m1")
-                                                     )
-                                                     .withRollup(false)
-                                                     .build()
-                                             )
-                                             .rows(TestDataBuilder.ROWS1)
-                                             .buildMMappedIndex();
+    final QueryableIndex index = IndexBuilder
+        .create()
+        .tmpDir(temporaryFolder.newFolder())
+        .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
+        .schema(
+            new IncrementalIndexSchema.Builder()
+                .withMetrics(
+                    new CountAggregatorFactory("cnt"),
+                    new DoubleSumAggregatorFactory("m1", "m1")
+                )
+                .withRollup(false)
+                .build()
+        )
+        .rows(TestDataBuilder.ROWS1)
+        .buildMMappedIndex();
 
-    SpecificSegmentsQuerySegmentWalker walker = new SpecificSegmentsQuerySegmentWalker(conglomerate).add(
-        DataSegment.builder()
-                   .dataSource(CalciteTests.DATASOURCE1)
-                   .interval(index.getDataInterval())
-                   .version("1")
-                   .shardSpec(new LinearShardSpec(0))
-                   .size(0)
-                   .build(),
-        index
-    );
+    final QueryableIndex visitIndex = IndexBuilder
+        .create()
+        .tmpDir(temporaryFolder.newFolder())
+        .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
+        .schema(
+            new IncrementalIndexSchema.Builder()
+                .withMetrics(
+                    new CountAggregatorFactory("cnt"),
+                    new DoubleSumAggregatorFactory("m1", "m1")
+                )
+                .withRollup(false)
+                .build()
+        )
+        .rows(TestDataBuilder.USER_VISIT_ROWS)
+        .buildMMappedIndex();
+
+
+    SpecificSegmentsQuerySegmentWalker walker = new SpecificSegmentsQuerySegmentWalker(conglomerate)
+        .add(
+            DataSegment.builder()
+                       .dataSource(CalciteTests.DATASOURCE1)
+                       .interval(index.getDataInterval())
+                       .version("1")
+                       .shardSpec(new LinearShardSpec(0))
+                       .size(0)
+                       .build(),
+            index
+        ).add(
+            DataSegment.builder()
+                       .dataSource(CalciteTests.USERVISITDATASOURCE)
+                       .interval(visitIndex.getDataInterval())
+                       .version("1")
+                       .shardSpec(new LinearShardSpec(0))
+                       .size(0)
+                       .build(),
+            visitIndex
+        );
     return walker;
   }
 
@@ -153,6 +185,28 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
         + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(m1 * 2, m1 * 3, 100), 7),\n"
         + "  SESSION_AVG_SCORE_HISTOGRAM_FILTERING(SESSION_AVG_SCORE(dim1, m1), ARRAY[3.5], ARRAY[1]),\n"
         + "  SESSION_AVG_SCORE_HISTOGRAM(SESSION_AVG_SCORE(dim1, m1 - 2, true), 1),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'n'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'mean'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'max'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'min'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'sum'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'geometric_mean'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'variance'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'population_variance'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'second_moment'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'sum_of_squares'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'std_deviation'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'n'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'mean'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'max'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'min'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'sum'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'geometric_mean'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'variance'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'population_variance'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'second_moment'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'sum_of_squares'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(dim1, m1), 'std_deviation'),\n"
         + "  SESSION_SAMPLE_RATE(SESSION_AVG_SCORE(dim1, m1)) "
         + "FROM foo",
         Collections.singletonList(
@@ -238,24 +292,122 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
                           new FieldAccessPostAggregator("p12", "a4:agg"),
                           new double[]{1}
                       ),
-                      new SessionSampleRatePostAggregator(
-                          "p15",
-                          new FieldAccessPostAggregator("p14", "a1:agg")
-                      )
+                      makeStatsPostAgg(14, "a1:agg", "n", true),
+                      makeStatsPostAgg(16, "a1:agg", "mean", true),
+                      makeStatsPostAgg(18, "a1:agg", "max", true),
+                      makeStatsPostAgg(20, "a1:agg", "min", true),
+                      makeStatsPostAgg(22, "a1:agg", "sum", true),
+                      makeStatsPostAgg(24, "a1:agg", "geometric_mean", true),
+                      makeStatsPostAgg(26, "a1:agg", "variance", true),
+                      makeStatsPostAgg(28, "a1:agg", "population_variance", true),
+                      makeStatsPostAgg(30, "a1:agg", "second_moment", true),
+                      makeStatsPostAgg(32, "a1:agg", "sum_of_squares", true),
+                      makeStatsPostAgg(34, "a1:agg", "std_deviation", true),
+                      makeStatsPostAgg(36, "a1:agg", "n", false),
+                      makeStatsPostAgg(38, "a1:agg", "mean", false),
+                      makeStatsPostAgg(40, "a1:agg", "max", false),
+                      makeStatsPostAgg(42, "a1:agg", "min", false),
+                      makeStatsPostAgg(44, "a1:agg", "sum", false),
+                      makeStatsPostAgg(46, "a1:agg", "geometric_mean", false),
+                      makeStatsPostAgg(48, "a1:agg", "variance", false),
+                      makeStatsPostAgg(50, "a1:agg", "population_variance", false),
+                      makeStatsPostAgg(52, "a1:agg", "second_moment", false),
+                      makeStatsPostAgg(54, "a1:agg", "sum_of_squares", false),
+                      makeStatsPostAgg(56, "a1:agg", "std_deviation", false),
+                      new SessionSampleRatePostAggregator("p59", new FieldAccessPostAggregator("p58", "a1:agg"))
                   )
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
         ImmutableList.of(new Object[] {
-            6L,
-            5.0D,
-            5.0D,
-            "[2,3]",
-            "[2,3]",
-            "[2,4]",
-            "ZauJNuxDxpB9JU1IDrmw8QnDIUw7B9NV",
-            "[1,4]",
-            1.0D
+            6L, 5D, 5D, "[2,3]", "[2,3]", "[2,4]", "ZauJNuxDxpB9JU1IDrmw8QnDIUw7B9NV", "[1,4]",
+            5D, 4D, 6D, 2D, 20D, 3.7279192731913513D, 2.5D, 2D, 10D, 90D, 1.5811388300841898D,
+            5D, 4D, 6D, 2D, 20D, 3.7279192731913513D, 2.5D, 2D, 10D, 90D, 1.5811388300841898D,
+            1D,
+        }));
+  }
+
+  @Test
+  public void testSummaryStatsPostAggs()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'n'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'mean'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'max'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'min'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'sum'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'geometric_mean'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'variance'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'population_variance'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'second_moment'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'sum_of_squares'),\n"
+        + "  SESSION_AVG_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'std_deviation'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'n'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'mean'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'max'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'min'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'sum'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'geometric_mean'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'variance'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'population_variance'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'second_moment'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'sum_of_squares'),\n"
+        + "  SESSION_SCORE_STATS(SESSION_AVG_SCORE(user, 1), 'std_deviation')\n"
+        + "FROM visits",
+        Collections.singletonList(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource("visits")
+                  .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new ExpressionVirtualColumn(
+                          "v0",
+                          "1",
+                          ColumnType.DOUBLE,
+                          TestExprMacroTable.INSTANCE
+                      )
+                  )
+                  .aggregators(ImmutableList.of(
+                      new SessionAvgScoreAggregatorFactory(
+                          "a0:agg",
+                          "user",
+                          "v0",
+                          SessionAvgScoreAggregatorFactory.DEFAULT_TARGET_SAMPLES,
+                          false
+                      )
+                  ))
+                  .postAggregators(
+                      makeStatsPostAgg(0, "a0:agg", "n", true),
+                      makeStatsPostAgg(2, "a0:agg", "mean", true),
+                      makeStatsPostAgg(4, "a0:agg", "max", true),
+                      makeStatsPostAgg(6, "a0:agg", "min", true),
+                      makeStatsPostAgg(8, "a0:agg", "sum", true),
+                      makeStatsPostAgg(10, "a0:agg", "geometric_mean", true),
+                      makeStatsPostAgg(12, "a0:agg", "variance", true),
+                      makeStatsPostAgg(14, "a0:agg", "population_variance", true),
+                      makeStatsPostAgg(16, "a0:agg", "second_moment", true),
+                      makeStatsPostAgg(18, "a0:agg", "sum_of_squares", true),
+                      makeStatsPostAgg(20, "a0:agg", "std_deviation", true),
+                      makeStatsPostAgg(22, "a0:agg", "n", false),
+                      makeStatsPostAgg(24, "a0:agg", "mean", false),
+                      makeStatsPostAgg(26, "a0:agg", "max", false),
+                      makeStatsPostAgg(28, "a0:agg", "min", false),
+                      makeStatsPostAgg(30, "a0:agg", "sum", false),
+                      makeStatsPostAgg(32, "a0:agg", "geometric_mean", false),
+                      makeStatsPostAgg(34, "a0:agg", "variance", false),
+                      makeStatsPostAgg(36, "a0:agg", "population_variance", false),
+                      makeStatsPostAgg(38, "a0:agg", "second_moment", false),
+                      makeStatsPostAgg(40, "a0:agg", "sum_of_squares", false),
+                      makeStatsPostAgg(42, "a0:agg", "std_deviation", false)
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(new Object[] {
+            4D, 1D, 1D, 1D, 4D, 1D, 0D, 0D, 0D, 4D, 0D,
+            4D, 3D, 5D, 1D, 12D, 2.5900200641113513D, 2.6666666666666665D, 2D, 8D, 44D, 1.632993161855452D
         }));
   }
 
@@ -411,6 +563,22 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
             new Object[]{"def"},
             new Object[]{"abc"}
         )
+    );
+  }
+
+  @Nonnull
+  private SessionAvgScoreSummaryStatsPostAggregator makeStatsPostAgg(
+      int startId,
+      String inputAgg,
+      String statType,
+      boolean useAverage
+  )
+  {
+    return new SessionAvgScoreSummaryStatsPostAggregator(
+        StringUtils.format("p%s", startId + 1),
+        new FieldAccessPostAggregator(StringUtils.format("p%s", startId), inputAgg),
+        SessionAvgScoreSummaryStatsPostAggregator.StatType.valueOf(statType.toUpperCase(Locale.ROOT)),
+        useAverage
     );
   }
 }

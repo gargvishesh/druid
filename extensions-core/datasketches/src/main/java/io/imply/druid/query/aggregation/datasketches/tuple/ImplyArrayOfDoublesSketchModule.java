@@ -21,11 +21,13 @@ import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprM
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.AdTechInventorySqlAggregator;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.MurmurHashOperatorConversions;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreObjectSqlAggregator;
+import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreSummaryStatsOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreToEstimateOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreToHistogramFilteringOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionAvgScoreToHistogramOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionFilterOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionSampleRateOperatorConversion;
+import io.imply.druid.query.aggregation.datasketches.tuple.sql.SessionScoreSummaryStatsOperatorConversion;
 import io.imply.druid.query.aggregation.datasketches.virtual.ImplySessionFilteringVirtualColumn;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
@@ -106,6 +108,8 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     SqlBindings.addOperatorConversion(binder, SessionAvgScoreToHistogramFilteringOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, SessionFilterOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, SessionSampleRateOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, SessionScoreSummaryStatsOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, SessionAvgScoreSummaryStatsOperatorConversion.class);
   }
 
   private void configureAdTechAggregator(Binder binder)
@@ -118,6 +122,7 @@ public class ImplyArrayOfDoublesSketchModule implements DruidModule
     return new SimpleModule(SESSIONIZATION_FEATURE_NAME).registerSubtypes(
         new NamedType(SessionAvgScoreAggregatorFactory.class, SESSION_AVG_SCORE),
         new NamedType(SessionAvgScoreToHistogramPostAggregator.class, SESSION_AVG_SCORE_HISTOGRAM),
+        new NamedType(SessionAvgScoreSummaryStatsPostAggregator.class, "sessionAvgScoreStats"),
         new NamedType(SessionAvgScoreToHistogramFilteringPostAggregator.class, SESSION_AVG_SCORE_HISTOGRAM_FILTERING),
         new NamedType(SessionSampleRatePostAggregator.class, SESSION_SAMPLE_RATE),
         new NamedType(ImplySessionFilteringVirtualColumn.class, SESSION_FILTERING_VIRTUAL_COLUMN)

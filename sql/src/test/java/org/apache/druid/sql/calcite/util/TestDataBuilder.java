@@ -529,7 +529,7 @@ public class TestDataBuilder
       )
   );
 
-  private static List<InputRow> USER_VISIT_ROWS = ImmutableList.of(
+  public static List<InputRow> USER_VISIT_ROWS = ImmutableList.of(
       toRow(
           "2021-01-01T01:00:00Z",
           USER_VISIT_DIMS,
