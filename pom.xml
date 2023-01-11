@@ -29,7 +29,7 @@
 
     <groupId>org.apache.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>2023.01.0-iap-SNAPSHOT</version>
+    <version>2023.02.0-iap-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Druid</name>
@@ -1599,6 +1599,19 @@
                 <executions>
                     <execution>
                         <phase>none</phase>  <!-- TODO: Consider enabling so part of dev flow instead of just CI -->
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>2.7.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeBom</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
