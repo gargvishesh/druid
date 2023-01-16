@@ -17,20 +17,20 @@
  * under the License.
  */
 
-package org.apache.druid.testsEx.config;
+package org.apache.druid.query.rowsandcols.column;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.List;
-
-public class KafkaConfig extends ServiceConfig
+/**
+ * A semantic interface for use with {@link Column} objects.  Has methods to request that the {@link Column} copy
+ * values into provided array structures.  Note that this interface is primarily useful to <em>read</em> from
+ * {@link Column} objects and not to write to them.
+ */
+public interface VectorCopier
 {
-  @JsonCreator
-  public KafkaConfig(
-      @JsonProperty("instances") List<ServiceInstance> instances
-  )
-  {
-    super(instances);
-  }
+  /**
+   * Copies all values from the underlying column <em>into</em> the {@code Object[]} passed into this method.
+   *
+   * @param into the object array to store the values
+   * @param intoStart the index of the into array to start writing into.
+   */
+  void copyInto(Object[] into, int intoStart);
 }
