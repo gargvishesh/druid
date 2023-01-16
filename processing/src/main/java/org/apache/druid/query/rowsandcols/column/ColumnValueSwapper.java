@@ -17,20 +17,22 @@
  * under the License.
  */
 
-package org.apache.druid.testsEx.config;
+package org.apache.druid.query.rowsandcols.column;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.List;
-
-public class KafkaConfig extends ServiceConfig
+/**
+ * A semantic interface for use with {@link Column} objects.
+ *
+ * This is used to swap values inside of a column.  Note that this interface fundamentally mutates the underlying
+ * column.  If a column cannot support mutation, it should not return return an implementation of this interface.
+ */
+public interface ColumnValueSwapper
 {
-  @JsonCreator
-  public KafkaConfig(
-      @JsonProperty("instances") List<ServiceInstance> instances
-  )
-  {
-    super(instances);
-  }
+  /**
+   * Swaps the values at the two row ids.  There is no significant to "right" and "left", it's just easier to name
+   * the parameters that way.
+   *
+   * @param lhs the left-hand-side rowId
+   * @param rhs the right-hand-side rowId
+   */
+  void swapValues(int lhs, int rhs);
 }

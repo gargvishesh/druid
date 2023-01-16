@@ -62,7 +62,6 @@ import org.apache.druid.sql.calcite.view.InProcessViewManager;
 import org.apache.druid.sql.calcite.view.ViewManager;
 import org.apache.druid.timeline.DataSegment;
 
-import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -155,7 +154,7 @@ public class SqlTestFramework
     /**
      * Configure the JSON mapper.
      *
-     * @see {@link #configureGuice(DruidInjectorBuilder)} for the preferred solution.
+     * @see #configureGuice(DruidInjectorBuilder) for the preferred solution.
      */
     void configureJsonMapper(ObjectMapper mapper);
 
@@ -474,14 +473,14 @@ public class SqlTestFramework
     }
 
     @Provides
-    @Singleton
+    @LazySingleton
     public QueryRunnerFactoryConglomerate conglomerate()
     {
       return componentSupplier.createCongolmerate(builder, resourceCloser);
     }
 
     @Provides
-    @Singleton
+    @LazySingleton
     public JoinableFactoryWrapper joinableFactoryWrapper(final Injector injector)
     {
       return builder.componentSupplier.createJoinableFactoryWrapper(
@@ -508,7 +507,7 @@ public class SqlTestFramework
     }
 
     @Provides
-    @Singleton
+    @LazySingleton
     public QueryLifecycleFactory queryLifecycleFactory(final Injector injector)
     {
       return QueryFrameworkUtils.createMockQueryLifecycleFactory(
