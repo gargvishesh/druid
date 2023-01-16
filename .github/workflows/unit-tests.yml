@@ -40,7 +40,7 @@ jobs:
     strategy:
       matrix:
         DRUID_USE_DEFAULT_VALUE_FOR_NULL: [ false, true ]
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - name: checkout branch
         uses: actions/checkout@v3
