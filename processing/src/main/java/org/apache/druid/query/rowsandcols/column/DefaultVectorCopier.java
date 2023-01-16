@@ -17,20 +17,29 @@
  * under the License.
  */
 
-package org.apache.druid.testsEx.config;
+package org.apache.druid.query.rowsandcols.column;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.java.util.common.ISE;
 
-import java.util.List;
-
-public class KafkaConfig extends ServiceConfig
+public class DefaultVectorCopier implements VectorCopier
 {
-  @JsonCreator
-  public KafkaConfig(
-      @JsonProperty("instances") List<ServiceInstance> instances
-  )
+  ColumnAccessor accessor;
+
+  public DefaultVectorCopier(ColumnAccessor accessor)
   {
-    super(instances);
+    this.accessor = accessor;
+  }
+
+  @Override
+  public void copyInto(Object[] into, int intoStart)
+  {
+    final int numRows = accessor.numRows();
+    if (Integer.MAX_VALUE - numRows < intoStart) {
+      throw new ISE("too many rows!!! intoStart[%,d], numRows[%,d] combine to exceed max_int", intoStart, numRows);
+    }
+
+    for (int i = 0; i < numRows; ++i) {
+      into[intoStart + i] = accessor.getObject(i);
+    }
   }
 }
