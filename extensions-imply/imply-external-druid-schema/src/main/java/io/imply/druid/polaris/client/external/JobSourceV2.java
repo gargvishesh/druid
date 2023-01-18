@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.polaris.client.external;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -5,12 +14,13 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import org.apache.druid.java.util.common.StringUtils;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type",  visible = true)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = ConnectionJobSourceV2.class, name = "connection"),
     @JsonSubTypes.Type(value = S3JobSourceV2.class, name = "s3"),
@@ -22,26 +32,26 @@ import java.util.Objects;
 @JsonDeserialize(builder = JobSourceV2.Builder.class)
 public class JobSourceV2
 {
-  private final @NotNull
-  @Valid JobSourceTypeV2 type;
+  private final @NotNull @Valid JobSourceTypeV2 type;
 
   public JobSourceV2(
       final @NotNull JobSourceTypeV2 type
-  ) {
+  )
+  {
     this.type = type;
   }
 
 
-
-
-
-  @JsonProperty("type") @NotNull
-  public JobSourceTypeV2 getType() {
+  @JsonProperty("type")
+  @NotNull
+  public JobSourceTypeV2 getType()
+  {
     return type;
   }
 
   @Override
-  public boolean equals(final Object o) {
+  public boolean equals(final Object o)
+  {
     if (this == o) {
       return true;
     }
@@ -53,12 +63,14 @@ public class JobSourceV2
   }
 
   @Override
-  public int hashCode() {
+  public int hashCode()
+  {
     return Objects.hash(type);
   }
 
   @Override
-  public String toString() {
+  public String toString()
+  {
     StringBuilder sb = new StringBuilder();
     sb.append("class JobSourceV2 {\n");
 
@@ -71,35 +83,42 @@ public class JobSourceV2
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(final Object o) {
+  private String toIndentedString(final Object o)
+  {
     if (o == null) {
       return "null";
     }
-    return o.toString().replace("\n", "\n    ");
+    return StringUtils.replaceChar(o.toString(), '\n', "\n    ");
   }
 
 
   /**
    * Calls the appropriate visitor method for this type.
+   *
    * @param visitor A visitor
    */
-  public void accept(final Visitor visitor) {
+  public void accept(final Visitor visitor)
+  {
     throw new UnsupportedOperationException("Cannot call visitor on JobSourceV2 instance. Use a subclass.");
   }
 
   /**
    * A type-safe visitor of the sub-classes of this type.
    */
-  public interface Visitor {
+  public interface Visitor
+  {
     void visit(ConnectionJobSourceV2 dto);
+
     void visit(S3JobSourceV2 dto);
+
     void visit(UploadedJobSourceV2 dto);
   }
 
   /**
    * Interface that subtype's Builder implement, allowing setting common fields.
    */
-  public interface IBuilder<T extends JobSourceV2> {
+  public interface IBuilder<T extends JobSourceV2>
+  {
     IBuilder type(JobSourceTypeV2 type);
 
 
@@ -107,22 +126,26 @@ public class JobSourceV2
   }
 
   @JsonPOJOBuilder
-  public static class Builder {
+  public static class Builder
+  {
     private @Valid JobSourceTypeV2 type;
 
     /**
      * Set type and return the builder.
      */
     @JsonProperty("type")
-    public Builder type(final @Valid  @NotNull
-                        JobSourceTypeV2 type) {
+    public Builder type(
+        final @Valid @NotNull
+        JobSourceTypeV2 type
+    )
+    {
       this.type = type;
       return this;
     }
 
 
-
-    public JobSourceV2 build() {
+    public JobSourceV2 build()
+    {
       return new JobSourceV2(type);
     }
   }

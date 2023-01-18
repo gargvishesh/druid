@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.polaris.client.external;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -5,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.java.util.common.StringUtils;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -16,11 +26,11 @@ import java.util.Objects;
  * A source that is external to Polaris. Data in this source is pulled into Polaris.
  */
 @JsonDeserialize(builder = ConnectionJobSourceV2.Builder.class)
-public class ConnectionJobSourceV2 extends JobSourceV2 {
+public class ConnectionJobSourceV2 extends JobSourceV2
+{
 
 
-  private final @NotNull
-  @Valid String connectionName;
+  private final @NotNull @Valid String connectionName;
   @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
   private final @Valid List<FieldNameAndDataTypeV2> inputSchema;
   @JsonInclude(value = JsonInclude.Include.NON_NULL)
@@ -31,7 +41,8 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
       final String connectionName,
       final List<FieldNameAndDataTypeV2> inputSchema,
       final DataFormatSettings formatSettings
-  ) {
+  )
+  {
     super(type);
     this.connectionName = connectionName;
     this.inputSchema =
@@ -39,14 +50,16 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
     this.formatSettings = formatSettings;
   }
 
-  public static ConnectionJobSourceV2.Builder builder() {
+  public static ConnectionJobSourceV2.Builder builder()
+  {
     return new ConnectionJobSourceV2.Builder();
   }
 
   /**
    * Return a new builder pre-populated with this instance's data.
    */
-  public ConnectionJobSourceV2.Builder with() {
+  public ConnectionJobSourceV2.Builder with()
+  {
     return (new Builder())
         .type(this.getType())
         .connectionName(this.getConnectionName())
@@ -59,7 +72,8 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
    *
    * @param consumer A method that receives the builder and updates it
    */
-  public ConnectionJobSourceV2 with(final java.util.function.Consumer<Builder> consumer) {
+  public ConnectionJobSourceV2 with(final java.util.function.Consumer<Builder> consumer)
+  {
     final Builder builder = with();
     consumer.accept(builder);
     return builder.build();
@@ -68,7 +82,8 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
   /**
    * Return a clone of this instance with readOnly fields reset to their defaults.
    */
-  public ConnectionJobSourceV2 cloneWithReadOnlyDefaults() {
+  public ConnectionJobSourceV2 cloneWithReadOnlyDefaults()
+  {
     return (new Builder())
         .connectionName(this.getConnectionName())
         .inputSchema(this.getInputSchema())
@@ -78,25 +93,28 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
   }
 
 
-
-
-  @JsonProperty("connectionName") @NotNull
-  public String getConnectionName() {
+  @JsonProperty("connectionName")
+  @NotNull
+  public String getConnectionName()
+  {
     return connectionName;
   }
 
   @JsonProperty("inputSchema")
-  public List<FieldNameAndDataTypeV2> getInputSchema() {
+  public List<FieldNameAndDataTypeV2> getInputSchema()
+  {
     return inputSchema;
   }
 
   @JsonProperty("formatSettings")
-  public DataFormatSettings getFormatSettings() {
+  public DataFormatSettings getFormatSettings()
+  {
     return formatSettings;
   }
 
   @Override
-  public boolean equals(final Object o) {
+  public boolean equals(final Object o)
+  {
     if (this == o) {
       return true;
     }
@@ -111,12 +129,14 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
   }
 
   @Override
-  public int hashCode() {
+  public int hashCode()
+  {
     return Objects.hash(connectionName, inputSchema, formatSettings, super.hashCode());
   }
 
   @Override
-  public String toString() {
+  public String toString()
+  {
     StringBuilder sb = new StringBuilder();
     sb.append("class ConnectionJobSourceV2 {\n");
     sb.append("    ").append(toIndentedString(super.toString())).append("\n");
@@ -131,21 +151,24 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(final Object o) {
+  private String toIndentedString(final Object o)
+  {
     if (o == null) {
       return "null";
     }
-    return o.toString().replace("\n", "\n    ");
+    return StringUtils.replaceChar(o.toString(), '\n', "\n    ");
   }
 
   @Override
-  public void accept(final JobSourceV2.Visitor visitor) {
+  public void accept(final JobSourceV2.Visitor visitor)
+  {
     visitor.visit(this);
   }
 
 
   @JsonPOJOBuilder
-  public static class Builder implements JobSourceV2.IBuilder<ConnectionJobSourceV2> {
+  public static class Builder implements JobSourceV2.IBuilder<ConnectionJobSourceV2>
+  {
     private @Valid JobSourceTypeV2 type;
     private @Valid String connectionName;
     private @Valid List<FieldNameAndDataTypeV2> inputSchema = new ArrayList<>();
@@ -156,8 +179,11 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
      */
     @Override
     @JsonProperty("type")
-    public Builder type(final @Valid  @NotNull
-                        JobSourceTypeV2 type) {
+    public Builder type(
+        final @Valid @NotNull
+        JobSourceTypeV2 type
+    )
+    {
       this.type = type;
       return this;
     }
@@ -168,8 +194,11 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
      * Name of the connection to ingest from.
      */
     @JsonProperty("connectionName")
-    public Builder connectionName(final @Valid  @NotNull
-                                  String connectionName) {
+    public Builder connectionName(
+        final @Valid @NotNull
+        String connectionName
+    )
+    {
       this.connectionName = connectionName;
       return this;
     }
@@ -180,12 +209,14 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
      * The schema of input data in terms of a list of input field names and their respective data types.
      */
     @JsonProperty("inputSchema")
-    public Builder inputSchema(final @Valid List<FieldNameAndDataTypeV2> inputSchema) {
+    public Builder inputSchema(final @Valid List<FieldNameAndDataTypeV2> inputSchema)
+    {
       this.inputSchema = new ArrayList<>(inputSchema);
       return this;
     }
 
-    public Builder addInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem) {
+    public Builder addInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem)
+    {
       if (this.inputSchema == null) {
         this.inputSchema = new ArrayList<>();
       }
@@ -194,7 +225,8 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
       return this;
     }
 
-    public Builder removeInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem) {
+    public Builder removeInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem)
+    {
       if (inputSchemaItem != null && this.inputSchema != null) {
         this.inputSchema.remove(inputSchemaItem);
       }
@@ -206,15 +238,16 @@ public class ConnectionJobSourceV2 extends JobSourceV2 {
      * Set formatSettings and return the builder.
      */
     @JsonProperty("formatSettings")
-    public Builder formatSettings(final @Valid DataFormatSettings formatSettings) {
+    public Builder formatSettings(final @Valid DataFormatSettings formatSettings)
+    {
       this.formatSettings = formatSettings;
       return this;
     }
 
 
-
     @Override
-    public ConnectionJobSourceV2 build() {
+    public ConnectionJobSourceV2 build()
+    {
       return new ConnectionJobSourceV2(type, connectionName, inputSchema, formatSettings);
     }
   }

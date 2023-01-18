@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.polaris.client.external;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -5,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.collect.ImmutableMap;
+import org.apache.druid.java.util.common.StringUtils;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -14,7 +24,8 @@ import java.util.Map;
 import java.util.Objects;
 
 @JsonDeserialize(builder = AvroOcfFormatSettings.Builder.class)
-public class AvroOcfFormatSettings extends DataFormatSettings {
+public class AvroOcfFormatSettings extends DataFormatSettings
+{
 
   @JsonInclude(value = JsonInclude.Include.NON_NULL)
   private final @Valid Boolean binaryAsString;
@@ -28,7 +39,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
       final Boolean binaryAsString,
       final Boolean extractUnionsByType,
       final Map<String, Object> schema
-  ) {
+  )
+  {
     super(format);
     this.binaryAsString = binaryAsString;
     this.extractUnionsByType = extractUnionsByType;
@@ -36,14 +48,16 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
         ImmutableMap.copyOf(schema);
   }
 
-  public static AvroOcfFormatSettings.Builder builder() {
+  public static AvroOcfFormatSettings.Builder builder()
+  {
     return new AvroOcfFormatSettings.Builder();
   }
 
   /**
    * Return a new builder pre-populated with this instance's data.
    */
-  public AvroOcfFormatSettings.Builder with() {
+  public AvroOcfFormatSettings.Builder with()
+  {
     return (new Builder())
         .format(this.getFormat())
         .binaryAsString(this.getBinaryAsString())
@@ -56,7 +70,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
    *
    * @param consumer A method that receives the builder and updates it
    */
-  public AvroOcfFormatSettings with(final java.util.function.Consumer<Builder> consumer) {
+  public AvroOcfFormatSettings with(final java.util.function.Consumer<Builder> consumer)
+  {
     final Builder builder = with();
     consumer.accept(builder);
     return builder.build();
@@ -65,7 +80,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
   /**
    * Return a clone of this instance with readOnly fields reset to their defaults.
    */
-  public AvroOcfFormatSettings cloneWithReadOnlyDefaults() {
+  public AvroOcfFormatSettings cloneWithReadOnlyDefaults()
+  {
     return (new Builder())
         .binaryAsString(this.getBinaryAsString())
         .extractUnionsByType(this.getExtractUnionsByType())
@@ -75,25 +91,27 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
   }
 
 
-
-
   @JsonProperty("binaryAsString")
-  public Boolean getBinaryAsString() {
+  public Boolean getBinaryAsString()
+  {
     return binaryAsString;
   }
 
   @JsonProperty("extractUnionsByType")
-  public Boolean getExtractUnionsByType() {
+  public Boolean getExtractUnionsByType()
+  {
     return extractUnionsByType;
   }
 
   @JsonProperty("schema")
-  public Map<String, Object> getSchema() {
+  public Map<String, Object> getSchema()
+  {
     return schema;
   }
 
   @Override
-  public boolean equals(final Object o) {
+  public boolean equals(final Object o)
+  {
     if (this == o) {
       return true;
     }
@@ -108,12 +126,14 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
   }
 
   @Override
-  public int hashCode() {
+  public int hashCode()
+  {
     return Objects.hash(binaryAsString, extractUnionsByType, schema, super.hashCode());
   }
 
   @Override
-  public String toString() {
+  public String toString()
+  {
     StringBuilder sb = new StringBuilder();
     sb.append("class AvroOcfFormatSettings {\n");
     sb.append("    ").append(toIndentedString(super.toString())).append("\n");
@@ -128,21 +148,24 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(final Object o) {
+  private String toIndentedString(final Object o)
+  {
     if (o == null) {
       return "null";
     }
-    return o.toString().replace("\n", "\n    ");
+    return StringUtils.replaceChar(o.toString(), '\n', "\n    ");
   }
 
   @Override
-  public void accept(final DataFormatSettings.Visitor visitor) {
+  public void accept(final DataFormatSettings.Visitor visitor)
+  {
     visitor.visit(this);
   }
 
 
   @JsonPOJOBuilder
-  public static class Builder implements DataFormatSettings.IBuilder<AvroOcfFormatSettings> {
+  public static class Builder implements DataFormatSettings.IBuilder<AvroOcfFormatSettings>
+  {
     private @Valid DataFormat format;
     private @Valid Boolean binaryAsString = false;
     private @Valid Boolean extractUnionsByType = false;
@@ -153,8 +176,11 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
      */
     @Override
     @JsonProperty("format")
-    public Builder format(final @Valid  @NotNull
-                          DataFormat format) {
+    public Builder format(
+        final @Valid @NotNull
+        DataFormat format
+    )
+    {
       this.format = format;
       return this;
     }
@@ -165,7 +191,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
      * Specifies if the bytes Avro column which is not logically marked as a string or enum type should be treated as a UTF-8 encoded string.
      */
     @JsonProperty("binaryAsString")
-    public Builder binaryAsString(final @Valid Boolean binaryAsString) {
+    public Builder binaryAsString(final @Valid Boolean binaryAsString)
+    {
       this.binaryAsString = binaryAsString;
       return this;
     }
@@ -176,7 +203,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
      * If you want to operate on individual members of a union, set &#x60;extractUnionsByType&#x60; on the Avro parser. This configuration expands union values into nested objects according to the following rules: - Primitive types and unnamed complex types are keyed by their type name, such as &#x60;int&#x60; and &#x60;string&#x60;. - Complex named types are keyed by their names, this includes &#x60;record&#x60;, &#x60;fixed&#x60;, and &#x60;enum&#x60;. - The Avro null type is elided as its value can only ever be null.
      */
     @JsonProperty("extractUnionsByType")
-    public Builder extractUnionsByType(final @Valid Boolean extractUnionsByType) {
+    public Builder extractUnionsByType(final @Valid Boolean extractUnionsByType)
+    {
       this.extractUnionsByType = extractUnionsByType;
       return this;
     }
@@ -187,13 +215,15 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
      * Define a reader schema to be used when parsing Avro records. This is useful if you want to override the reader schema included in the Avro OCF file data. For example: &#x60;&#x60;&#x60; {      \&quot;type\&quot;: \&quot;record\&quot;,      \&quot;namespace\&quot;: \&quot;com.example\&quot;,      \&quot;name\&quot;: \&quot;FullName\&quot;,      \&quot;fields\&quot;: [        { \&quot;name\&quot;: \&quot;first\&quot;, \&quot;type\&quot;: \&quot;string\&quot; },        { \&quot;name\&quot;: \&quot;last\&quot;, \&quot;type\&quot;: \&quot;string\&quot; }      ] } &#x60;&#x60;&#x60;
      */
     @JsonProperty("schema")
-    public Builder schema(final @Valid Map<String, Object> schema) {
+    public Builder schema(final @Valid Map<String, Object> schema)
+    {
       this.schema = new LinkedHashMap<>(schema);
       return this;
     }
 
 
-    public Builder putSchemaItem(final String key, final Object schemaItem) {
+    public Builder putSchemaItem(final String key, final Object schemaItem)
+    {
       if (this.schema == null) {
         this.schema = new HashMap<>();
       }
@@ -202,7 +232,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
       return this;
     }
 
-    public Builder removeSchemaItem(final String key) {
+    public Builder removeSchemaItem(final String key)
+    {
       if (this.schema != null) {
         this.schema.remove(key);
       }
@@ -211,7 +242,8 @@ public class AvroOcfFormatSettings extends DataFormatSettings {
     }
 
     @Override
-    public AvroOcfFormatSettings build() {
+    public AvroOcfFormatSettings build()
+    {
       return new AvroOcfFormatSettings(format, binaryAsString, extractUnionsByType, schema);
     }
   }

@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.polaris.client.external;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -5,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.java.util.common.StringUtils;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -16,7 +26,8 @@ import java.util.Objects;
  * A source input comprised of a set of files uploaded to Imply Polaris.
  */
 @JsonDeserialize(builder = UploadedJobSourceV2.Builder.class)
-public class UploadedJobSourceV2 extends JobSourceV2 {
+public class UploadedJobSourceV2 extends JobSourceV2
+{
 
   @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
   private final @Valid List<String> fileList;
@@ -30,7 +41,8 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
       final List<String> fileList,
       final List<FieldNameAndDataTypeV2> inputSchema,
       final DataFormatSettings formatSettings
-  ) {
+  )
+  {
     super(type);
     this.fileList =
         ImmutableList.copyOf(fileList);
@@ -39,14 +51,16 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
     this.formatSettings = formatSettings;
   }
 
-  public static UploadedJobSourceV2.Builder builder() {
+  public static UploadedJobSourceV2.Builder builder()
+  {
     return new UploadedJobSourceV2.Builder();
   }
 
   /**
    * Return a new builder pre-populated with this instance's data.
    */
-  public UploadedJobSourceV2.Builder with() {
+  public UploadedJobSourceV2.Builder with()
+  {
     return (new Builder())
         .type(this.getType())
         .fileList(this.getFileList())
@@ -59,7 +73,8 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
    *
    * @param consumer A method that receives the builder and updates it
    */
-  public UploadedJobSourceV2 with(final java.util.function.Consumer<Builder> consumer) {
+  public UploadedJobSourceV2 with(final java.util.function.Consumer<Builder> consumer)
+  {
     final Builder builder = with();
     consumer.accept(builder);
     return builder.build();
@@ -68,7 +83,8 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
   /**
    * Return a clone of this instance with readOnly fields reset to their defaults.
    */
-  public UploadedJobSourceV2 cloneWithReadOnlyDefaults() {
+  public UploadedJobSourceV2 cloneWithReadOnlyDefaults()
+  {
     return (new Builder())
         .fileList(this.getFileList())
         .inputSchema(this.getInputSchema())
@@ -78,25 +94,27 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
   }
 
 
-
-
   @JsonProperty("fileList")
-  public List<String> getFileList() {
+  public List<String> getFileList()
+  {
     return fileList;
   }
 
   @JsonProperty("inputSchema")
-  public List<FieldNameAndDataTypeV2> getInputSchema() {
+  public List<FieldNameAndDataTypeV2> getInputSchema()
+  {
     return inputSchema;
   }
 
   @JsonProperty("formatSettings")
-  public DataFormatSettings getFormatSettings() {
+  public DataFormatSettings getFormatSettings()
+  {
     return formatSettings;
   }
 
   @Override
-  public boolean equals(final Object o) {
+  public boolean equals(final Object o)
+  {
     if (this == o) {
       return true;
     }
@@ -111,12 +129,14 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
   }
 
   @Override
-  public int hashCode() {
+  public int hashCode()
+  {
     return Objects.hash(fileList, inputSchema, formatSettings, super.hashCode());
   }
 
   @Override
-  public String toString() {
+  public String toString()
+  {
     StringBuilder sb = new StringBuilder();
     sb.append("class UploadedJobSourceV2 {\n");
     sb.append("    ").append(toIndentedString(super.toString())).append("\n");
@@ -131,21 +151,24 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(final Object o) {
+  private String toIndentedString(final Object o)
+  {
     if (o == null) {
       return "null";
     }
-    return o.toString().replace("\n", "\n    ");
+    return StringUtils.replaceChar(o.toString(), '\n', "\n    ");
   }
 
   @Override
-  public void accept(final JobSourceV2.Visitor visitor) {
+  public void accept(final JobSourceV2.Visitor visitor)
+  {
     visitor.visit(this);
   }
 
 
   @JsonPOJOBuilder
-  public static class Builder implements JobSourceV2.IBuilder<UploadedJobSourceV2> {
+  public static class Builder implements JobSourceV2.IBuilder<UploadedJobSourceV2>
+  {
     private @Valid JobSourceTypeV2 type;
     private @Valid List<String> fileList = new ArrayList<>();
     private @Valid List<FieldNameAndDataTypeV2> inputSchema = new ArrayList<>();
@@ -156,8 +179,11 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
      */
     @Override
     @JsonProperty("type")
-    public Builder type(final @Valid  @NotNull
-                        JobSourceTypeV2 type) {
+    public Builder type(
+        final @Valid @NotNull
+        JobSourceTypeV2 type
+    )
+    {
       this.type = type;
       return this;
     }
@@ -168,12 +194,14 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
      * List of files to ingest. All files must have the same format, for example, newline-delimited JSON. To ingest files with different formats or format settings, split into multiple ingestion jobs.
      */
     @JsonProperty("fileList")
-    public Builder fileList(final @Valid List<String> fileList) {
+    public Builder fileList(final @Valid List<String> fileList)
+    {
       this.fileList = new ArrayList<>(fileList);
       return this;
     }
 
-    public Builder addFileListItem(final String fileListItem) {
+    public Builder addFileListItem(final String fileListItem)
+    {
       if (this.fileList == null) {
         this.fileList = new ArrayList<>();
       }
@@ -182,7 +210,8 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
       return this;
     }
 
-    public Builder removeFileListItem(final String fileListItem) {
+    public Builder removeFileListItem(final String fileListItem)
+    {
       if (fileListItem != null && this.fileList != null) {
         this.fileList.remove(fileListItem);
       }
@@ -195,12 +224,14 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
      * The schema of input data in terms of a list of input field names and their respective data types.
      */
     @JsonProperty("inputSchema")
-    public Builder inputSchema(final @Valid List<FieldNameAndDataTypeV2> inputSchema) {
+    public Builder inputSchema(final @Valid List<FieldNameAndDataTypeV2> inputSchema)
+    {
       this.inputSchema = new ArrayList<>(inputSchema);
       return this;
     }
 
-    public Builder addInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem) {
+    public Builder addInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem)
+    {
       if (this.inputSchema == null) {
         this.inputSchema = new ArrayList<>();
       }
@@ -209,7 +240,8 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
       return this;
     }
 
-    public Builder removeInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem) {
+    public Builder removeInputSchemaItem(final FieldNameAndDataTypeV2 inputSchemaItem)
+    {
       if (inputSchemaItem != null && this.inputSchema != null) {
         this.inputSchema.remove(inputSchemaItem);
       }
@@ -221,15 +253,16 @@ public class UploadedJobSourceV2 extends JobSourceV2 {
      * Set formatSettings and return the builder.
      */
     @JsonProperty("formatSettings")
-    public Builder formatSettings(final @Valid DataFormatSettings formatSettings) {
+    public Builder formatSettings(final @Valid DataFormatSettings formatSettings)
+    {
       this.formatSettings = formatSettings;
       return this;
     }
 
 
-
     @Override
-    public UploadedJobSourceV2 build() {
+    public UploadedJobSourceV2 build()
+    {
       return new UploadedJobSourceV2(type, fileList, inputSchema, formatSettings);
     }
   }
