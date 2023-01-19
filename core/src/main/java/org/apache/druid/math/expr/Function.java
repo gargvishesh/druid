@@ -3707,25 +3707,23 @@ public interface Function extends NamedFunction
     public ExprEval apply(List<Expr> args, Expr.ObjectBinding bindings)
     {
       final ExprEval expr = args.get(0).eval(bindings);
-      final long time = expr.asLong();
+
+      // round of the timestamp to start of minute
+      DateTime dt = new DateTime(expr.asLong(), DateTimeZone.UTC);
+      dt = dt.minusMillis(dt.getMillisOfSecond());
+      dt = dt.minusSeconds(dt.getSecondOfMinute());
+      final long timeInMillis = dt.getMillis();
 
       final int start = args.get(1).eval(bindings).asInt();
       final int end = args.get(2).eval(bindings).asInt();
 
-
       Object[] s = new Object[end - start + 1];
 
       for (int second = start; second <= end; second++) {
-        s[second - start] = time + second;
+        s[second - start] = timeInMillis + second * 1000;
       }
 
       return ExprEval.ofLongArray(s);
-    }
-
-    @Override
-    public Set<Expr> getScalarInputs(List<Expr> args)
-    {
-      return ImmutableSet.copyOf(args);
     }
 
     @Override
