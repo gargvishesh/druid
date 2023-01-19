@@ -35,7 +35,7 @@ def markBvtAsFail(artifactName, version) {
 
 def mavenInstall() {
     setupMavenSettings()
-    sh script: '''
+    sh script: '''        
         ${MVN} clean install -q -ff -pl \'!distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -T1C
         ${MVN} install -q -ff -pl \'distribution\' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS}
     ''',
@@ -665,7 +665,7 @@ pipeline {
 
     environment {
         MVN = "mvn -B"
-        MAVEN_SKIP = "-Pskip-static-checks -Ddruid.console.skip=true -Dmaven.javadoc.skip=true"
+        MAVEN_SKIP = "-Pskip-static-checks -Dweb.console.skip=true -Dmaven.javadoc.skip=true"
         MAVEN_SKIP_TESTS = "-Pskip-tests"
         DOCKER_IP = "127.0.0.1"
         APACHE_ARCHIVE_MIRROR_HOST = "https://repo.cnc.imply.io/artifactory/archive-apache-org-remote"
@@ -1417,7 +1417,7 @@ pipeline {
                         setupMavenSettings()
                         sh script:'''
                             MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false 
+                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Dweb.console.skip=false 
                         '''
                     }
                     post {
@@ -1443,7 +1443,7 @@ pipeline {
                         setupMavenSettings()
                         sh script: '''
                             MAVEN_OPTS='-Xmx3000m' ${MVN} clean install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
-                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Ddruid.console.skip=false 
+                                -pl '!benchmarks' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Dweb.console.skip=false 
                         '''
                     }
                     post {
