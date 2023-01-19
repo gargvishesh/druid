@@ -10,12 +10,7 @@
 
 package io.imply.druid.sql.calcite.functions;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.druid.catalog.model.ColumnSpec;
-import org.apache.druid.catalog.model.Columns;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
-import org.apache.druid.catalog.model.table.ExternalTableSpec;
-import org.apache.druid.java.util.common.IAE;
 
 import java.util.List;
 import java.util.Map;
@@ -28,38 +23,12 @@ import java.util.Map;
  */
 public abstract class PolarisTableFunction extends BaseTableFunction
 {
-  private final PolarisTableFunctionResolver resolver;
+  protected final PolarisTableFunctionResolver resolver;
 
   public PolarisTableFunction(final PolarisTableFunctionResolver resolver, List<ParameterDefn> parameters)
   {
     super(parameters);
     this.resolver = resolver;
-  }
-
-  @Override
-  public ExternalTableSpec apply(
-      String fnName,
-      Map<String, Object> args,
-      List<ColumnSpec> columns,
-      ObjectMapper jsonMapper
-  )
-  {
-    final PolarisTableFunctionDefn tblFnDefn = convertArgsToTblFnDefn(args);
-    final ExternalTableSpec extTblSpec = resolver.resolve(tblFnDefn);
-    if (null == columns && null == extTblSpec.signature) {
-      throw new IAE(columnsDefnUnspecifiedError());
-    }
-    if (null != columns && null != extTblSpec.signature) {
-      throw new IAE(columnsDefnCollisionErrorStr());
-    }
-
-    return null == columns ?
-           extTblSpec :
-           new ExternalTableSpec(
-               extTblSpec.inputSource,
-               extTblSpec.inputFormat,
-               Columns.convertSignature(columns)
-           );
   }
 
   /**
@@ -69,7 +38,7 @@ public abstract class PolarisTableFunction extends BaseTableFunction
    * @param args A map representing the arguments to the function.
    * @return An object holding information about the function including its name and arguments.
    */
-  public abstract PolarisTableFunctionDefn convertArgsToTblFnDefn(Map<String, Object> args);
+  public abstract PolarisTableFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args);
 
   /**
    * @return the name of the function

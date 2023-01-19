@@ -19,11 +19,11 @@ import org.apache.druid.data.input.impl.LocalInputSource;
  * This class is used when making RPC calls to Polaris when resolving table functions, by the
  * {@link PolarisTableFunctionResolver}
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = PolarisTableFunctionDefn.TYPE_PROPERTY)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = PolarisTableFunctionSpec.TYPE_PROPERTY)
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = LocalInputSource.TYPE_KEY, value = PolarisSourceOperatorConversion.PolarisSourceFunctionDefn.class)
+    @JsonSubTypes.Type(name = LocalInputSource.TYPE_KEY, value = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.class)
 })
-public interface PolarisTableFunctionDefn
+public interface PolarisTableFunctionSpec
 {
   String TYPE_PROPERTY = "name";
 }

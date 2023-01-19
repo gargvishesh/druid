@@ -22,5 +22,5 @@ public interface PolarisTableFunctionResolver
    * @param fn The table function to resolve
    * @return The {@link ExternalTableSpec} that the function resolves to.
    */
-  ExternalTableSpec resolve(PolarisTableFunctionDefn fn);
+  PolarisExternalTableSpec resolve(PolarisTableFunctionSpec fn);
 }

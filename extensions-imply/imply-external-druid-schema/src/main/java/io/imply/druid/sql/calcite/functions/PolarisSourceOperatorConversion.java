@@ -14,6 +14,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import org.apache.druid.catalog.model.CatalogUtils;
+import org.apache.druid.catalog.model.ColumnSpec;
+import org.apache.druid.catalog.model.Columns;
+import org.apache.druid.catalog.model.table.ExternalTableSpec;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -21,6 +24,7 @@ import org.apache.druid.sql.calcite.external.CatalogExternalTableOperatorConvers
 
 import javax.validation.constraints.NotNull;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,11 +44,11 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
 
   public static final String SOURCE_PARAM = "source";
 
-  static class PolarisSourceFunctionDefn implements PolarisTableFunctionDefn
+  static class PolarisSourceFunctionSpec implements PolarisTableFunctionSpec
   {
     private @NotNull final String source;
 
-    public PolarisSourceFunctionDefn(
+    public PolarisSourceFunctionSpec(
         @JsonProperty("source") @NotNull String source)
     {
       this.source = source;
@@ -78,7 +82,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
     }
 
     @Override
-    public PolarisSourceFunctionDefn convertArgsToTblFnDefn(Map<String, Object> args)
+    public PolarisSourceFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args)
     {
       final String sourceValue = CatalogUtils.getString(args, SOURCE_PARAM);
       if (null == CatalogUtils.getString(args, SOURCE_PARAM)) {
@@ -88,7 +92,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
             SOURCE_PARAM
         ));
       }
-      return new PolarisSourceFunctionDefn(sourceValue);
+      return new PolarisSourceFunctionSpec(sourceValue);
     }
 
     @Override
@@ -115,6 +119,37 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
           FUNCTION_NAME,
           SOURCE_PARAM
       );
+    }
+
+    @Override
+    public ExternalTableSpec apply(
+        String fnName,
+        Map<String, Object> args,
+        List<ColumnSpec> columns,
+        ObjectMapper jsonMapper
+    )
+    {
+      final PolarisTableFunctionSpec tblFnDefn = convertArgsToTblFnDefn(args);
+      final PolarisExternalTableSpec polarisExtTblSpec = resolver.resolve(tblFnDefn);
+
+      if (null == columns && null == polarisExtTblSpec.getSignature()) {
+        throw new IAE(columnsDefnUnspecifiedError());
+      }
+      if (null != columns && null != polarisExtTblSpec.getSignature()) {
+        throw new IAE(columnsDefnCollisionErrorStr());
+      }
+
+      return null == columns ?
+             new ExternalTableSpec(
+                 polarisExtTblSpec.getInputSource(),
+                 // this can technically be nullable but should not be when this function is used.
+                 polarisExtTblSpec.getInputFormat(),
+                 polarisExtTblSpec.getSignature()) :
+             new ExternalTableSpec(
+                 polarisExtTblSpec.getInputSource(),
+                 polarisExtTblSpec.getInputFormat(),
+                 Columns.convertSignature(columns)
+             );
     }
   }
 
