@@ -12,7 +12,6 @@ package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.druid.data.input.impl.LocalInputSource;
 
 /**
  * Used for holding the name of a function, and the parameters that it was called with and their values.
@@ -21,7 +20,7 @@ import org.apache.druid.data.input.impl.LocalInputSource;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = PolarisTableFunctionSpec.TYPE_PROPERTY)
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = LocalInputSource.TYPE_KEY, value = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.class)
+    @JsonSubTypes.Type(name = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.FUNCTION_NAME, value = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.class)
 })
 public interface PolarisTableFunctionSpec
 {

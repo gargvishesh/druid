@@ -47,6 +47,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
 
   static class PolarisSourceFunctionSpec implements PolarisTableFunctionSpec
   {
+    public static final String FUNCTION_NAME = PolarisSourceOperatorConversion.FUNCTION_NAME;
     private @NotNull final String source;
 
     @JsonCreator
