@@ -57,12 +57,6 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
       this.source = source;
     }
 
-    @JsonProperty("name")
-    public String getName()
-    {
-      return FUNCTION_NAME;
-    }
-
     @JsonProperty("source")
     public String getSource()
     {
@@ -88,8 +82,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
         return false;
       }
       PolarisSourceFunctionSpec that = (PolarisSourceFunctionSpec) o;
-      return Objects.equals(getName(), that.getName())
-             && Objects.equals(source, that.source);
+      return Objects.equals(source, that.source);
     }
 
     @Override
