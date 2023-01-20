@@ -7,7 +7,6 @@
  * of the license agreement you entered into with Imply.
  */
 
-
 package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -22,6 +21,7 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.sql.calcite.external.CatalogExternalTableOperatorConversion;
 
+import javax.annotation.Nonnull;
 import javax.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
@@ -57,6 +57,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
       this.source = source;
     }
 
+    @Nonnull
     @JsonProperty("source")
     public String getSource()
     {

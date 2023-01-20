@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -10,6 +19,10 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
 
+/**
+ * Catalog form of a Polaris external table specification used to pass along the three
+ * components needed for an external table in MSQ ingest.
+ */
 public class PolarisExternalTableSpec
 {
   @NotNull private final InputSource inputSource;

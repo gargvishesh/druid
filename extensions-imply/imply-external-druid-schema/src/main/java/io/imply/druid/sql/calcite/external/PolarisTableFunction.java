@@ -7,7 +7,6 @@
  * of the license agreement you entered into with Imply.
  */
 
-
 package io.imply.druid.sql.calcite.external;
 
 import org.apache.druid.catalog.model.table.BaseTableFunction;
