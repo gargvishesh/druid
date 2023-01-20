@@ -20,7 +20,6 @@
 package org.apache.druid.sql;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.sql.calcite.planner.Calcites;
 import org.joda.time.DateTimeZone;
@@ -44,8 +43,6 @@ public class SqlRowTransformer
   private final boolean[] timeColumns;
   private final boolean[] dateColumns;
 
-  private final boolean[] arrayColumns;
-
   SqlRowTransformer(DateTimeZone timeZone, RelDataType rowType)
   {
     this.timeZone = timeZone;
@@ -53,20 +50,10 @@ public class SqlRowTransformer
     this.fieldList = new ArrayList<>(rowType.getFieldCount());
     this.timeColumns = new boolean[rowType.getFieldCount()];
     this.dateColumns = new boolean[rowType.getFieldCount()];
-    this.arrayColumns = new boolean[rowType.getFieldCount()];
     for (int i = 0; i < rowType.getFieldCount(); i++) {
       final SqlTypeName sqlTypeName = rowType.getFieldList().get(i).getType().getSqlTypeName();
-      if (sqlTypeName == SqlTypeName.ARRAY) {
-        ArraySqlType arraySqlType = (ArraySqlType) rowType.getFieldList().get(i).getType();
-        SqlTypeName elementSqlTypeName = arraySqlType.getComponentType().getSqlTypeName();
-        timeColumns[i] = elementSqlTypeName == SqlTypeName.TIMESTAMP;
-        dateColumns[i] = elementSqlTypeName == SqlTypeName.DATE;
-        arrayColumns[i] = true;
-      } else {
-        timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
-        dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
-        arrayColumns[i] = false;
-      }
+      timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
+      dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
       fieldList.add(rowType.getFieldList().get(i).getName());
     }
   }
@@ -86,30 +73,6 @@ public class SqlRowTransformer
   {
     if (row[i] == null) {
       return null;
-    } else if (arrayColumns[i]) {
-      String str = ((String) row[i]);
-      str = str.substring(1, str.length()-1);
-      String[] strArray = str.split(",");
-
-      String[] resultArray = new String[strArray.length];
-
-      if (timeColumns[i]) {
-        for (int j = 0; j < resultArray.length; j++) {
-          resultArray[j] = ISODateTimeFormat.dateTime().print(
-              Calcites.calciteTimestampToJoda(Long.parseLong(strArray[j]), timeZone)
-          );
-        }
-        return resultArray;
-      } else if (dateColumns[i]) {
-        for (int j = 0; j < resultArray.length; j++) {
-          resultArray[j] = ISODateTimeFormat.dateTime().print(
-              Calcites.calciteDateToJoda(Integer.parseInt(strArray[i]), timeZone)
-          );
-        }
-        return resultArray;
-      } else {
-        return row[i];
-      }
     } else if (timeColumns[i]) {
       return ISODateTimeFormat.dateTime().print(
           Calcites.calciteTimestampToJoda((long) row[i], timeZone)
