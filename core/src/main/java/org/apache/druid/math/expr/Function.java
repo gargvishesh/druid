@@ -3710,7 +3710,7 @@ public interface Function extends NamedFunction
     {
       final ExprEval expr = args.get(0).eval(bindings);
 
-      // round of the timestamp to start of minute
+      // round off the timestamp to start of minute
       final long timeInMillis = expr.asLong() - (expr.asLong() % 60000);
 
       final int start = args.get(1).eval(bindings).asInt();
