@@ -4,6 +4,7 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.druid.math.expr.Function;
 import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 
@@ -20,6 +21,6 @@ public class DateExpandOperatorConversion extends DirectOperatorConversion
 
   public DateExpandOperatorConversion()
   {
-    super(SQL_FUNCTION, "date_expand");
+    super(SQL_FUNCTION, Function.DateExpandFunction.OPERATOR_NAME);
   }
 }

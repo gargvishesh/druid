@@ -3684,10 +3684,12 @@ public interface Function extends NamedFunction
 
   class DateExpandFunction implements Function
   {
+    public static final String OPERATOR_NAME = "date_expand";
+
     @Override
     public String name()
     {
-      return "date_expand";
+      return OPERATOR_NAME;
     }
 
     @Override
