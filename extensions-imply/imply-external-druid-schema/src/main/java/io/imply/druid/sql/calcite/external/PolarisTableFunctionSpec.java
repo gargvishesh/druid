@@ -8,7 +8,7 @@
  */
 
 
-package io.imply.druid.sql.calcite.functions;
+package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

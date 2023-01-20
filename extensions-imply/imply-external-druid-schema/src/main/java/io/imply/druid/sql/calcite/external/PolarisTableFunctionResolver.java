@@ -8,7 +8,7 @@
  */
 
 
-package io.imply.druid.sql.calcite.functions;
+package io.imply.druid.sql.calcite.external;
 
 import org.apache.druid.catalog.model.table.ExternalTableSpec;
 

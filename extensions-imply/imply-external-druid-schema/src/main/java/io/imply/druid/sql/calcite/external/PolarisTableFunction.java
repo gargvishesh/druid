@@ -8,7 +8,7 @@
  */
 
 
-package io.imply.druid.sql.calcite.functions;
+package io.imply.druid.sql.calcite.external;
 
 import org.apache.druid.catalog.model.table.BaseTableFunction;
 
@@ -39,18 +39,4 @@ public abstract class PolarisTableFunction extends BaseTableFunction
    * @return An object holding information about the function including its name and arguments.
    */
   public abstract PolarisTableFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args);
-
-  /**
-   * @return the name of the function
-   */
-  public abstract String name();
-
-  /**
-   * @return The error to return if no columns are specified.
-   */
-  public abstract String columnsDefnUnspecifiedError();
-  /**
-   * @return The error to return if the columns are defined more than once.
-   */
-  public abstract String columnsDefnCollisionErrorStr();
 }

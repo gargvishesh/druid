@@ -8,14 +8,14 @@
  */
 
 
-package io.imply.druid.sql.calcite.functions;
+package io.imply.druid.sql.calcite.external;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import org.apache.druid.catalog.model.CatalogUtils;
 import org.apache.druid.catalog.model.ColumnSpec;
-import org.apache.druid.catalog.model.Columns;
 import org.apache.druid.catalog.model.table.ExternalTableSpec;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
@@ -26,6 +26,7 @@ import javax.validation.constraints.NotNull;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Registers the "POLARIS_SOURCE" operator, which is used in queries like
@@ -48,6 +49,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
   {
     private @NotNull final String source;
 
+    @JsonCreator
     public PolarisSourceFunctionSpec(
         @JsonProperty("source") @NotNull String source)
     {
@@ -65,14 +67,42 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
     {
       return source;
     }
+
+    @Override
+    public String toString()
+    {
+      return "PolarisSourceFunctionSpec{" +
+             "name='" + FUNCTION_NAME + '\'' +
+             ", source=" + source +
+             '}';
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PolarisSourceFunctionSpec that = (PolarisSourceFunctionSpec) o;
+      return Objects.equals(getName(), that.getName())
+             && Objects.equals(source, that.source);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(FUNCTION_NAME, source);
+    }
   }
 
   /**
-   * The use of a table function allows the use of optional arguments,
-   * so that the signature can be given either as the original-style
-   * serialized JSON signature, or the updated SQL-style EXTEND clause.
+   * The use of a table function allows the user to specify the complete Polaris JobSource,
+   * which includes a description of the source, format, and row signature.
    */
-  private static class PolarisSourceFunction extends PolarisTableFunction
+  static class PolarisSourceFunction extends PolarisTableFunction
   {
     public PolarisSourceFunction(final PolarisTableFunctionResolver resolver)
     {
@@ -96,32 +126,6 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
     }
 
     @Override
-    public String name()
-    {
-      return PolarisSourceOperatorConversion.FUNCTION_NAME;
-    }
-
-    @Override
-    public String columnsDefnUnspecifiedError()
-    {
-      return StringUtils.format(
-          "%s requires either that the 'inputSchema' be defined in the '%s' parameter, or an EXTEND clause",
-          FUNCTION_NAME,
-          SOURCE_PARAM
-      );
-    }
-
-    @Override
-    public String columnsDefnCollisionErrorStr()
-    {
-      return StringUtils.format(
-          "%s requires either that the 'inputSchema' be defined in the '%s' parameter, or an EXTEND clause, but not both",
-          FUNCTION_NAME,
-          SOURCE_PARAM
-      );
-    }
-
-    @Override
     public ExternalTableSpec apply(
         String fnName,
         Map<String, Object> args,
@@ -129,27 +133,20 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
         ObjectMapper jsonMapper
     )
     {
-      final PolarisTableFunctionSpec tblFnDefn = convertArgsToTblFnDefn(args);
-      final PolarisExternalTableSpec polarisExtTblSpec = resolver.resolve(tblFnDefn);
-
-      if (null == columns && null == polarisExtTblSpec.getSignature()) {
-        throw new IAE(columnsDefnUnspecifiedError());
+      if (null != columns) {
+        throw new IAE(StringUtils.format(
+            "%s does not support the EXTEND clause.",
+            FUNCTION_NAME
+        ));
       }
-      if (null != columns && null != polarisExtTblSpec.getSignature()) {
-        throw new IAE(columnsDefnCollisionErrorStr());
-      }
+      final PolarisTableFunctionSpec tblFnSpec = convertArgsToTblFnDefn(args);
+      // expect polaris to return PolarisExternalTableSpec with input, format, and signature non-null
+      final PolarisExternalTableSpec polarisExtTblSpec = resolver.resolve(tblFnSpec);
 
-      return null == columns ?
-             new ExternalTableSpec(
-                 polarisExtTblSpec.getInputSource(),
-                 // this can technically be nullable but should not be when this function is used.
-                 polarisExtTblSpec.getInputFormat(),
-                 polarisExtTblSpec.getSignature()) :
-             new ExternalTableSpec(
-                 polarisExtTblSpec.getInputSource(),
-                 polarisExtTblSpec.getInputFormat(),
-                 Columns.convertSignature(columns)
-             );
+      return new ExternalTableSpec(
+          polarisExtTblSpec.getInputSource(),
+          polarisExtTblSpec.getInputFormat(),
+          polarisExtTblSpec.getSignature());
     }
   }
 
