@@ -1031,6 +1031,12 @@ public class FunctionTest extends InitializedNullHandlingTest
     assertExpr("str1 / str2", null);
   }
 
+  @Test
+  public void testDateExpand()
+  {
+    assertArrayExpr("date_expand(1674202858000, 3, 5)", new Long[]{1674202803000L, 1674202804000L, 1674202805000L});
+  }
+
   private void assertExpr(final String expression, @Nullable final Object expectedResult)
   {
     final Expr expr = Parser.parse(expression, ExprMacroTable.nil());

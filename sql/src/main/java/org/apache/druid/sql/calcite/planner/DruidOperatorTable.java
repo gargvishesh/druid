@@ -176,6 +176,7 @@ public class DruidOperatorTable implements SqlOperatorTable
   private static final List<SqlOperatorConversion> TIME_OPERATOR_CONVERSIONS =
       ImmutableList.<SqlOperatorConversion>builder()
                    .add(new CeilOperatorConversion())
+                   .add(new DateExpandOperatorConversion())
                    .add(new DateTruncOperatorConversion())
                    .add(new ExtractOperatorConversion())
                    .add(new FloorOperatorConversion())
@@ -189,7 +190,6 @@ public class DruidOperatorTable implements SqlOperatorTable
                    .add(new TimeParseOperatorConversion())
                    .add(new TimeShiftOperatorConversion())
                    .add(new TimestampToMillisOperatorConversion())
-                   .add(new DateExpandOperatorConversion())
                    .build();
 
   private static final List<SqlOperatorConversion> STRING_OPERATOR_CONVERSIONS =
