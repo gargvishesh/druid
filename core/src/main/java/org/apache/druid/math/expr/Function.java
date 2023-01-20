@@ -3711,10 +3711,7 @@ public interface Function extends NamedFunction
       final ExprEval expr = args.get(0).eval(bindings);
 
       // round of the timestamp to start of minute
-      DateTime dt = new DateTime(expr.asLong(), DateTimeZone.UTC);
-      dt = dt.minusMillis(dt.getMillisOfSecond());
-      dt = dt.minusSeconds(dt.getSecondOfMinute());
-      final long timeInMillis = dt.getMillis();
+      final long timeInMillis = expr.asLong() - (expr.asLong() % 60000);
 
       final int start = args.get(1).eval(bindings).asInt();
       final int end = args.get(2).eval(bindings).asInt();
