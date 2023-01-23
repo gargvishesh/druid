@@ -1069,6 +1069,22 @@ public class FunctionTest extends InitializedNullHandlingTest
     assertArrayExpr("date_expand(1674202858000, 5, 4)", null);
   }
 
+  @Test
+  public void testDateExpandStartIsNan()
+  {
+    expectedException.expect(ExpressionValidationException.class);
+    expectedException.expectMessage("Function[date_expand] second param should be a LONG but got [DOUBLE] instead");
+    assertArrayExpr("date_expand(1674202858000, nan, 10)", null);
+  }
+
+  @Test
+  public void testDateExpandStartIsInf()
+  {
+    expectedException.expect(ExpressionValidationException.class);
+    expectedException.expectMessage("Function[date_expand] second param should be a LONG but got [DOUBLE] instead");
+    assertArrayExpr("date_expand(1674202858000, inf, 10)", null);
+  }
+
   private void assertExpr(final String expression, @Nullable final Object expectedResult)
   {
     final Expr expr = Parser.parse(expression, ExprMacroTable.nil());
