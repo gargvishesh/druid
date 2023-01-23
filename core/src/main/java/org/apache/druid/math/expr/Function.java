@@ -3708,13 +3708,42 @@ public interface Function extends NamedFunction
     @Override
     public ExprEval apply(List<Expr> args, Expr.ObjectBinding bindings)
     {
-      final ExprEval expr = args.get(0).eval(bindings);
+      final ExprEval timeArg = args.get(0).eval(bindings);
+
+      if (!timeArg.type().is(ExprType.LONG)) {
+        throw validationFailed(
+            "first param should be a LONG but got [%s] instead",
+            timeArg.type()
+        );
+      }
+
+      final ExprEval startExpr = args.get(1).eval(bindings);
+      final ExprEval endExpr = args.get(2).eval(bindings);
+
+      if (!startExpr.type().is(ExprType.LONG)) {
+        throw validationFailed(
+            "second param should be a LONG but got [%s] instead",
+            startExpr.type()
+        );
+      }
+
+      if (!endExpr.type().is(ExprType.LONG)) {
+        throw validationFailed(
+            "third param should be a LONG but got [%s] instead",
+            endExpr.type()
+        );
+      }
+
+      final int start = startExpr.asInt();
+      final int end = endExpr.asInt();
+
+      if (start < 0 || end > 59 || start > end) {
+        throw validationFailed("second [%d] and third [%d] param should be within [0-59] range and increasing order",
+                               start, end);
+      }
 
       // round off the timestamp to start of minute
-      final long timeInMillis = expr.asLong() - (expr.asLong() % 60000);
-
-      final int start = args.get(1).eval(bindings).asInt();
-      final int end = args.get(2).eval(bindings).asInt();
+      final long timeInMillis = timeArg.asLong() - (timeArg.asLong() % 60000);
 
       Object[] s = new Object[end - start + 1];
 
