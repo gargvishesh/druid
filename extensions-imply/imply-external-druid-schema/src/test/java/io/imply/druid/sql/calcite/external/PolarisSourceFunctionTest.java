@@ -119,15 +119,7 @@ public class PolarisSourceFunctionTest
   @Test
   public void test_apply_columnsInExtend_expectedExtTableSpec()
   {
-    IAE exception = null;
-    try {
-      function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER);
-    }
-    catch (IAE e) {
-      exception = e;
-    }
-
-    Assert.assertNotNull(exception);
+    IAE exception = Assert.assertThrows(IAE.class, () -> function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER));
     Assert.assertTrue(exception.getMessage().contains("does not support the EXTEND clause"));
   }
 }
