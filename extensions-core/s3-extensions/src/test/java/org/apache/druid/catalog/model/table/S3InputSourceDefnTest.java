@@ -146,6 +146,7 @@ public class S3InputSourceDefnTest
         CatalogUtils.stringListToUriList(uris),
         CatalogUtils.stringListToUriList(prefixes),
         objects,
+        null,
         objectGlob,
         config,
         null,
