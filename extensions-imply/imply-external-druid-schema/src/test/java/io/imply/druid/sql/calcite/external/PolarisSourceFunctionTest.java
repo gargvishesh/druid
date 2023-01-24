@@ -80,7 +80,8 @@ public class PolarisSourceFunctionTest
   @Test
   public void test_convertArgsToTblFnDefn_requiredParamtersMissing_conversionFails()
   {
-    IAE exception = null;
+    IAE exception = Assert.assertThrows(IAE.class, () -> function.convertArgsToTblFnDefn(ImmutableMap.of()));
+    Assert.assertTrue(exception.getMessage().contains("requires a value for the"));
     try {
       function.convertArgsToTblFnDefn(ImmutableMap.of());
     }
