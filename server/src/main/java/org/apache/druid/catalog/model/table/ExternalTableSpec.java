@@ -19,6 +19,8 @@
 
 package org.apache.druid.catalog.model.table;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.segment.column.RowSignature;
@@ -37,10 +39,11 @@ public class ExternalTableSpec
   public final InputFormat inputFormat;
   @Nullable public final RowSignature signature;
 
+  @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
   public ExternalTableSpec(
-      final InputSource inputSource,
-      final InputFormat inputFormat,
-      final RowSignature signature)
+      @JsonProperty("inputSource") final InputSource inputSource,
+      @JsonProperty("inputFormat") final InputFormat inputFormat,
+      @JsonProperty("signature") final RowSignature signature)
   {
     this.inputSource = inputSource;
     this.inputFormat = inputFormat;
