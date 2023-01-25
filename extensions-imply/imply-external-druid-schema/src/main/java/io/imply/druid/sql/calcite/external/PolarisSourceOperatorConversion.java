@@ -110,7 +110,7 @@ public class PolarisSourceOperatorConversion extends CatalogExternalTableOperato
     public PolarisSourceFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args)
     {
       final String sourceValue = CatalogUtils.getString(args, SOURCE_PARAM);
-      if (null == CatalogUtils.getString(args, SOURCE_PARAM)) {
+      if (null == sourceValue) {
         throw new IAE(StringUtils.format(
             "%s requires a value for the '%s' parameter",
             FUNCTION_NAME,

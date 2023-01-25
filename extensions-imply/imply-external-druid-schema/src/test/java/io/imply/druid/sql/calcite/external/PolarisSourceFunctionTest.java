@@ -80,7 +80,8 @@ public class PolarisSourceFunctionTest
   @Test
   public void test_convertArgsToTblFnDefn_requiredParamtersMissing_conversionFails()
   {
-    IAE exception = null;
+    IAE exception = Assert.assertThrows(IAE.class, () -> function.convertArgsToTblFnDefn(ImmutableMap.of()));
+    Assert.assertTrue(exception.getMessage().contains("requires a value for the"));
     try {
       function.convertArgsToTblFnDefn(ImmutableMap.of());
     }
@@ -118,15 +119,7 @@ public class PolarisSourceFunctionTest
   @Test
   public void test_apply_columnsInExtend_expectedExtTableSpec()
   {
-    IAE exception = null;
-    try {
-      function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER);
-    }
-    catch (IAE e) {
-      exception = e;
-    }
-
-    Assert.assertNotNull(exception);
+    IAE exception = Assert.assertThrows(IAE.class, () -> function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER));
     Assert.assertTrue(exception.getMessage().contains("does not support the EXTEND clause"));
   }
 }
