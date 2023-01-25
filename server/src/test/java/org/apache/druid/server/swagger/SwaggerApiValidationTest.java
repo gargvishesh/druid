@@ -143,6 +143,7 @@ public class SwaggerApiValidationTest
         "/druid/coordinator/v1/datasources/{dataSourceName}/segments/{segmentId}",
         "/druid/coordinator/v1/lookups/status/{tier}",
         "/druid/coordinator/v1/config/compaction/{dataSource}",
+        "/druid/coordinator/v1/config/compaction/{dataSource}/history",
         "/druid/coordinator/v1/rules/{dataSourceName}/history",
         "/druid/coordinator/v1/isLeader",
         "/druid/router/v1",
