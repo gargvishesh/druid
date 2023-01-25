@@ -21,6 +21,8 @@ import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
+import javax.annotation.Nullable;
+import javax.inject.Inject;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -34,6 +36,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   private final HttpClient httpClient;
   private final ImplyExternalDruidSchemaCommonCacheConfig schemaConfig;
 
+  @Inject
   public ExternalTableFunctionApiMapperImpl(
       ImplyExternalDruidSchemaCommonCacheConfig commonSchemaConfig,
       @EscalatedClient HttpClient httpClient
@@ -43,12 +46,13 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     this.httpClient = httpClient;
   }
 
+  @Nullable
   @Override
   public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec)
   {
     try {
       return RetryUtils.retry(
-          () -> tryFetchDataForPath(serializedTableFnSpec),
+          () -> postTableMappingCallToPolaris(serializedTableFnSpec),
           e -> true,
           this.schemaConfig.getMaxSyncRetries()
       );
@@ -59,7 +63,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     return null;
   }
 
-  private byte[] tryFetchDataForPath(byte[] serializedTableFnSpec)
+  private byte[] postTableMappingCallToPolaris(byte[] serializedTableFnSpec)
       throws Exception
   {
     final BytesFullResponseHolder is = httpClient.go(

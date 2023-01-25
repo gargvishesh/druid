@@ -15,24 +15,26 @@ import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMap
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 
+import javax.inject.Inject;
 import java.io.IOException;
 
 public class PolarisSourceFunctionResolver implements PolarisTableFunctionResolver
 {
-  private ExternalTableFunctionMapper tableFunctionMapper;
-  private ObjectMapper jsonMapper;
+  private final ExternalTableFunctionMapper tableFunctionMapper;
+  private final ObjectMapper jsonMapper;
 
-  public PolarisSourceFunctionResolver(ExternalTableFunctionMapper m, ObjectMapper mapper)
+  @Inject
+  public PolarisSourceFunctionResolver(final ExternalTableFunctionMapper tableFunctionMapper, final ObjectMapper mapper)
   {
-    this.tableFunctionMapper = m;
+    this.tableFunctionMapper = tableFunctionMapper;
     this.jsonMapper = mapper;
   }
 
   @Override
-  public PolarisExternalTableSpec resolve(PolarisTableFunctionSpec fn)
+  public PolarisExternalTableSpec resolve(final PolarisTableFunctionSpec fn)
   {
     if (null == fn) {
-      throw new IAE("Table function spec cannot be null.");
+      throw new IAE("Polaris table function spec cannot be null.");
     }
     try {
       byte[] externalTableSpecBytes = tableFunctionMapper.getTableFunctionMapping(jsonMapper.writeValueAsBytes(fn));
