@@ -22,9 +22,9 @@ import io.imply.druid.sql.calcite.schema.tables.endpoint.CoordinatorExternalDrui
 import io.imply.druid.sql.calcite.schema.tables.endpoint.DefaultExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.ExternalDruidSchemaResource;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.ExternalDruidSchemaResourceHandler;
-import io.imply.druid.sql.calcite.schema.tables.mapping.NoopTableFunctionApiResolver;
-import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionApiMapperImpl;
+import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
+import io.imply.druid.sql.calcite.schema.tables.mapping.NoopTableFunctionApiResolver;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorExternalDruidSchemaCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.DefaultExternalDruidSchemaCacheManager;
@@ -83,14 +83,9 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
   public static Set<NodeRole> getNodeRoles(Injector injector)
   {
     try {
-      return injector.getInstance(
-          Key.get(
-              new TypeLiteral<Set<NodeRole>>()
-              {
-              },
-              Self.class
-          )
-      );
+      return injector.getInstance(Key.get(new TypeLiteral<Set<NodeRole>>()
+      {
+      }, Self.class));
     }
     catch (Exception e) {
       log.error(e, "Got exception while getting node roles.");

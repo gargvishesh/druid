@@ -6,6 +6,7 @@
  * Information and shall use it only in accordance with the terms
  * of the license agreement you entered into with Imply.
  */
+
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 
@@ -13,6 +14,7 @@ package io.imply.druid.sql.calcite.schema.tables.mapping;
  * Table function mapper is responsible for mapping the supplied
  * table function spec to the serialized Polaris external table spec.
  */
-public interface ExternalTableFunctionMapper {
+public interface ExternalTableFunctionMapper
+{
   byte[] getTableFunctionMapping(byte[] serializedTableFnSpec);
 }

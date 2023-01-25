@@ -20,7 +20,6 @@ import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.ManageLifecycle;
-import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import javax.annotation.Nullable;
 import java.util.Map;

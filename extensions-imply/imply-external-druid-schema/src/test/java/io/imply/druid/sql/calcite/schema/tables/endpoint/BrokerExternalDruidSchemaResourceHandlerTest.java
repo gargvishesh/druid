@@ -31,7 +31,7 @@ import java.util.Map;
 public class BrokerExternalDruidSchemaResourceHandlerTest
 {
   private ExternalDruidSchemaCacheManager cacheManager;
-  private ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper();
   private BrokerExternalDruidSchemaResourceHandler target;
 
   @Before

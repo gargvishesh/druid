@@ -32,7 +32,7 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
 {
   private CoordinatorExternalDruidSchemaCacheManager cacheManager;
 
-  private ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private CoordinatorExternalDruidSchemaResourceHandler resourceHandler;
 

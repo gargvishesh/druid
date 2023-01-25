@@ -6,15 +6,18 @@
  * Information and shall use it only in accordance with the terms
  * of the license agreement you entered into with Imply.
  */
+
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 /**
  * No-op implementation for non-broker nodes.
  */
 public class NoopTableFunctionApiResolver
-    implements ExternalTableFunctionMapper {
+    implements ExternalTableFunctionMapper
+{
   @Override
-  public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec) {
+  public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec)
+  {
     // not supported for non-broker nodes.
     throw new UnsupportedOperationException("Non-broker nodes do not support tableSchemaUpdateListener");
   }
