@@ -15,7 +15,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
-import io.imply.druid.sql.calcite.external.DefaultPolarisTableFunctionResolver;
+import io.imply.druid.sql.calcite.external.PolarisSourceFunctionResolver;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolver;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.BrokerExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.CoordinatorExternalDruidSchemaResourceHandler;
@@ -76,7 +76,7 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
     LifecycleModule.register(binder, ExternalDruidSchemaCacheNotifier.class);
     LifecycleModule.register(binder, ExternalTableFunctionMapper.class);
 
-    binder.bind(PolarisTableFunctionResolver.class).to(DefaultPolarisTableFunctionResolver.class).in(LazySingleton.class);
+    binder.bind(PolarisTableFunctionResolver.class).to(PolarisSourceFunctionResolver.class).in(LazySingleton.class);
   }
 
   @Nullable
