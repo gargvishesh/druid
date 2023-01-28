@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.metadata.secrets.ConfluentInputConnectionSecrets;
+import io.imply.druid.metadata.secrets.KafkaInputConnectionSecrets;
 import org.apache.druid.indexing.seekablestream.extension.KafkaConfigOverrides;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -38,6 +39,7 @@ public class ImplyPolarisSecretsConfluentConfigOverrides implements KafkaConfigO
   public static final String SASL_JAAS_CONFIG_FORMAT =
       "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"%s\" password=\"%s\";";
   public static final String CONFLUENT_SECRETS_TYPE = "confluent";
+  public static final String KAFKA_SECRETS_TYPE = "kafka";
 
   private static final Logger log = new Logger(ImplyPolarisSecretsConfluentConfigOverrides.class);
   private static final ObjectMapper OBJECT_MAPPER =
@@ -172,6 +174,13 @@ public class ImplyPolarisSecretsConfluentConfigOverrides implements KafkaConfigO
                 inputConnectionSecrets.getSecret()
             )
         );
+      } else if (KAFKA_SECRETS_TYPE.equals(secretType)) {
+        KafkaInputConnectionSecrets inputConnectionSecrets = OBJECT_MAPPER.readValue(
+            secretJson,
+            KafkaInputConnectionSecrets.class
+        );
+
+        configMap.putAll(inputConnectionSecrets.getKafkaConsumerProperties());
       } else {
         throw new RuntimeException("Unrecognized secret type: " + secretType);
       }
