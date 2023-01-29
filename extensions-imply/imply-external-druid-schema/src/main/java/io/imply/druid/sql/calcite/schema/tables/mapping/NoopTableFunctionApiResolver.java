@@ -19,6 +19,6 @@ public class NoopTableFunctionApiResolver
   public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec)
   {
     // not supported for non-broker nodes.
-    throw new UnsupportedOperationException("Non-broker nodes do not support tableSchemaUpdateListener");
+    throw new UnsupportedOperationException("Non-broker nodes do not support getTableFunctionMapping");
   }
 }

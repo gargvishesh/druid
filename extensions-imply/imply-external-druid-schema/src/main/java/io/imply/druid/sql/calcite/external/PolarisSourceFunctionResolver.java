@@ -12,6 +12,7 @@ package io.imply.druid.sql.calcite.external;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
+import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 
@@ -24,7 +25,10 @@ public class PolarisSourceFunctionResolver implements PolarisTableFunctionResolv
   private final ObjectMapper jsonMapper;
 
   @Inject
-  public PolarisSourceFunctionResolver(final ExternalTableFunctionMapper tableFunctionMapper, final ObjectMapper mapper)
+  public PolarisSourceFunctionResolver(
+      final ExternalTableFunctionMapper tableFunctionMapper,
+      @Json final ObjectMapper mapper
+  )
   {
     this.tableFunctionMapper = tableFunctionMapper;
     this.jsonMapper = mapper;
