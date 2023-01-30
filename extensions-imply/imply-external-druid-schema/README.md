@@ -15,7 +15,7 @@ table schemas that should be used in the broker's SQL planner.
 Add `imply-external-druid-schema` to the extensions load list, and set `druid.sql.schemamanager.type` to `imply` 
 and `druid.sql.schemamanager.imply.tablesServiceUrl` to the base URL of the tables service.
 
-```json
+```properties
 druid.extensions.loadList=["druid-lookups-cached-global","druid-datasketches","imply-external-druid-schema"]
 ...
 
