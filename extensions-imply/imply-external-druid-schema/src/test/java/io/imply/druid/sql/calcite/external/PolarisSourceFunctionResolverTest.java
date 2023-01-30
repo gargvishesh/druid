@@ -19,27 +19,18 @@ import java.util.Collections;
 public class PolarisSourceFunctionResolverTest
 {
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  private static PolarisSourceFunctionResolver RESOLVER;
+  private static PolarisSourceFunctionResolver resolver;
 
   @Before
   public void setup() throws Exception
   {
     ExternalTableFunctionApiMapperImpl tblFnMapper = Mockito.spy(
         new ExternalTableFunctionApiMapperImpl(
-            new ImplyExternalDruidSchemaCommonCacheConfig(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "http://test:9000"
-            ),
+            Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class),
             Mockito.mock(HttpClient.class)
         ));
 
-    RESOLVER = new PolarisSourceFunctionResolver(tblFnMapper, new ObjectMapper());
+    resolver = new PolarisSourceFunctionResolver(tblFnMapper, new ObjectMapper());
     Mockito.doReturn(MAPPER.writeValueAsBytes(getSamplePolarisExternalTableSpec()))
            .when(tblFnMapper).getTableFunctionMapping(ArgumentMatchers.any());
   }
@@ -47,14 +38,14 @@ public class PolarisSourceFunctionResolverTest
   @Test
   public void test_validTableFunctionSpec_resolves_expectedExtTableSpec()
   {
-    PolarisExternalTableSpec resolvedExternalTableSpec = RESOLVER.resolve(getSampleTableFunctionSpec());
+    PolarisExternalTableSpec resolvedExternalTableSpec = resolver.resolve(getSampleTableFunctionSpec());
     Assert.assertEquals(getSamplePolarisExternalTableSpec(), resolvedExternalTableSpec);
   }
 
   @Test
   public void test_nullTableFunctionSpec_resolve_ThrowsException()
   {
-    IAE exception = Assert.assertThrows(IAE.class, () -> RESOLVER.resolve(null));
+    IAE exception = Assert.assertThrows(IAE.class, () -> resolver.resolve(null));
     Assert.assertTrue(exception.getMessage().contains("Polaris table function spec must be provided."));
   }
 
