@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.metadata.secrets.ConfluentInputConnectionSecrets;
+import io.imply.druid.metadata.secrets.KafkaInputConnectionSecrets;
+import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.java.util.common.StringUtils;
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,21 +35,27 @@ public class ImplyPolarisSecretsConfluentConfigOverridesTest
       new ObjectMapper()
           .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-  ImplyPolarisSecretsConfluentConfigOverrides configOverrides;
+  ImplyPolarisSecretsConfluentConfigOverrides confluentOverrides;
+  ImplyPolarisSecretsConfluentConfigOverrides kafkaOverrides;
   AWSSecretsManager secretsManager = Mockito.mock(AWSSecretsManager.class);
 
   @Before
   public void setup()
   {
-    configOverrides = new ImplyPolarisSecretsConfluentConfigOverrides(
+    confluentOverrides = new ImplyPolarisSecretsConfluentConfigOverrides(
         ImplyPolarisSecretsConfluentConfigOverrides.CONFLUENT_SECRETS_TYPE,
         "testSecretName",
+        secretsManager
+    );
+    kafkaOverrides = new ImplyPolarisSecretsConfluentConfigOverrides(
+        ImplyPolarisSecretsConfluentConfigOverrides.KAFKA_SECRETS_TYPE,
+        "anotherTestSecretName",
         secretsManager
     );
   }
 
   @Test
-  public void testOverrideConfigs() throws Exception
+  public void testConfluentOverrideConfigs() throws Exception
   {
     GetSecretValueResult getSecretValueResult = new GetSecretValueResult();
     getSecretValueResult.setName("testSecretName");
@@ -59,7 +67,7 @@ public class ImplyPolarisSecretsConfluentConfigOverridesTest
     when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
 
     Map<String, Object> originalMap = ImmutableMap.of("hello", "world");
-    Map<String, Object> newMap = configOverrides.overrideConfigs(originalMap);
+    Map<String, Object> newMap = confluentOverrides.overrideConfigs(originalMap);
 
     Assert.assertEquals(
         StringUtils.format(
@@ -70,5 +78,38 @@ public class ImplyPolarisSecretsConfluentConfigOverridesTest
         newMap.get(ImplyPolarisSecretsConfluentConfigOverrides.SASL_JAAS_CONFIG_PROPERTY)
     );
     Assert.assertEquals("world", newMap.get("hello"));
+  }
+
+  @Test
+  public void testKafkaOverrideConfigs() throws Exception
+  {
+    GetSecretValueResult getSecretValueResult = new GetSecretValueResult();
+    getSecretValueResult.setName("anotherTestSecretName");
+    getSecretValueResult.setSecretString(
+        OBJECT_MAPPER.writeValueAsString(
+            new KafkaInputConnectionSecrets(ImmutableMap.of("sasl.mechanism", "SCRAM-SHA-256"))
+        )
+    );
+    when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
+
+    Map<String, Object> originalMap = ImmutableMap.of(
+        "hello", "world",
+        "sasl.mechanism", "some-default-value"
+    );
+    Map<String, Object> newMap = kafkaOverrides.overrideConfigs(originalMap);
+
+    Assert.assertEquals("SCRAM-SHA-256", newMap.get("sasl.mechanism"));
+    Assert.assertEquals("world", newMap.get("hello"));
+  }
+
+  @Test
+  public void testEquals()
+  {
+    EqualsVerifier.forClass(ConfluentInputConnectionSecrets.class)
+                  .usingGetClass()
+                  .verify();
+    EqualsVerifier.forClass(KafkaInputConnectionSecrets.class)
+                  .usingGetClass()
+                  .verify();
   }
 }
