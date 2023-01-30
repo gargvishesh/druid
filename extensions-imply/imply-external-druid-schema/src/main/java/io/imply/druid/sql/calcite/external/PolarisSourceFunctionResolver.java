@@ -38,14 +38,14 @@ public class PolarisSourceFunctionResolver implements PolarisTableFunctionResolv
   public PolarisExternalTableSpec resolve(final PolarisTableFunctionSpec fn)
   {
     if (null == fn) {
-      throw new IAE("Polaris table function spec cannot be null.");
+      throw new IAE("Polaris table function spec must be provided.");
     }
     try {
       byte[] externalTableSpecBytes = tableFunctionMapper.getTableFunctionMapping(jsonMapper.writeValueAsBytes(fn));
       return jsonMapper.readValue(externalTableSpecBytes, PolarisExternalTableSpec.class);
     }
     catch (JsonProcessingException e) {
-      throw new IAE(StringUtils.format("Table function spec is malformed [%s]", e));
+      throw new IAE(StringUtils.format("Cannot resolve table function as the spec is malformed [%s]", e));
     }
     catch (IOException e) {
       throw new RuntimeException(e);
