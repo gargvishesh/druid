@@ -9,7 +9,7 @@
 
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
-import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
+import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
 import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.java.util.common.RetryUtils;
@@ -23,6 +23,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.ws.rs.core.MediaType;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -63,15 +64,27 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     return null;
   }
 
-  private byte[] postTableMappingCallToPolaris(byte[] serializedTableFnSpec)
+  @VisibleForTesting
+  public byte[] postTableMappingCallToPolaris(byte[] serializedTableFnSpec)
       throws Exception
   {
+    Request req = createRequest(getTableFunctionMappingUrl(), serializedTableFnSpec);
     final BytesFullResponseHolder is = httpClient.go(
-        new Request(HttpMethod.POST, getTableFunctionMappingUrl())
-            .setContent(SmileMediaTypes.APPLICATION_JACKSON_SMILE, serializedTableFnSpec),
+        req,
         new BytesFullResponseHandler()
     ).get();
     return is.getContent();
+  }
+
+  @VisibleForTesting
+  public Request createRequest(
+      URL listenerURL,
+      byte[] serializedEntity
+  )
+  {
+    Request req = new Request(HttpMethod.POST, listenerURL);
+    req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
+    return req;
   }
 
 
