@@ -16,6 +16,7 @@ import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
 import io.imply.druid.sql.calcite.external.PolarisSourceFunctionResolver;
+import io.imply.druid.sql.calcite.external.PolarisSourceOperatorConversion;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolver;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.BrokerExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.CoordinatorExternalDruidSchemaResourceHandler;
@@ -42,6 +43,7 @@ import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
+import org.apache.druid.sql.guice.SqlBindings;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -77,6 +79,7 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
     LifecycleModule.register(binder, ExternalTableFunctionMapper.class);
 
     binder.bind(PolarisTableFunctionResolver.class).to(PolarisSourceFunctionResolver.class).in(LazySingleton.class);
+    SqlBindings.addOperatorConversion(binder, PolarisSourceOperatorConversion.class);
   }
 
   @Nullable
