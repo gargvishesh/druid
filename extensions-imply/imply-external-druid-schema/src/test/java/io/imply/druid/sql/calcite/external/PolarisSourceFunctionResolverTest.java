@@ -10,7 +10,7 @@
 package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionApiMapperImpl;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.LocalInputSource;
@@ -35,7 +35,7 @@ public class PolarisSourceFunctionResolverTest
   {
     ExternalTableFunctionApiMapperImpl tblFnMapper = Mockito.spy(
         new ExternalTableFunctionApiMapperImpl(
-            Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class),
+            Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class),
             Mockito.mock(HttpClient.class)
         ));
 

@@ -10,10 +10,9 @@
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.java.util.common.RetryUtils;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -24,7 +23,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.ws.rs.core.MediaType;
-import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
@@ -35,15 +33,15 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 {
   private static final EmittingLogger LOG = new EmittingLogger(ExternalTableFunctionApiMapperImpl.class);
   private final HttpClient httpClient;
-  private final ImplyExternalDruidSchemaCommonCacheConfig schemaConfig;
+  private final ImplyExternalDruidSchemaCommonConfig commonConfig;
 
   @Inject
   public ExternalTableFunctionApiMapperImpl(
-      ImplyExternalDruidSchemaCommonCacheConfig commonSchemaConfig,
+      ImplyExternalDruidSchemaCommonConfig commonSchemaConfig,
       @EscalatedClient HttpClient httpClient
   )
   {
-    this.schemaConfig = commonSchemaConfig;
+    this.commonConfig = commonSchemaConfig;
     this.httpClient = httpClient;
   }
 
@@ -55,7 +53,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       return RetryUtils.retry(
           () -> postTableMappingCallToPolaris(serializedTableFnSpec),
           e -> true,
-          this.schemaConfig.getMaxSyncRetries()
+          this.commonConfig.getMaxSyncRetries()
       );
     }
     catch (Exception e) {
@@ -68,7 +66,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   public byte[] postTableMappingCallToPolaris(byte[] serializedTableFnSpec)
       throws Exception
   {
-    Request req = createRequest(getTableFunctionMappingUrl(), serializedTableFnSpec);
+    Request req = createRequest(new URL(commonConfig.getTableFunctionMappingUrl()), serializedTableFnSpec);
     final BytesFullResponseHolder is = httpClient.go(
         req,
         new BytesFullResponseHandler()
@@ -85,14 +83,5 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     Request req = new Request(HttpMethod.POST, listenerURL);
     req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
     return req;
-  }
-
-
-  private URL getTableFunctionMappingUrl() throws MalformedURLException
-  {
-    return new URL(StringUtils.format(
-        "%s/v2/jobsDML/internal/tableFunctionMapping",
-        this.schemaConfig.getTablesServiceUrl()
-    ));
   }
 }

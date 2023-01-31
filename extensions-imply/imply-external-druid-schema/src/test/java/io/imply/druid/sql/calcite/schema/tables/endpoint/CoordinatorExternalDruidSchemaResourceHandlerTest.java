@@ -48,7 +48,8 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
             null,
             null,
             null,
-            "http://test:9000/v2/tableSchemas"
+            "http://test:9000/v2/tableSchemas",
+            "http://test:9000/v2/jobsDML/internal/tableFunctionMapping"
         ),
         Mockito.mock(ExternalDruidSchemaCacheNotifier.class),
         objectMapper,

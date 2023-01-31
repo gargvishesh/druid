@@ -50,6 +50,9 @@ public class ImplyExternalDruidSchemaCommonConfig
   @JsonProperty
   private final String tablesSchemasUrl;
 
+  @JsonProperty
+  private final String tableFunctionMappingUrl;
+
   @JsonCreator
   public ImplyExternalDruidSchemaCommonConfig(
       @JsonProperty("pollingPeriod") @Nullable Long pollingPeriod,
@@ -59,7 +62,8 @@ public class ImplyExternalDruidSchemaCommonConfig
       @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
-      @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl
+      @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl,
+      @JsonProperty("tableFunctionMappingUrl") @Nonnull String tableFunctionMappingUrl
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
@@ -70,6 +74,7 @@ public class ImplyExternalDruidSchemaCommonConfig
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
     this.tablesSchemasUrl = tablesSchemasUrl;
+    this.tableFunctionMappingUrl = tableFunctionMappingUrl;
   }
 
   @VisibleForTesting
@@ -83,6 +88,7 @@ public class ImplyExternalDruidSchemaCommonConfig
     this.cacheNotificationTimeout = DEFAULT_CACHE_NOTIFY_TIMEOUT_MS;
     this.notifierUpdatePeriod = DEFAULT_NOTIFIER_UPDATE_PERIOD;
     this.tablesSchemasUrl = null;
+    this.tableFunctionMappingUrl = null;
   }
 
   @JsonProperty
@@ -134,6 +140,12 @@ public class ImplyExternalDruidSchemaCommonConfig
     return tablesSchemasUrl;
   }
 
+  @JsonProperty
+  public String getTableFunctionMappingUrl()
+  {
+    return tableFunctionMappingUrl;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -151,7 +163,8 @@ public class ImplyExternalDruidSchemaCommonConfig
            && cacheNotificationTimeout == that.cacheNotificationTimeout
            && notifierUpdatePeriod == that.notifierUpdatePeriod
            && Objects.equals(cacheDirectory, that.cacheDirectory)
-           && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl);
+           && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl)
+           && Objects.equals(tableFunctionMappingUrl, that.tableFunctionMappingUrl);
   }
 
   @Override
@@ -165,7 +178,8 @@ public class ImplyExternalDruidSchemaCommonConfig
         enableCacheNotifications,
         cacheNotificationTimeout,
         notifierUpdatePeriod,
-        tablesSchemasUrl
+        tablesSchemasUrl,
+        tableFunctionMappingUrl
     );
   }
 }
