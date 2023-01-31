@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
@@ -47,7 +48,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
   private final long notifierUpdatePeriod;
 
   @JsonProperty
-  private final String tablesServiceUrl;
+  private final String tablesSchemasUrl;
 
   @JsonCreator
   public ImplyExternalDruidSchemaCommonCacheConfig(
@@ -58,7 +59,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
       @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
-      @JsonProperty("tablesServiceUrl") String tablesServiceUrl
+      @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
@@ -68,7 +69,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     this.enableCacheNotifications = enableCacheNotifications == null || enableCacheNotifications;
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
-    this.tablesServiceUrl = tablesServiceUrl;
+    this.tablesSchemasUrl = tablesSchemasUrl;
   }
 
   @VisibleForTesting
@@ -81,7 +82,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     this.enableCacheNotifications = true;
     this.cacheNotificationTimeout = DEFAULT_CACHE_NOTIFY_TIMEOUT_MS;
     this.notifierUpdatePeriod = DEFAULT_NOTIFIER_UPDATE_PERIOD;
-    this.tablesServiceUrl = null;
+    this.tablesSchemasUrl = null;
   }
 
   @JsonProperty
@@ -128,9 +129,9 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
   }
 
   @JsonProperty
-  public String getTablesServiceUrl()
+  public String getTablesSchemasUrl()
   {
-    return tablesServiceUrl;
+    return tablesSchemasUrl;
   }
 
   @Override
@@ -150,7 +151,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
            && cacheNotificationTimeout == that.cacheNotificationTimeout
            && notifierUpdatePeriod == that.notifierUpdatePeriod
            && Objects.equals(cacheDirectory, that.cacheDirectory)
-           && Objects.equals(tablesServiceUrl, that.tablesServiceUrl);
+           && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl);
   }
 
   @Override
@@ -164,7 +165,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
         enableCacheNotifications,
         cacheNotificationTimeout,
         notifierUpdatePeriod,
-        tablesServiceUrl
+        tablesSchemasUrl
     );
   }
 }

@@ -54,7 +54,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
                 null,
                 null,
                 null,
-                "http://test:9000"
+                "http://test:9000/v2/tableSchemas"
             ),
             queryFramework().queryJsonMapper(),
             Mockito.mock(DruidLeaderClient.class)

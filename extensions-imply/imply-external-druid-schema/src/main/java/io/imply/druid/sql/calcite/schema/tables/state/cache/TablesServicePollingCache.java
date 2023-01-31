@@ -16,7 +16,6 @@ import io.imply.druid.sql.calcite.schema.cache.PollingManagedCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.notifier.ExternalDruidSchemaCacheNotifier;
 import org.apache.commons.io.IOUtils;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -25,7 +24,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nullable;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -120,7 +118,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   {
     try {
       final InputStream is = httpClient.go(
-          new Request(HttpMethod.GET, getTableSchemasUrl()),
+          new Request(HttpMethod.GET, new URL(commonCacheConfig.getTablesSchemasUrl())),
           new InputStreamResponseHandler()
       ).get();
       return IOUtils.toByteArray(is);
@@ -134,13 +132,5 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
       LOG.warn(e, "Got ExecutionException when fetching table schemas.");
       return null;
     }
-  }
-
-  private URL getTableSchemasUrl() throws MalformedURLException
-  {
-    return new URL(StringUtils.format(
-        "%s/v2/tablesSchemas",
-        commonCacheConfig.getTablesServiceUrl()
-    ));
   }
 }

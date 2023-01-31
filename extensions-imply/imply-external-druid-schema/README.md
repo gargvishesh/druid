@@ -13,14 +13,14 @@ This extension provides an implementation of `DruidSchemaManager`, which polls a
 table schemas that should be used in the broker's SQL planner.
 
 Add `imply-external-druid-schema` to the extensions load list, and set `druid.sql.schemamanager.type` to `imply`
-and `druid.sql.schemamanager.imply.tablesServiceUrl` to the base URL of the tables service.
+and `druid.sql.schemamanager.imply.tablesSchemasUrl` to the URL of the tables service to poll for table schemas.
 
 ```properties
 druid.extensions.loadList=["druid-lookups-cached-global","druid-datasketches","imply-external-druid-schema"]
 ...
 
 druid.sql.schemamanager.type=imply
-druid.sql.schemamanager.imply.tablesServiceUrl=http://localhost:4800 # local configuration
+druid.sql.schemamanager.imply.tablesSchemasUrl=http://localhost:4800/v2/tableSchemas # local configuration
 ...
 ```
 
@@ -46,4 +46,4 @@ This extension is intended for use in the Imply SaaS environment, where the SaaS
 | `druid.sql.schemamanager.imply.enableCacheNotifications` | Allow Coordinators to push schema changes to Brokers. | true |
 | `druid.sql.schemamanager.imply.cacheNotificationTimeout` | Timeout period in milliseconds for schema  change notifications. | 5000 |
 | `druid.sql.schemamanager.imply.notifierUpdatePeriod`| Maximum frequency at which the Coordinator will notify other node types of state updates. | 6000 |
-| `druid.sql.schemamanager.imply.tablesServiceUrl` | The tables service base URL to poll for table schema definitions and table function mappings. | required property |
+| `druid.sql.schemamanager.imply.tablesSchemasUrl` | The URL to poll for table schema definitions. | required property |
