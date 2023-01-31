@@ -11,7 +11,7 @@ package io.imply.druid.sql.calcite.schema.tables.state.cache;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.PollingManagedCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.notifier.ExternalDruidSchemaCacheNotifier;
@@ -43,18 +43,18 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
 
   public TablesServicePollingCache(
       String cacheName,
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper objectMapper,
       HttpClient httpClient,
       ExternalDruidSchemaCacheNotifier notifier
   )
   {
-    super(cacheName, commonCacheConfig, objectMapper);
+    super(cacheName, commonConfig, objectMapper);
     this.notifier = notifier;
     this.httpClient = httpClient;
     this.cachedMap = new ConcurrentHashMap<>();
 
-    if (commonCacheConfig.isEnableCacheNotifications()) {
+    if (commonConfig.isEnableCacheNotifications()) {
       this.notifier.setSchemaUpdateSource(
           () -> cacheBytes
       );
@@ -100,7 +100,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
         cachedMap = new ConcurrentHashMap<>(data);
       }
 
-      if (commonCacheConfig.getCacheDirectory() != null) {
+      if (commonConfig.getCacheDirectory() != null) {
         writeCachedDataToDisk(serializedData);
       }
       notifier.setSchemaUpdateSource(() -> serializedData);
@@ -118,7 +118,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   {
     try {
       final InputStream is = httpClient.go(
-          new Request(HttpMethod.GET, new URL(commonCacheConfig.getTablesSchemasUrl())),
+          new Request(HttpMethod.GET, new URL(commonConfig.getTablesSchemasUrl())),
           new InputStreamResponseHandler()
       ).get();
       return IOUtils.toByteArray(is);

@@ -60,7 +60,7 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    JsonConfigProvider.bind(binder, "druid.sql.schemamanager.imply", ImplyExternalDruidSchemaCommonCacheConfig.class);
+    JsonConfigProvider.bind(binder, "druid.sql.schemamanager.imply", ImplyExternalDruidSchemaCommonConfig.class);
 
     PolyBind.optionBinder(binder, Key.get(DruidSchemaManager.class))
             .addBinding(TYPE)

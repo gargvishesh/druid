@@ -46,7 +46,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
   {
     this.schemaCacheManager =
         new CoordinatorPollingExternalDruidSchemaCacheManager(
-            new ImplyExternalDruidSchemaCommonCacheConfig(
+            new ImplyExternalDruidSchemaCommonConfig(
                 null,
                 null,
                 null,

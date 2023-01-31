@@ -17,7 +17,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
-public class ImplyExternalDruidSchemaCommonCacheConfig
+public class ImplyExternalDruidSchemaCommonConfig
 {
   private static final long DEFAULT_POLLING_PERIOD = 60000;
   private static final long DEFAULT_MAX_RANDOM_DELAY = DEFAULT_POLLING_PERIOD / 10;
@@ -51,7 +51,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
   private final String tablesSchemasUrl;
 
   @JsonCreator
-  public ImplyExternalDruidSchemaCommonCacheConfig(
+  public ImplyExternalDruidSchemaCommonConfig(
       @JsonProperty("pollingPeriod") @Nullable Long pollingPeriod,
       @JsonProperty("maxRandomDelay") @Nullable Long maxRandomDelay,
       @JsonProperty("cacheDirectory") @Nullable String cacheDirectory,
@@ -73,7 +73,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
   }
 
   @VisibleForTesting
-  public ImplyExternalDruidSchemaCommonCacheConfig()
+  public ImplyExternalDruidSchemaCommonConfig()
   {
     this.pollingPeriod = DEFAULT_POLLING_PERIOD;
     this.maxRandomDelay = DEFAULT_MAX_RANDOM_DELAY;
@@ -143,7 +143,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ImplyExternalDruidSchemaCommonCacheConfig that = (ImplyExternalDruidSchemaCommonCacheConfig) o;
+    ImplyExternalDruidSchemaCommonConfig that = (ImplyExternalDruidSchemaCommonConfig) o;
     return pollingPeriod == that.pollingPeriod
            && maxRandomDelay == that.maxRandomDelay
            && maxSyncRetries == that.maxSyncRetries

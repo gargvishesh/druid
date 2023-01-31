@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.ExternalDruidSchemaUtils;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.CoordinatorPollingMapCache;
 import io.imply.druid.sql.calcite.schema.cache.PollingCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
@@ -41,13 +41,13 @@ public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCa
 
   @Inject
   public CoordinatorPollingExternalDruidSchemaCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper jsonMapper,
       @Coordinator DruidLeaderClient druidLeaderClient
   )
   {
-    super(commonCacheConfig);
-    this.schemaCache = makeSchemaCache(commonCacheConfig, jsonMapper, druidLeaderClient);
+    super(commonConfig);
+    this.schemaCache = makeSchemaCache(commonConfig, jsonMapper, druidLeaderClient);
     this.addCache(schemaCache);
   }
 
@@ -78,13 +78,13 @@ public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCa
 
   @VisibleForTesting
   static CoordinatorPollingMapCache<TableSchema> makeSchemaCache(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper jsonMapper,
       DruidLeaderClient druidLeaderClient
   )
   {
     return new CoordinatorPollingMapCache<>(
-        commonCacheConfig,
+        commonConfig,
         jsonMapper,
         druidLeaderClient,
         "table-schemas",
@@ -95,11 +95,11 @@ public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCa
 
   @VisibleForTesting
   public CoordinatorPollingExternalDruidSchemaCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       CoordinatorPollingMapCache<TableSchema> schemaCache
   )
   {
-    super(commonCacheConfig);
+    super(commonConfig);
     this.schemaCache = schemaCache;
     this.addCache(schemaCache);
   }

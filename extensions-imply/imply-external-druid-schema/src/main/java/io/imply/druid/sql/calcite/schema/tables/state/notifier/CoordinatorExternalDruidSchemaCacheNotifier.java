@@ -12,7 +12,7 @@ package io.imply.druid.sql.calcite.schema.tables.state.notifier;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.CommonCacheNotifier;
 import org.apache.druid.concurrent.LifecycleLock;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -36,7 +36,7 @@ public class CoordinatorExternalDruidSchemaCacheNotifier implements ExternalDrui
   public CoordinatorExternalDruidSchemaCacheNotifier(
       DruidNodeDiscoveryProvider discoveryProvider,
       @EscalatedClient HttpClient httpClient,
-      ImplyExternalDruidSchemaCommonCacheConfig cacheConfig
+      ImplyExternalDruidSchemaCommonConfig cacheConfig
   )
   {
     cacheSchemaNotifier = new CommonCacheNotifier(
