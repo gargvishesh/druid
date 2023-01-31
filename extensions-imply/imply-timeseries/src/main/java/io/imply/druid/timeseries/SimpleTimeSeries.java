@@ -248,6 +248,16 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     ) && super.equals(o);
   }
 
+  @Override
+  public String toString()
+  {
+    return "SimpleTimeSeries{" +
+           "timestamps=" + timestamps +
+           ", dataPoints=" + dataPoints +
+           ", maxEntries=" + maxEntries +
+           '}';
+  }
+
   public SimpleTimeSeriesData asSimpleTimeSeriesData()
   {
     return new SimpleTimeSeriesData(timestamps, dataPoints, getwindow());
