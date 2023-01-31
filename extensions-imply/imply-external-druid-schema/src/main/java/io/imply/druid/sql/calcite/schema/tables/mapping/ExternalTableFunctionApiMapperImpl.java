@@ -12,7 +12,9 @@ package io.imply.druid.sql.calcite.schema.tables.mapping;
 import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.guice.annotations.EscalatedClient;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.RetryUtils;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -58,8 +60,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     }
     catch (Exception e) {
       LOG.error("Exception occurred during getTableFunctionMapping " + e);
+      throw new IAE(StringUtils.format("Exception occurred while fetching table function mapping %s", e));
     }
-    return null;
   }
 
   @VisibleForTesting
