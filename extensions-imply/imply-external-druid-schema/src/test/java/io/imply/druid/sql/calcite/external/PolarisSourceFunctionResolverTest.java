@@ -27,20 +27,20 @@ import java.util.Collections;
 
 public class PolarisSourceFunctionResolverTest
 {
-  private static final ObjectMapper MAPPER = new ObjectMapper();
   private static PolarisSourceFunctionResolver resolver;
 
   @Before
-  public void setup() throws Exception
+  public void setup()
   {
     ExternalTableFunctionApiMapperImpl tblFnMapper = Mockito.spy(
         new ExternalTableFunctionApiMapperImpl(
             Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class),
+            new ObjectMapper(),
             Mockito.mock(HttpClient.class)
         ));
 
-    resolver = new PolarisSourceFunctionResolver(tblFnMapper, new ObjectMapper());
-    Mockito.doReturn(MAPPER.writeValueAsBytes(getSamplePolarisExternalTableSpec()))
+    resolver = new PolarisSourceFunctionResolver(tblFnMapper);
+    Mockito.doReturn(getSamplePolarisExternalTableSpec())
            .when(tblFnMapper).getTableFunctionMapping(ArgumentMatchers.any());
   }
 

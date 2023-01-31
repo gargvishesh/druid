@@ -9,23 +9,27 @@
 
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
+import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
+import io.imply.druid.sql.calcite.external.exception.WrappedErrorModelException;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.guice.annotations.EscalatedClient;
-import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.RetryUtils;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
-import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
-import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
+import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Table function API mapper is responsible for mapping the supplied table functiom spec to the
@@ -35,45 +39,46 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 {
   private static final EmittingLogger LOG = new EmittingLogger(ExternalTableFunctionApiMapperImpl.class);
   private final HttpClient httpClient;
+  private final ObjectMapper objectMapper;
   private final ImplyExternalDruidSchemaCommonConfig commonConfig;
 
   @Inject
   public ExternalTableFunctionApiMapperImpl(
       ImplyExternalDruidSchemaCommonConfig commonSchemaConfig,
+      ObjectMapper objectMapper,
       @EscalatedClient HttpClient httpClient
   )
   {
     this.commonConfig = commonSchemaConfig;
+    this.objectMapper = objectMapper;
     this.httpClient = httpClient;
   }
 
   @Nullable
   @Override
-  public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec)
+  public PolarisExternalTableSpec getTableFunctionMapping(PolarisTableFunctionSpec serializedTableFnSpec)
   {
     try {
-      return RetryUtils.retry(
-          () -> postTableMappingCallToPolaris(serializedTableFnSpec),
-          e -> true,
-          this.commonConfig.getMaxSyncRetries()
-      );
+      return postTableMappingCallToPolaris(serializedTableFnSpec);
     }
-    catch (Exception e) {
-      LOG.error("Exception occurred during getTableFunctionMapping " + e);
-      throw new IAE(StringUtils.format("Exception occurred while fetching table function mapping %s", e));
+    catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 
   @VisibleForTesting
-  public byte[] postTableMappingCallToPolaris(byte[] serializedTableFnSpec)
-      throws Exception
+  public PolarisExternalTableSpec postTableMappingCallToPolaris(PolarisTableFunctionSpec polarisTableFunctionSpec)
+      throws IOException
   {
-    Request req = createRequest(new URL(commonConfig.getTableFunctionMappingUrl()), serializedTableFnSpec);
-    final BytesFullResponseHolder is = httpClient.go(
-        req,
-        new BytesFullResponseHandler()
-    ).get();
-    return is.getContent();
+    Request req = createRequest(
+        new URL(commonConfig.getTableFunctionMappingUrl()),
+        objectMapper.writeValueAsBytes(polarisTableFunctionSpec)
+    );
+    InputStreamFullResponseHolder responseHolder = doRequest(req);
+    return objectMapper.readValue(
+        responseHolder.getContent(),
+        PolarisExternalTableSpec.class
+    );
   }
 
   @VisibleForTesting
@@ -85,5 +90,32 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     Request req = new Request(HttpMethod.POST, listenerURL);
     req.setContent(MediaType.APPLICATION_JSON, serializedEntity);
     return req;
+  }
+
+  private InputStreamFullResponseHolder doRequest(Request request) throws IOException
+  {
+    InputStreamFullResponseHolder responseHolder;
+    try {
+      responseHolder = this.httpClient.go(
+          request,
+          new InputStreamFullResponseHandler()
+      ).get();
+    }
+    catch (InterruptedException | ExecutionException e) {
+      LOG.warn("Exception during execution: %s", e);
+      throw new RuntimeException(e);
+    }
+
+    if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK
+        && responseHolder.getStatus().getCode() != HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
+      // TODO: very likely this type, but if this deserialization fails, fallback to a generic runtime exception perhaps
+      WrappedErrorModelException wrappedException = objectMapper.readValue(
+          responseHolder.getContent(),
+          WrappedErrorModelException.class
+      );
+      LOG.warn("Exception from Polaris %s", wrappedException.getImplyError());
+      throw wrappedException;
+    }
+    return responseHolder;
   }
 }

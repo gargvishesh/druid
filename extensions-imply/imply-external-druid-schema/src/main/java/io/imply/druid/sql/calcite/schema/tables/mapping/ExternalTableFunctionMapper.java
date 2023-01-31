@@ -9,12 +9,14 @@
 
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
+import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
+import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
 
 /**
  * Table function mapper is responsible for mapping the supplied
- * table function spec to the serialized Polaris external table spec.
+ * table function spec to the Polaris external table spec.
  */
 public interface ExternalTableFunctionMapper
 {
-  byte[] getTableFunctionMapping(byte[] serializedTableFnSpec);
+  PolarisExternalTableSpec getTableFunctionMapping(PolarisTableFunctionSpec serializedTableFnSpec);
 }

@@ -9,6 +9,9 @@
 
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
+import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
+import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
+
 /**
  * No-op implementation for non-broker nodes.
  */
@@ -16,7 +19,7 @@ public class NoopTableFunctionApiResolver
     implements ExternalTableFunctionMapper
 {
   @Override
-  public byte[] getTableFunctionMapping(byte[] serializedTableFnSpec)
+  public PolarisExternalTableSpec getTableFunctionMapping(PolarisTableFunctionSpec serializedTableFnSpec)
   {
     // not supported for non-broker nodes.
     throw new UnsupportedOperationException("Non-broker nodes do not support getTableFunctionMapping");
