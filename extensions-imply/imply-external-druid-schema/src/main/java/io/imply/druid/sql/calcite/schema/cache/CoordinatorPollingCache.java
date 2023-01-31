@@ -10,7 +10,7 @@
 package io.imply.druid.sql.calcite.schema.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
@@ -27,14 +27,14 @@ public abstract class CoordinatorPollingCache<T> extends PollingManagedCache<T>
   protected final String coordinatorPath;
 
   public CoordinatorPollingCache(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper objectMapper,
       DruidLeaderClient coordinatorLeaderClient,
       String cacheName,
       String coordinatorPath
   )
   {
-    super(cacheName, commonCacheConfig, objectMapper);
+    super(cacheName, commonConfig, objectMapper);
     this.druidLeaderClient = coordinatorLeaderClient;
     this.coordinatorPath = coordinatorPath;
   }

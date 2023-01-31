@@ -11,7 +11,7 @@ package io.imply.druid.sql.calcite.schema.cache;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
@@ -29,7 +29,7 @@ public class CoordinatorPollingMapCache<T> extends CoordinatorPollingCache<Map<S
   private volatile ConcurrentHashMap<String, T> cachedMap;
 
   public CoordinatorPollingMapCache(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper objectMapper,
       DruidLeaderClient coordinatorLeaderClient,
       String cacheName,
@@ -37,7 +37,7 @@ public class CoordinatorPollingMapCache<T> extends CoordinatorPollingCache<Map<S
       TypeReference<Map<String, T>> typeReference
   )
   {
-    super(commonCacheConfig, objectMapper, coordinatorLeaderClient, cacheName, coordinatorPath);
+    super(commonConfig, objectMapper, coordinatorLeaderClient, cacheName, coordinatorPath);
     this.typeReference = typeReference;
   }
 
@@ -78,7 +78,7 @@ public class CoordinatorPollingMapCache<T> extends CoordinatorPollingCache<Map<S
         cachedMap = new ConcurrentHashMap<>(data);
       }
 
-      if (commonCacheConfig.getCacheDirectory() != null) {
+      if (commonConfig.getCacheDirectory() != null) {
         writeCachedDataToDisk(serializedData);
       }
     }

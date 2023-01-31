@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorExternalDruidSchemaCacheManager;
@@ -40,7 +40,7 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
   public void setup()
   {
     cacheManager = new CoordinatorExternalDruidSchemaCacheManager(
-        new ImplyExternalDruidSchemaCommonCacheConfig(
+        new ImplyExternalDruidSchemaCommonConfig(
             null,
             null,
             null,
@@ -48,7 +48,7 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
             null,
             null,
             null,
-            "http://test:9000"
+            "http://test:9000/v2/tableSchemas"
         ),
         Mockito.mock(ExternalDruidSchemaCacheNotifier.class),
         objectMapper,

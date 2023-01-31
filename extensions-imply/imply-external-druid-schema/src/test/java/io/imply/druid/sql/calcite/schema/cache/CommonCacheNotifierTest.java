@@ -12,7 +12,7 @@ package io.imply.druid.sql.calcite.schema.cache;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -47,7 +47,7 @@ public class CommonCacheNotifierTest
 
   private static final byte[] DATA_TO_SEND = StringUtils.toUtf8("Data to send");
 
-  private ImplyExternalDruidSchemaCommonCacheConfig cacheConfig;
+  private ImplyExternalDruidSchemaCommonConfig cacheConfig;
   private DruidNodeDiscoveryProvider discoveryProvider;
   private HttpClient httpClient;
 
@@ -57,7 +57,7 @@ public class CommonCacheNotifierTest
   public void test_setUpdateSource_cacheNotifictionsEnabled_sendUpdate()
       throws InterruptedException, ExecutionException, TimeoutException
   {
-    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class);
+    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class);
     discoveryProvider = Mockito.mock(DruidNodeDiscoveryProvider.class, Mockito.RETURNS_DEEP_STUBS);
     httpClient = Mockito.mock(HttpClient.class);
     mockCacheConfig(true);
@@ -84,7 +84,7 @@ public class CommonCacheNotifierTest
   public void test_setUpdateSource_twoUpdatesButStoppedAfterFirst_sendOneUpdate()
       throws InterruptedException, ExecutionException, TimeoutException
   {
-    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class);
+    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class);
     discoveryProvider = Mockito.mock(DruidNodeDiscoveryProvider.class, Mockito.RETURNS_DEEP_STUBS);
     httpClient = Mockito.mock(HttpClient.class);
     mockCacheConfig(true);
@@ -111,7 +111,7 @@ public class CommonCacheNotifierTest
   @Test
   public void test_setUpdateSource_cacheNotifictionsDisabled_doesNotsendUpdate()
   {
-    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class);
+    cacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class);
     discoveryProvider = Mockito.mock(DruidNodeDiscoveryProvider.class, Mockito.RETURNS_DEEP_STUBS);
     mockCacheConfig(false);
     cacheNotifier = Mockito.spy(new CommonCacheNotifier(
