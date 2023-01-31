@@ -71,7 +71,7 @@ public enum Interpolator
         double nextTimestampData
     )
     {
-      return 0;
+      return previousTimestampData * (nextTimestamp - previousTimestamp);
     }
   },
   BACKFILL {
@@ -95,7 +95,7 @@ public enum Interpolator
         double nextTimestampData
     )
     {
-      return 0;
+      return nextTimestampData * (nextTimestamp - previousTimestamp);
     }
   };
 
