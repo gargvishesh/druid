@@ -16,12 +16,12 @@ import javax.ws.rs.core.Response;
 public class WrappedErrorModelException extends RuntimeException
 {
 
-  @JsonProperty("error")
-  private ErrorModel errorModel;
+  @JsonProperty
+  private ErrorModel error;
 
   public ErrorModel getImplyError()
   {
-    return errorModel;
+    return error;
   }
 
   public Response.Status getHttpStatus()
