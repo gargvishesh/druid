@@ -13,9 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
-import io.imply.druid.sql.calcite.external.exception.WrappedErrorModelException;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
+import org.apache.commons.io.IOUtils;
 import org.apache.druid.guice.annotations.EscalatedClient;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -29,6 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -102,19 +104,15 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       ).get();
     }
     catch (InterruptedException | ExecutionException e) {
-      LOG.warn("Exception during execution: %s", e);
+      LOG.warn(e, "Exception during %s execution", request.getUrl());
       throw new RuntimeException(e);
     }
-
-    if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK
-        && responseHolder.getStatus().getCode() != HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
-      // TODO: very likely this type, but if this deserialization fails, fallback to a generic runtime exception perhaps
-      WrappedErrorModelException wrappedException = objectMapper.readValue(
-          responseHolder.getContent(),
-          WrappedErrorModelException.class
-      );
-      LOG.warn("Exception from Polaris %s", wrappedException.getImplyError());
-      throw wrappedException;
+    if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK) {
+      // Unique tag that Polaris could then use to decode the original exception.
+      IAE polarisException = new IAE("POLARIS_RETURNED_EXCEPTION %s",
+                                     IOUtils.toString(responseHolder.getContent(), StandardCharsets.UTF_8));
+      LOG.warn(polarisException, "Polaris returned exception");
+      throw polarisException;
     }
     return responseHolder;
   }
