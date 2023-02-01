@@ -15,6 +15,7 @@ import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.commons.io.IOUtils;
 import org.apache.druid.guice.annotations.EscalatedClient;
+import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
@@ -33,20 +34,23 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Table function API mapper is responsible for mapping the supplied table functiom spec to the
- * serialized Polaris external table spec by invoking API calls to the table service.
+ * Table function API mapper is responsible for mapping the supplied Polaris table function spec to the
+ * Polaris external table spec by invoking an API call to the table service.
  */
 public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunctionMapper
 {
   private static final EmittingLogger LOG = new EmittingLogger(ExternalTableFunctionApiMapperImpl.class);
+  private final ImplyExternalDruidSchemaCommonConfig commonConfig;
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
-  private final ImplyExternalDruidSchemaCommonConfig commonConfig;
+
+  // A unique prefix tag that Polaris could use to decode the original exception.
+  private static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
 
   @Inject
   public ExternalTableFunctionApiMapperImpl(
       ImplyExternalDruidSchemaCommonConfig commonSchemaConfig,
-      ObjectMapper objectMapper,
+      @Json ObjectMapper objectMapper,
       @EscalatedClient HttpClient httpClient
   )
   {
@@ -105,8 +109,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       throw new RuntimeException(e);
     }
     if (responseHolder.getStatus().getCode() != HttpServletResponse.SC_OK) {
-      // Unique tag that Polaris could then use to decode the original exception.
-      IAE polarisException = new IAE("POLARIS_RETURNED_EXCEPTION %s",
+      IAE polarisException = new IAE("%s %s", POLARIS_EXCEPTION_TAG,
                                      IOUtils.toString(responseHolder.getContent(), StandardCharsets.UTF_8));
       LOG.warn(polarisException, "Polaris returned exception");
       throw polarisException;
