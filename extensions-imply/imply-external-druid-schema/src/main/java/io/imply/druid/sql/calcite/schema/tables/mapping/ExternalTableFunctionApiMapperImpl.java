@@ -10,7 +10,6 @@
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
 import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
@@ -68,8 +67,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     }
   }
 
-  @VisibleForTesting
-  public PolarisExternalTableSpec postTableMappingCallToPolaris(PolarisTableFunctionSpec polarisTableFunctionSpec)
+  private PolarisExternalTableSpec postTableMappingCallToPolaris(PolarisTableFunctionSpec polarisTableFunctionSpec)
       throws IOException
   {
     Request req = createRequest(
@@ -83,8 +81,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     );
   }
 
-  @VisibleForTesting
-  public Request createRequest(
+  private Request createRequest(
       URL listenerURL,
       byte[] serializedEntity
   )
