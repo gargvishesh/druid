@@ -25,7 +25,7 @@ import org.mockito.Mockito;
 import java.io.File;
 import java.util.Collections;
 
-public class PolarisSourceFunctionResolverTest
+public class PolarisTableFunctionResolverTest
 {
   private static PolarisTableFunctionResolverImpl resolver;
 
