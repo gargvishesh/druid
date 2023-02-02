@@ -21,6 +21,7 @@ druid.extensions.loadList=["druid-lookups-cached-global","druid-datasketches","i
 
 druid.sql.schemamanager.type=imply
 druid.sql.schemamanager.imply.tablesSchemasUrl=http://localhost:4800/v2/tableSchemas # local configuration
+druid.sql.schemamanager.imply.tableFunctionMappingUrl=http://localhost:4800/v2/jobsDML/internal/tableFunctionMapping # local configuration
 ...
 ```
 
@@ -47,3 +48,4 @@ This extension is intended for use in the Imply SaaS environment, where the SaaS
 | `druid.sql.schemamanager.imply.cacheNotificationTimeout` | Timeout period in milliseconds for schema  change notifications. | 5000 |
 | `druid.sql.schemamanager.imply.notifierUpdatePeriod`| Maximum frequency at which the Coordinator will notify other node types of state updates. | 6000 |
 | `druid.sql.schemamanager.imply.tablesSchemasUrl` | The URL to poll for table schema definitions. | required property |
+| `druid.sql.schemamanager.imply.tableFunctionMappingUrl` | The URL to poll for table function mappings. | required property |
