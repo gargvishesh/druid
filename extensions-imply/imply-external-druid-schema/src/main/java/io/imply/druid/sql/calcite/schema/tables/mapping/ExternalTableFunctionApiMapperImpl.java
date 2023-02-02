@@ -23,6 +23,7 @@ import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -46,6 +47,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 
   // A unique prefix tag that Polaris could use to decode the original exception.
   private static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
+  private static final Duration POLARIS_POST_TIMEOUT = Duration.millis(5000L);
 
   @Inject
   public ExternalTableFunctionApiMapperImpl(
@@ -101,7 +103,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     try {
       responseHolder = this.httpClient.go(
           request,
-          new InputStreamFullResponseHandler()
+          new InputStreamFullResponseHandler(),
+          POLARIS_POST_TIMEOUT
       ).get();
     }
     catch (InterruptedException | ExecutionException e) {
