@@ -39,10 +39,10 @@ This extension is intended for use in the Imply SaaS environment, where the SaaS
 
 ### Configuration
 | property | description | default |
-| --- | --- | --- |
+| --- | --- | -- |
 | `druid.sql.schemamanager.imply.pollingPeriod` | How frequently in milliseconds that Brokers will poll Coordinators to refresh schema state | 60000 |
 | `druid.sql.schemamanager.imply.maxRandomDelay` | Random delay in milliseconds between Broker polling period to prevent herd effects from overwhelming Coordinators. | 6000 |
-| `druid.sql.schemamanager.imply.maxSyncRetries` | Number of retries Brokers will attempt before abandoning a schema state refresh from Coordinators | 5 |
+| `druid.sql.schemamanager.imply.maxSyncRetries` | Number of retries Brokers will attempt before abandoning a schema state refresh from Coordinators | 10 |
 | `druid.sql.schemamanager.imply.cacheDirectory` | Local disk path which Brokers can use to store a snapshot of schema state, to allow cold startup when coordinators are not available using previously cached schema definitions. | None. |
 | `druid.sql.schemamanager.imply.enableCacheNotifications` | Allow Coordinators to push schema changes to Brokers. | true |
 | `druid.sql.schemamanager.imply.cacheNotificationTimeout` | Timeout period in milliseconds for schema  change notifications. | 5000 |
