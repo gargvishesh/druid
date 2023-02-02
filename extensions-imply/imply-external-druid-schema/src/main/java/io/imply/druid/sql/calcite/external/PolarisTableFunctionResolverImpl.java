@@ -9,10 +9,9 @@
 
 package io.imply.druid.sql.calcite.external;
 
+import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
 import org.apache.druid.java.util.common.IAE;
-
-import javax.inject.Inject;
 
 public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionResolver
 {

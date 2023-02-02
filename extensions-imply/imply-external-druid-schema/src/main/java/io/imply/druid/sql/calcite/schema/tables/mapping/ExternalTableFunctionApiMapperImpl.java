@@ -10,6 +10,7 @@
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
@@ -26,7 +27,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
-import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
