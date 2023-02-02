@@ -27,7 +27,7 @@ import java.util.Collections;
 
 public class PolarisSourceFunctionResolverTest
 {
-  private static PolarisSourceFunctionResolver resolver;
+  private static PolarisTableFunctionResolverImpl resolver;
 
   @Before
   public void setup()
@@ -39,7 +39,7 @@ public class PolarisSourceFunctionResolverTest
             Mockito.mock(HttpClient.class)
         ));
 
-    resolver = new PolarisSourceFunctionResolver(tblFnMapper);
+    resolver = new PolarisTableFunctionResolverImpl(tblFnMapper);
     Mockito.doReturn(getSamplePolarisExternalTableSpec())
            .when(tblFnMapper).getTableFunctionMapping(ArgumentMatchers.any());
   }

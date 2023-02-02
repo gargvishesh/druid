@@ -14,12 +14,12 @@ import org.apache.druid.java.util.common.IAE;
 
 import javax.inject.Inject;
 
-public class PolarisSourceFunctionResolver implements PolarisTableFunctionResolver
+public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionResolver
 {
   private final ExternalTableFunctionMapper tableFunctionMapper;
 
   @Inject
-  public PolarisSourceFunctionResolver(
+  public PolarisTableFunctionResolverImpl(
       final ExternalTableFunctionMapper tableFunctionMapper
   )
   {
