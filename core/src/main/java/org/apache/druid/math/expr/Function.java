@@ -33,6 +33,7 @@ import org.apache.druid.math.expr.vector.VectorStringProcessors;
 import org.apache.druid.segment.column.TypeSignature;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 
 import javax.annotation.Nullable;
@@ -3708,50 +3709,50 @@ public interface Function extends NamedFunction
     @Override
     public ExprEval apply(List<Expr> args, Expr.ObjectBinding bindings)
     {
-      final ExprEval timeArg = args.get(0).eval(bindings);
+      final ExprEval startTimeArg = args.get(0).eval(bindings);
+      final ExprEval endTimeArg = args.get(1).eval(bindings);
 
-      if (!timeArg.type().is(ExprType.LONG)) {
+      if (!startTimeArg.type().is(ExprType.LONG)) {
         throw validationFailed(
             "first param should be a LONG but got [%s] instead",
-            timeArg.type()
+            startTimeArg.type()
         );
       }
 
-      final ExprEval startExpr = args.get(1).eval(bindings);
-      final ExprEval endExpr = args.get(2).eval(bindings);
-
-      if (!startExpr.type().is(ExprType.LONG)) {
+      if (!endTimeArg.type().is(ExprType.LONG)) {
         throw validationFailed(
             "second param should be a LONG but got [%s] instead",
-            startExpr.type()
+            startTimeArg.type()
         );
       }
 
-      if (!endExpr.type().is(ExprType.LONG)) {
+      long startTime = startTimeArg.asLong();
+      long endTime = endTimeArg.asLong();
+      if (startTime > endTime) {
         throw validationFailed(
-            "third param should be a LONG but got [%s] instead",
-            endExpr.type()
+            "first argument should be less than equals to the second argument"
         );
       }
 
-      final int start = startExpr.asInt();
-      final int end = endExpr.asInt();
+      final ExprEval granularityArg = args.get(2).eval(bindings);
 
-      if (start < 0 || end > 59 || start > end) {
-        throw validationFailed("second [%d] and third [%d] param should be within [0-59] range and increasing order",
-                               start, end);
+      if (!granularityArg.type().is(ExprType.STRING)) {
+        throw validationFailed(
+            "second param should be a LONG but got [%s] instead",
+            granularityArg.type()
+        );
       }
 
-      // round off the timestamp to start of minute
-      final long timeInMillis = timeArg.asLong() - (timeArg.asLong() % 60000);
+      final Period granularity = new Period(granularityArg.asString());
+      final long granularityInMillis = granularity.toStandardDuration().getMillis();
 
-      Object[] s = new Object[end - start + 1];
+      List<Long> list = new ArrayList<>();
 
-      for (int second = start; second <= end; second++) {
-        s[second - start] = timeInMillis + second * 1000;
+      for (long cur = startTime; cur <= endTime; cur += granularityInMillis) {
+        list.add(cur);
       }
 
-      return ExprEval.ofLongArray(s);
+      return ExprEval.ofLongArray(list.toArray());
     }
 
     @Override
