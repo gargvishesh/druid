@@ -3746,13 +3746,13 @@ public interface Function extends NamedFunction
       final Period granularity = new Period(granularityArg.asString());
       final long granularityInMillis = granularity.toStandardDuration().getMillis();
 
-      List<Long> list = new ArrayList<>();
+      List<Long> listOfDateTimes = new ArrayList<>();
 
       for (long cur = startTime; cur <= endTime; cur += granularityInMillis) {
-        list.add(cur);
+        listOfDateTimes.add(cur);
       }
 
-      return ExprEval.ofLongArray(list.toArray());
+      return ExprEval.ofLongArray(listOfDateTimes.toArray());
     }
 
     @Override
