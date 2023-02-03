@@ -3722,7 +3722,7 @@ public interface Function extends NamedFunction
       if (!endTimeArg.type().is(ExprType.LONG)) {
         throw validationFailed(
             "second param should be a LONG but got [%s] instead",
-            startTimeArg.type()
+            endTimeArg.type()
         );
       }
 
@@ -3738,7 +3738,7 @@ public interface Function extends NamedFunction
 
       if (!granularityArg.type().is(ExprType.STRING)) {
         throw validationFailed(
-            "second param should be a STRING duration but got [%s] instead",
+            "third param should be a STRING duration but got [%s] instead",
             granularityArg.type()
         );
       }
