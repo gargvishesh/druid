@@ -144,8 +144,16 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   {
     SimpleTimeSeriesContainer leftSeries = (SimpleTimeSeriesContainer) lhs;
     SimpleTimeSeriesContainer rightSeries = (SimpleTimeSeriesContainer) rhs;
-    rightSeries.pushInto(leftSeries);
 
+    if (leftSeries == null || leftSeries.isNull()) {
+      return rightSeries;
+    }
+
+    if (rightSeries == null || rightSeries.isNull()) {
+      return leftSeries;
+    }
+
+    rightSeries.pushInto(leftSeries);
     return leftSeries;
   }
 

@@ -25,7 +25,7 @@ def filter_pr_with_no_jira(prs):
         if pr.created_at < past:
             break  # stop parsing the sorted listed if created_at is olders than past
         if pr.user.login not in imply_authors():
-            search_string = f'"\\"Community Ticket - (#{pr.number})\\""'  # Adding quotes to string for exact search.
+            search_string = f'"\\"(#{pr.number})\\""'  # Adding quotes to string for exact search.
             search_result = jira.search_issues(jql_str=f'summary ~ {search_string}')
             if not search_result:
                 no_jira_prs = no_jira_prs + [pr]
