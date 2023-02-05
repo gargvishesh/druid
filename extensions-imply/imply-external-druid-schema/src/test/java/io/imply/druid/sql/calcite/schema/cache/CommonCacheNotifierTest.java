@@ -72,7 +72,6 @@ public class CommonCacheNotifierTest
     mockDiscoveryProvider();
     mockHttpClient();
     cacheNotifier.setUpdateSource(() -> DATA_TO_SEND);
-    cacheNotifier.setUpdateSource(() -> DATA_TO_SEND);
     cacheNotifier.scheduleUpdate();
     cacheNotifier.start();
     Thread.sleep(5000L);

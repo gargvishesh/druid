@@ -10,6 +10,7 @@
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionSpec;
@@ -116,7 +117,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     return req;
   }
 
-  private InputStreamFullResponseHolder doRequest(Request request) throws IOException, RetryableException
+  @VisibleForTesting
+  InputStreamFullResponseHolder doRequest(Request request) throws IOException, RetryableException
   {
     InputStreamFullResponseHolder responseHolder;
     try {
