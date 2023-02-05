@@ -48,7 +48,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   private static final EmittingLogger LOG = new EmittingLogger(ExternalTableFunctionApiMapperImpl.class);
 
   // A unique prefix tag that Polaris could use to decode the original exception.
-  private static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
+  @VisibleForTesting
+  public static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
   private static final Duration POLARIS_POST_TIMEOUT = Duration.millis(5000L);
   private static final int POLARIS_RETRY_COUNT = 5;
 
@@ -79,6 +80,12 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       throw new RuntimeException(e);
     }
   }
+  
+  @VisibleForTesting
+  public int getPolarisRetryCount()
+  {
+    return POLARIS_RETRY_COUNT;
+  }
 
   private PolarisExternalTableSpec postTableMappingCallToPolaris(PolarisTableFunctionSpec polarisTableFunctionSpec)
       throws Exception
@@ -93,7 +100,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       responseHolder = RetryUtils.retry(
           () -> doRequest(req),
           e -> e instanceof RetryableException,
-          POLARIS_RETRY_COUNT
+          getPolarisRetryCount()
       );
     }
     catch (Exception e) {
@@ -117,8 +124,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
     return req;
   }
 
-  @VisibleForTesting
-  InputStreamFullResponseHolder doRequest(Request request) throws IOException, RetryableException
+  private InputStreamFullResponseHolder doRequest(Request request) throws IOException, RetryableException
   {
     InputStreamFullResponseHolder responseHolder;
     try {
@@ -152,7 +158,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 
       // Error, but not going to retry; bubble up the exception as-is with a unique tag.
       String exceptionWithMsg = StringUtils.format("%s %s", POLARIS_EXCEPTION_TAG,
-                                                   exceptionContentAsString(responseHolder.getContent()));
+                                                   exceptionContentAsString(responseHolder.getContent())
+      );
       IAE polarisException = new IAE(exceptionWithMsg);
       LOG.warn(polarisException, "Polaris returned exception");
       throw polarisException;
@@ -162,9 +169,9 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   private boolean isRequestRetryable(int responseStatusCode)
   {
     return responseStatusCode == HttpServletResponse.SC_INTERNAL_SERVER_ERROR
-        || responseStatusCode == HttpServletResponse.SC_BAD_GATEWAY
-        || responseStatusCode == HttpServletResponse.SC_SERVICE_UNAVAILABLE
-        || responseStatusCode == HttpServletResponse.SC_GATEWAY_TIMEOUT;
+           || responseStatusCode == HttpServletResponse.SC_BAD_GATEWAY
+           || responseStatusCode == HttpServletResponse.SC_SERVICE_UNAVAILABLE
+           || responseStatusCode == HttpServletResponse.SC_GATEWAY_TIMEOUT;
   }
 
   private String exceptionContentAsString(InputStream content) throws IOException

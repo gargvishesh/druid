@@ -15,8 +15,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
 import io.imply.druid.sql.calcite.external.PolarisTestTableFunctionUtils;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
-import org.apache.druid.java.util.RetryableException;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -32,7 +30,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
@@ -73,69 +70,69 @@ public class ExternalTableFunctionApiMapperImplTest
   }
 
   @Test
-  public void testHigherLevelApi() throws ExecutionException, InterruptedException, JsonProcessingException
+  public void testValid() throws ExecutionException, InterruptedException, JsonProcessingException
   {
     PolarisExternalTableSpec expectedExternalTableSpec = PolarisTestTableFunctionUtils.getSamplePolarisExternalTableSpec();
     Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
     Mockito.when(mockResponseHolder.getContent()).thenReturn(new ByteArrayInputStream(
-        StringUtils.format(objectMapper.writeValueAsString(expectedExternalTableSpec)).getBytes(StandardCharsets.UTF_8)));
+        StringUtils.format(objectMapper.writeValueAsString(expectedExternalTableSpec))
+                   .getBytes(StandardCharsets.UTF_8)));
     Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
-    Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class),
-                                   ArgumentMatchers.any(InputStreamFullResponseHandler.class),
-                                   ArgumentMatchers.any())).thenReturn(mockFuture);
+    Mockito.when(mockHttpClient.go(
+        ArgumentMatchers.any(Request.class),
+        ArgumentMatchers.any(InputStreamFullResponseHandler.class),
+        ArgumentMatchers.any()
+    )).thenReturn(mockFuture);
 
     Assert.assertEquals(expectedExternalTableSpec, tableFunctionApiMapper.getTableFunctionMapping(
         PolarisTestTableFunctionUtils.getSampleTableFunctionSpec()));
   }
 
   @Test
-  public void testResponseOk_doRequest_returnsSuccessfully() throws ExecutionException, InterruptedException, RetryableException, IOException
+  public void testResponse4xx_doRequest_throwsIAEException() throws ExecutionException, InterruptedException
   {
-    Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
-    Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
-    Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class),
-                                   ArgumentMatchers.any(InputStreamFullResponseHandler.class),
-                                   ArgumentMatchers.any())).thenReturn(mockFuture);
-
-    InputStreamFullResponseHolder responseHolder1 = tableFunctionApiMapper.doRequest(mockRequest);
-    Assert.assertEquals(mockResponseHolder, responseHolder1);
-  }
-
-  @Test
-  public void testResponse404_doRequest_throwsIAEException() throws ExecutionException, InterruptedException
-  {
+    String errorMsg = "User specified file not found. Correct the issue and then retry";
     Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.BAD_REQUEST);
     Mockito.when(mockResponseHolder.getContent()).thenReturn(new ByteArrayInputStream(
-        StringUtils.format("some exception occurred").getBytes(StandardCharsets.UTF_8)));
+        StringUtils.format(errorMsg).getBytes(StandardCharsets.UTF_8)));
     Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
-    Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class),
-                                   ArgumentMatchers.any(InputStreamFullResponseHandler.class),
-                                   ArgumentMatchers.any())).thenReturn(mockFuture);
+    Mockito.when(mockHttpClient.go(
+        ArgumentMatchers.any(Request.class),
+        ArgumentMatchers.any(InputStreamFullResponseHandler.class),
+        ArgumentMatchers.any()
+    )).thenReturn(mockFuture);
 
 
-    IAE ex = Assert.assertThrows(
-        IAE.class,
-        () -> tableFunctionApiMapper.doRequest(mockRequest)
+    RuntimeException ex = Assert.assertThrows(
+        RuntimeException.class,
+        () -> tableFunctionApiMapper.getTableFunctionMapping(PolarisTestTableFunctionUtils.getSampleTableFunctionSpec())
     );
-    Assert.assertTrue(ex.getMessage().contains("POLARIS_RETURNED_EXCEPTION"));
+
+    Assert.assertTrue(ex.getMessage().contains(errorMsg));
+    Assert.assertTrue(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
   }
 
 
   @Test
-  public void testResponse5xx_doRequest_throwsRetryableException() throws ExecutionException, InterruptedException
+  public void test_Response5xx_doRequest_throwsRetryableException() throws ExecutionException, InterruptedException
   {
+    String errorMsg = "Some internal error occurred on Polaris. Please retry.";
+    Mockito.when(tableFunctionApiMapper.getPolarisRetryCount()).thenReturn(1);
     Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.INTERNAL_SERVER_ERROR);
     Mockito.when(mockResponseHolder.getContent()).thenReturn(new ByteArrayInputStream(
-        StringUtils.format("some exception occurred").getBytes(StandardCharsets.UTF_8)));
+        StringUtils.format(errorMsg).getBytes(StandardCharsets.UTF_8)));
     Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
-    Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class),
-                                   ArgumentMatchers.any(InputStreamFullResponseHandler.class),
-                                   ArgumentMatchers.any())).thenReturn(mockFuture);
+    Mockito.when(mockHttpClient.go(
+        ArgumentMatchers.any(Request.class),
+        ArgumentMatchers.any(InputStreamFullResponseHandler.class),
+        ArgumentMatchers.any()
+    )).thenReturn(mockFuture);
 
-    RetryableException ex = Assert.assertThrows(
-        RetryableException.class,
-        () -> tableFunctionApiMapper.doRequest(mockRequest)
+    Exception ex = Assert.assertThrows(
+        Exception.class,
+        () -> tableFunctionApiMapper.getTableFunctionMapping(PolarisTestTableFunctionUtils.getSampleTableFunctionSpec())
     );
-    Assert.assertFalse(ex.getMessage().contains("POLARIS_RETURNED_EXCEPTION"));
+    Assert.assertTrue(ex.getMessage().contains(errorMsg));
+    Assert.assertFalse(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
   }
 }
