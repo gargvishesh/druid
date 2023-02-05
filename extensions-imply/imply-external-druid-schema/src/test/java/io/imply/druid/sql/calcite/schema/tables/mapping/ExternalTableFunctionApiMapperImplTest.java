@@ -1,8 +1,19 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.sql.calcite.schema.tables.mapping;
 
-
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.imply.druid.sql.calcite.external.PolarisExternalTableSpec;
+import io.imply.druid.sql.calcite.external.PolarisTestTableFunctionUtils;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.java.util.RetryableException;
 import org.apache.druid.java.util.common.IAE;
@@ -30,7 +41,7 @@ public class ExternalTableFunctionApiMapperImplTest
   @Mock
   private HttpClient mockHttpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
-  private ExternalTableFunctionApiMapperImpl externalTable;
+  private ExternalTableFunctionApiMapperImpl tableFunctionApiMapper;
 
   private Request mockRequest;
   private InputStreamFullResponseHolder mockResponseHolder;
@@ -40,7 +51,7 @@ public class ExternalTableFunctionApiMapperImplTest
   public void setUp()
   {
     MockitoAnnotations.openMocks(this);
-    externalTable = Mockito.spy(new ExternalTableFunctionApiMapperImpl(
+    tableFunctionApiMapper = Mockito.spy(new ExternalTableFunctionApiMapperImpl(
         new ImplyExternalDruidSchemaCommonConfig(
             null,
             null,
@@ -62,6 +73,22 @@ public class ExternalTableFunctionApiMapperImplTest
   }
 
   @Test
+  public void testHigherLevelApi() throws ExecutionException, InterruptedException, JsonProcessingException
+  {
+    PolarisExternalTableSpec expectedExternalTableSpec = PolarisTestTableFunctionUtils.getSamplePolarisExternalTableSpec();
+    Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
+    Mockito.when(mockResponseHolder.getContent()).thenReturn(new ByteArrayInputStream(
+        StringUtils.format(objectMapper.writeValueAsString(expectedExternalTableSpec)).getBytes(StandardCharsets.UTF_8)));
+    Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
+    Mockito.when(mockHttpClient.go(ArgumentMatchers.any(Request.class),
+                                   ArgumentMatchers.any(InputStreamFullResponseHandler.class),
+                                   ArgumentMatchers.any())).thenReturn(mockFuture);
+
+    Assert.assertEquals(expectedExternalTableSpec, tableFunctionApiMapper.getTableFunctionMapping(
+        PolarisTestTableFunctionUtils.getSampleTableFunctionSpec()));
+  }
+
+  @Test
   public void testResponseOk_doRequest_returnsSuccessfully() throws ExecutionException, InterruptedException, RetryableException, IOException
   {
     Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
@@ -70,7 +97,7 @@ public class ExternalTableFunctionApiMapperImplTest
                                    ArgumentMatchers.any(InputStreamFullResponseHandler.class),
                                    ArgumentMatchers.any())).thenReturn(mockFuture);
 
-    InputStreamFullResponseHolder responseHolder1 = externalTable.doRequest(mockRequest);
+    InputStreamFullResponseHolder responseHolder1 = tableFunctionApiMapper.doRequest(mockRequest);
     Assert.assertEquals(mockResponseHolder, responseHolder1);
   }
 
@@ -88,7 +115,7 @@ public class ExternalTableFunctionApiMapperImplTest
 
     IAE ex = Assert.assertThrows(
         IAE.class,
-        () -> externalTable.doRequest(mockRequest)
+        () -> tableFunctionApiMapper.doRequest(mockRequest)
     );
     Assert.assertTrue(ex.getMessage().contains("POLARIS_RETURNED_EXCEPTION"));
   }
@@ -107,7 +134,7 @@ public class ExternalTableFunctionApiMapperImplTest
 
     RetryableException ex = Assert.assertThrows(
         RetryableException.class,
-        () -> externalTable.doRequest(mockRequest)
+        () -> tableFunctionApiMapper.doRequest(mockRequest)
     );
     Assert.assertFalse(ex.getMessage().contains("POLARIS_RETURNED_EXCEPTION"));
   }
