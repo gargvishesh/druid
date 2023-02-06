@@ -77,6 +77,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       return postTableMappingCallToPolaris(serializedTableFnSpec);
     }
     catch (Exception e) {
+      // Note this exception is wrapped in an unchecked exception to avoid handling/checking for exceptions in the call stack
       throw new RuntimeException(e);
     }
   }
@@ -149,7 +150,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 
       // Retryable error, wrap and throw a retryable exception with context.
       String exceptionMsg = StringUtils.format(
-          "Request to Polaris failed but is retryable %s", exceptionContentAsString(responseHolder.getContent()));
+          "%s Request to Polaris failed but is retryable %s", POLARIS_EXCEPTION_TAG,
+          exceptionContentAsString(responseHolder.getContent()));
       RetryableException retryableException = new RetryableException(new RuntimeException(exceptionMsg));
       LOG.error(retryableException, "Request failed but is retryable");
       throw retryableException;

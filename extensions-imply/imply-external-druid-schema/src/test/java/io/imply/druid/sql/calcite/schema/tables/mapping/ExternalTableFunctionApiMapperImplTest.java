@@ -132,7 +132,7 @@ public class ExternalTableFunctionApiMapperImplTest
         () -> tableFunctionApiMapper.getTableFunctionMapping(PolarisTableFunctionTestUtil.TEST_TABLE_FUNCTION_SPEC)
     );
     Assert.assertTrue(ex.getMessage().contains(expectedErrMsg));
-    Assert.assertFalse(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
+    Assert.assertTrue(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
   }
 
   private ByteArrayInputStream createTestByteArrayInputStreamContent(String exMsg)
