@@ -35,15 +35,15 @@ public class PolarisTableFunctionResolverTest
         ));
 
     resolver = new PolarisTableFunctionResolverImpl(tblFnMapper);
-    Mockito.doReturn(PolarisTestTableFunctionUtils.getSamplePolarisExternalTableSpec())
+    Mockito.doReturn(PolarisTableFunctionTestUtil.TEST_EXTERNAL_TABLE_SPEC)
            .when(tblFnMapper).getTableFunctionMapping(ArgumentMatchers.any());
   }
 
   @Test
   public void test_validTableFunctionSpec_resolves_expectedExtTableSpec()
   {
-    PolarisExternalTableSpec resolvedExternalTableSpec = resolver.resolve(PolarisTestTableFunctionUtils.getSampleTableFunctionSpec());
-    Assert.assertEquals(PolarisTestTableFunctionUtils.getSamplePolarisExternalTableSpec(), resolvedExternalTableSpec);
+    PolarisExternalTableSpec resolvedExternalTableSpec = resolver.resolve(PolarisTableFunctionTestUtil.TEST_TABLE_FUNCTION_SPEC);
+    Assert.assertEquals(PolarisTableFunctionTestUtil.TEST_EXTERNAL_TABLE_SPEC, resolvedExternalTableSpec);
   }
 
   @Test
