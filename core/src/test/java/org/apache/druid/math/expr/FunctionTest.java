@@ -1034,7 +1034,7 @@ public class FunctionTest extends InitializedNullHandlingTest
   @Test
   public void testDateExpand()
   {
-    assertArrayExpr("date_expand(1674202858000, 3, 5)", new Long[]{1674202803000L, 1674202804000L, 1674202805000L});
+    assertArrayExpr("date_expand(1674202858000, 1674202858500, 'PT0.1S')", new Long[]{1674202858000L, 1674202858100L, 1674202858200L, 1674202858300L, 1674202858400L, 1674202858500L});
   }
 
   @Test
@@ -1050,39 +1050,15 @@ public class FunctionTest extends InitializedNullHandlingTest
   {
     expectedException.expect(ExpressionValidationException.class);
     expectedException.expectMessage("Function[date_expand] first param should be a LONG but got [STRING] instead");
-    assertArrayExpr("date_expand(abcd, 1, 5)", null);
-  }
-
-  @Test
-  public void testDateExpandIncorrectSecondGranularity()
-  {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] second [-2] and third [5] param should be within [0-59] range and increasing order");
-    assertArrayExpr("date_expand(1674202858000, -2, 5)", null);
+    assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", null);
   }
 
   @Test
   public void testDateExpandStartGreaterThanEnd()
   {
     expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] second [5] and third [4] param should be within [0-59] range and increasing order");
-    assertArrayExpr("date_expand(1674202858000, 5, 4)", null);
-  }
-
-  @Test
-  public void testDateExpandStartIsNan()
-  {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] second param should be a LONG but got [DOUBLE] instead");
-    assertArrayExpr("date_expand(1674202858000, nan, 10)", null);
-  }
-
-  @Test
-  public void testDateExpandStartIsInf()
-  {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] second param should be a LONG but got [DOUBLE] instead");
-    assertArrayExpr("date_expand(1674202858000, inf, 10)", null);
+    expectedException.expectMessage("Function[date_expand] first argument should be less than equals to the second argument");
+    assertArrayExpr("date_expand(1674202858800, 1674202858500, 'PT1M')", null);
   }
 
   private void assertExpr(final String expression, @Nullable final Object expectedResult)

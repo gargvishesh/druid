@@ -33,7 +33,7 @@ public class DateExpandOperatorConversion extends DirectOperatorConversion
   // note: since this function produces an array
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder(StringUtils.toUpperCase(Function.DateExpandFunction.OPERATOR_NAME))
-      .operandTypes(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+      .operandTypes(SqlTypeFamily.EXACT_NUMERIC, SqlTypeFamily.EXACT_NUMERIC, SqlTypeFamily.CHARACTER)
       .requiredOperands(3)
       .functionCategory(SqlFunctionCategory.TIMEDATE)
       .returnTypeNullableArrayWithNullableElements(SqlTypeName.TIMESTAMP)
