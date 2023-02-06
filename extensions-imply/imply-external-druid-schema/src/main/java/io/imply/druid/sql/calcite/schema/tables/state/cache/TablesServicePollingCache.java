@@ -16,6 +16,7 @@ import io.imply.druid.sql.calcite.schema.cache.PollingManagedCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.notifier.ExternalDruidSchemaCacheNotifier;
 import org.apache.commons.io.IOUtils;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -24,6 +25,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nullable;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -118,7 +120,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   {
     try {
       final InputStream is = httpClient.go(
-          new Request(HttpMethod.GET, new URL(commonConfig.getTablesSchemasUrl())),
+          new Request(HttpMethod.GET, getTablesSchemasURL()),
           new InputStreamResponseHandler()
       ).get();
       return IOUtils.toByteArray(is);
@@ -131,6 +133,21 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
       // Unwrap if possible
       LOG.warn(e, "Got ExecutionException when fetching table schemas.");
       return null;
+    }
+  }
+
+  private URL getTablesSchemasURL()
+  {
+    // Use the new URL config if present, otherwise fallback to the old config.
+    try {
+      return commonConfig.getTablesSchemasUrl() != null ?
+             new URL(commonConfig.getTablesSchemasUrl()) : new URL(commonConfig.getTablesServiceUrl());
+    }
+    catch (MalformedURLException mue) {
+      String errContext = StringUtils.format("Malformed table schema URL specified - tablesSchemasUrl: %s, tablesServiceUrl: %s",
+                                             commonConfig.getTablesSchemasUrl(), commonConfig.getTablesServiceUrl());
+      LOG.error(mue, errContext);
+      throw new RuntimeException(errContext, mue);
     }
   }
 }

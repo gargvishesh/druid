@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
@@ -92,7 +93,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
       throws Exception
   {
     Request req = createRequest(
-        new URL(commonConfig.getTableFunctionMappingUrl()),
+        getTableFunctionMappingURL(),
         objectMapper.writeValueAsBytes(polarisTableFunctionSpec)
     );
 
@@ -179,5 +180,19 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   private String exceptionContentAsString(InputStream content) throws IOException
   {
     return IOUtils.toString(content, StandardCharsets.UTF_8);
+  }
+
+  private URL getTableFunctionMappingURL()
+  {
+    try {
+      return new URL(commonConfig.getTableFunctionMappingUrl());
+    }
+    catch (MalformedURLException mue) {
+      String errContext = StringUtils.format("Malformed table function mapping URL specified - tableFunctionMappingUrl: %s ",
+                         commonConfig.getTableFunctionMappingUrl());
+      LOG.error(mue, errContext);
+      // TODO: this currently gets mapped to 4xx. See if it can be mapped to 500 correctly.
+      throw new RuntimeException(errContext, mue);
+    }
   }
 }

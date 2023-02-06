@@ -47,6 +47,11 @@ public class ImplyExternalDruidSchemaCommonConfig
   @JsonProperty
   private final long notifierUpdatePeriod;
 
+  @Deprecated
+  @JsonProperty
+  @Nullable
+  private final String tablesServiceUrl;
+
   @JsonProperty
   private final String tablesSchemasUrl;
 
@@ -62,6 +67,7 @@ public class ImplyExternalDruidSchemaCommonConfig
       @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
+      @JsonProperty("tablesServiceUrl") @Nullable String tablesServiceUrl,
       @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl,
       @JsonProperty("tableFunctionMappingUrl") @Nonnull String tableFunctionMappingUrl
   )
@@ -73,6 +79,7 @@ public class ImplyExternalDruidSchemaCommonConfig
     this.enableCacheNotifications = enableCacheNotifications == null || enableCacheNotifications;
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
+    this.tablesServiceUrl = tablesServiceUrl;
     this.tablesSchemasUrl = tablesSchemasUrl;
     this.tableFunctionMappingUrl = tableFunctionMappingUrl;
   }
@@ -87,6 +94,7 @@ public class ImplyExternalDruidSchemaCommonConfig
     this.enableCacheNotifications = true;
     this.cacheNotificationTimeout = DEFAULT_CACHE_NOTIFY_TIMEOUT_MS;
     this.notifierUpdatePeriod = DEFAULT_NOTIFIER_UPDATE_PERIOD;
+    this.tablesServiceUrl = null;
     this.tablesSchemasUrl = null;
     this.tableFunctionMappingUrl = null;
   }
@@ -134,6 +142,14 @@ public class ImplyExternalDruidSchemaCommonConfig
     return notifierUpdatePeriod;
   }
 
+  @Deprecated
+  @JsonProperty
+  @Nullable
+  public String getTablesServiceUrl()
+  {
+    return tablesServiceUrl;
+  }
+
   @JsonProperty
   public String getTablesSchemasUrl()
   {
@@ -163,6 +179,7 @@ public class ImplyExternalDruidSchemaCommonConfig
            && cacheNotificationTimeout == that.cacheNotificationTimeout
            && notifierUpdatePeriod == that.notifierUpdatePeriod
            && Objects.equals(cacheDirectory, that.cacheDirectory)
+           && Objects.equals(tablesServiceUrl, that.tablesSchemasUrl)
            && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl)
            && Objects.equals(tableFunctionMappingUrl, that.tableFunctionMappingUrl);
   }
