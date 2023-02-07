@@ -18,13 +18,11 @@ import io.imply.druid.inet.column.IpAddressTestUtils;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
+import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.impl.InputRowParser;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
-import org.apache.druid.data.input.impl.MapInputRowParser;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
-import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -53,7 +51,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
@@ -149,22 +146,22 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                   .build()
   );
 
-  private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new TimestampSpec("t", "iso", null),
-          DimensionsSpec.builder().setDimensions(
-              ImmutableList.<DimensionSchema>builder()
-                           .add(new StringDimensionSchema("string"))
-                           .add(new IpAddressDimensionSchema("ipv4", true))
-                           .add(new IpAddressDimensionSchema("ipv6", true))
-                           .add(new IpAddressDimensionSchema("ipvmix", true))
-                           .add(new LongDimensionSchema("long"))
-                           .build()
-          ).build()
-      ));
+  private static final InputRowSchema SCHEMA = new InputRowSchema(
+      new TimestampSpec("t", "iso", null),
+      DimensionsSpec.builder().setDimensions(
+          ImmutableList.<DimensionSchema>builder()
+                       .add(new StringDimensionSchema("string"))
+                       .add(new IpAddressDimensionSchema("ipv4", true))
+                       .add(new IpAddressDimensionSchema("ipv6", true))
+                       .add(new IpAddressDimensionSchema("ipvmix", true))
+                       .add(new LongDimensionSchema("long"))
+                       .build()
+      ).build(),
+      null
+  );
 
   private static final List<InputRow> ROWS =
-      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
+      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, SCHEMA)).collect(Collectors.toList());
 
   @Override
   public void configureGuice(DruidInjectorBuilder builder)
@@ -190,7 +187,7 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                             .withMetrics(
                                 new CountAggregatorFactory("cnt")
                             )
-                            .withDimensionsSpec(PARSER)
+                            .withDimensionsSpec(SCHEMA.getDimensionsSpec())
                             .withRollup(false)
                             .build()
                     )
