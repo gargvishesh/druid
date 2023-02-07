@@ -13,6 +13,8 @@ import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
 import org.apache.druid.java.util.common.IAE;
 
+import javax.annotation.Nullable;
+
 public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionResolver
 {
   private final ExternalTableFunctionMapper tableFunctionMapper;
@@ -26,6 +28,7 @@ public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionRes
   }
 
   @Override
+  @Nullable
   public PolarisExternalTableSpec resolve(final PolarisTableFunctionSpec fn)
   {
     if (null == fn) {

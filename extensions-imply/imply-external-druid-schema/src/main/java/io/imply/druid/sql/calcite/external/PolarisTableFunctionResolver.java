@@ -9,6 +9,8 @@
 
 package io.imply.druid.sql.calcite.external;
 
+import javax.annotation.Nullable;
+
 /**
  * Handles making RPC call to Polaris to resolve table functions
  */
@@ -19,5 +21,6 @@ public interface PolarisTableFunctionResolver
    * @param fn The table function to resolve
    * @return The {@link PolarisExternalTableSpec} that the function resolves to.
    */
+  @Nullable
   PolarisExternalTableSpec resolve(PolarisTableFunctionSpec fn);
 }

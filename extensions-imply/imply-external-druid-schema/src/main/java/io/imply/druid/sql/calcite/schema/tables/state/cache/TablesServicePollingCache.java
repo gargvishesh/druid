@@ -138,7 +138,6 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
 
   private URL getTablesSchemasURL()
   {
-    // Use the new URL config if present, otherwise fallback to the old config.
     try {
       return new URL(commonConfig.getTablesSchemasUrl());
     }

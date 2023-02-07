@@ -150,6 +150,12 @@ public class ImplyExternalDruidSchemaCommonConfig
     return tablesServiceUrl;
   }
 
+   /**
+    * Use the new URL config if present, otherwise fallback to the old config. The
+    * old config will be removed in a future release when the Druid clusters are
+    * updated with the new config.
+   * @return table schemas url
+   */
   @JsonProperty
   public String getTablesSchemasUrl()
   {

@@ -154,7 +154,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
           "Request to Polaris failed with error code %d, but is retryable. %s %s", responseStatusCode, POLARIS_EXCEPTION_TAG,
           exceptionContentAsString(responseHolder.getContent()));
       RetryableException retryableException = new RetryableException(new RuntimeException(exceptionMsg));
-      LOG.error(retryableException, "Request failed, but is retryable");
+      LOG.warn(retryableException, "Request failed, but is retryable");
       throw retryableException;
 
     } else {
