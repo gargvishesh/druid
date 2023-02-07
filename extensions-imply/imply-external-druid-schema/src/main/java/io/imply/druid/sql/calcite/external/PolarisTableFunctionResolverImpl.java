@@ -29,7 +29,7 @@ public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionRes
 
   @Override
   @Nullable
-  public PolarisExternalTableSpec resolve(final PolarisTableFunctionSpec fn)
+  public PolarisExternalTableSpec resolve(@Nullable final PolarisTableFunctionSpec fn)
   {
     if (null == fn) {
       throw new IAE("Polaris table function spec must be provided.");
