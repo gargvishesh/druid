@@ -67,7 +67,7 @@ public class ImplyExternalDruidSchemaCommonConfig
       @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
-      @JsonProperty("tablesServiceUrl") @Nullable String tablesServiceUrl,
+      @Deprecated @JsonProperty("tablesServiceUrl") @Nullable String tablesServiceUrl,
       @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl,
       @JsonProperty("tableFunctionMappingUrl") @Nonnull String tableFunctionMappingUrl
   )
@@ -145,7 +145,7 @@ public class ImplyExternalDruidSchemaCommonConfig
   @Deprecated
   @JsonProperty
   @Nullable
-  public String getTablesServiceUrl()
+  private String getTablesServiceUrl()
   {
     return tablesServiceUrl;
   }
@@ -153,7 +153,8 @@ public class ImplyExternalDruidSchemaCommonConfig
   @JsonProperty
   public String getTablesSchemasUrl()
   {
-    return tablesSchemasUrl;
+    // Use the new URL config if present, otherwise fallback to the old config for backwards compatibility.
+    return tablesSchemasUrl != null ? tablesSchemasUrl : tablesServiceUrl;
   }
 
   @JsonProperty
@@ -179,7 +180,7 @@ public class ImplyExternalDruidSchemaCommonConfig
            && cacheNotificationTimeout == that.cacheNotificationTimeout
            && notifierUpdatePeriod == that.notifierUpdatePeriod
            && Objects.equals(cacheDirectory, that.cacheDirectory)
-           && Objects.equals(tablesServiceUrl, that.tablesSchemasUrl)
+           && Objects.equals(tablesServiceUrl, that.tablesServiceUrl)
            && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl)
            && Objects.equals(tableFunctionMappingUrl, that.tableFunctionMappingUrl);
   }

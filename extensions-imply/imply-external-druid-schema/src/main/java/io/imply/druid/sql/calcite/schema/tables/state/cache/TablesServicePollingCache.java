@@ -140,12 +140,11 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   {
     // Use the new URL config if present, otherwise fallback to the old config.
     try {
-      return commonConfig.getTablesSchemasUrl() != null ?
-             new URL(commonConfig.getTablesSchemasUrl()) : new URL(commonConfig.getTablesServiceUrl());
+      return new URL(commonConfig.getTablesSchemasUrl());
     }
     catch (MalformedURLException mue) {
-      String errContext = StringUtils.format("Malformed table schema URL specified - tablesSchemasUrl: %s, tablesServiceUrl: %s",
-                                             commonConfig.getTablesSchemasUrl(), commonConfig.getTablesServiceUrl());
+      String errContext = StringUtils.format("Malformed table schema URL specified - tablesSchemasUrl: %s",
+                                             commonConfig.getTablesSchemasUrl());
       LOG.error(mue, errContext);
       throw new RuntimeException(errContext, mue);
     }
