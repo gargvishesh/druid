@@ -115,9 +115,14 @@ public class ExternalTableFunctionApiMapperImplTest
   public void test_5xxPolarisResponse_getTableFunctionMapping_throwsRetryableExceptionWithOriginalContext() throws ExecutionException, InterruptedException
   {
     String expectedErrMsg = "Some internal error occurred on Polaris. Please retry.";
-    Mockito.when(tableFunctionApiMapper.getPolarisRetryCount()).thenReturn(3);
-    Mockito.when(mockResponseHolder.getStatus()).thenReturn(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+    Mockito.when(tableFunctionApiMapper.getPolarisRetryCount()).thenReturn(4);
+    Mockito.when(mockResponseHolder.getStatus())
+           .thenReturn(HttpResponseStatus.GATEWAY_TIMEOUT)
+           .thenReturn(HttpResponseStatus.BAD_GATEWAY)
+          .thenReturn(HttpResponseStatus.SERVICE_UNAVAILABLE)
+        .thenReturn(HttpResponseStatus.INTERNAL_SERVER_ERROR);
     Mockito.when(mockResponseHolder.getContent())
+           .thenReturn(createTestByteArrayInputStreamContent(expectedErrMsg))
            .thenReturn(createTestByteArrayInputStreamContent(expectedErrMsg))
            .thenReturn(createTestByteArrayInputStreamContent(expectedErrMsg))
            .thenReturn(createTestByteArrayInputStreamContent(expectedErrMsg));
@@ -134,6 +139,34 @@ public class ExternalTableFunctionApiMapperImplTest
     );
     Assert.assertTrue(ex.getMessage().contains(expectedErrMsg));
     Assert.assertTrue(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
+  }
+
+  @Test
+  public void test_5xxThen200PolarisResponse_getTableFunctionMapping_returnsSuccessfully() throws ExecutionException, InterruptedException
+  {
+    String exceptionErrMsg = "Some internal error occurred on Polaris. Please retry.";
+    Mockito.when(tableFunctionApiMapper.getPolarisRetryCount()).thenReturn(3);
+    Mockito.when(mockResponseHolder.getStatus())
+           .thenReturn(HttpResponseStatus.GATEWAY_TIMEOUT)
+           .thenReturn(HttpResponseStatus.BAD_GATEWAY)
+           .thenReturn(HttpResponseStatus.OK);
+    Mockito.when(mockResponseHolder.getContent())
+           .thenReturn(createTestByteArrayInputStreamContent(exceptionErrMsg))
+           .thenReturn(createTestByteArrayInputStreamContent(exceptionErrMsg))
+           .thenReturn(createTestByteArrayInputStreamContent(exceptionErrMsg));
+    Mockito.when(mockFuture.get()).thenReturn(mockResponseHolder);
+    Mockito.when(mockHttpClient.go(
+        ArgumentMatchers.any(Request.class),
+        ArgumentMatchers.any(InputStreamFullResponseHandler.class),
+        ArgumentMatchers.any()
+    )).thenReturn(mockFuture);
+
+    Exception ex = Assert.assertThrows(
+        Exception.class,
+        () -> tableFunctionApiMapper.getTableFunctionMapping(PolarisTableFunctionTestUtil.TEST_TABLE_FUNCTION_SPEC)
+    );
+    Assert.assertFalse(ex.getMessage().contains(exceptionErrMsg));
+    Assert.assertFalse(ex.getMessage().contains(ExternalTableFunctionApiMapperImpl.POLARIS_EXCEPTION_TAG));
   }
 
   private ByteArrayInputStream createTestByteArrayInputStreamContent(String exMsg)

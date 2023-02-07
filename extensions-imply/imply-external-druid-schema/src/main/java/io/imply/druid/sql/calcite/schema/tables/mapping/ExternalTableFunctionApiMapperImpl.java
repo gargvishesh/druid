@@ -151,16 +151,16 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 
       // Retryable error, wrap and throw a retryable exception with context.
       String exceptionMsg = StringUtils.format(
-          "%s Request to Polaris failed but is retryable %s", POLARIS_EXCEPTION_TAG,
+          "Request to Polaris failed with error code %d, but is retryable. %s %s", responseStatusCode, POLARIS_EXCEPTION_TAG,
           exceptionContentAsString(responseHolder.getContent()));
       RetryableException retryableException = new RetryableException(new RuntimeException(exceptionMsg));
-      LOG.error(retryableException, "Request failed but is retryable");
+      LOG.error(retryableException, "Request failed, but is retryable");
       throw retryableException;
 
     } else {
 
       // Error, but not going to retry; bubble up the exception as-is with a unique tag.
-      String exceptionWithMsg = StringUtils.format("%s %s", POLARIS_EXCEPTION_TAG,
+      String exceptionWithMsg = StringUtils.format("Request failed with error code %d. %s %s", responseStatusCode, POLARIS_EXCEPTION_TAG,
                                                    exceptionContentAsString(responseHolder.getContent())
       );
       IAE polarisException = new IAE(exceptionWithMsg);
