@@ -14,19 +14,16 @@ package io.imply.druid.inet.sql;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressTestUtils;
 import io.imply.druid.inet.column.IpPrefixDimensionSchema;
 import org.apache.druid.data.input.InputRow;
+import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
-import org.apache.druid.data.input.impl.InputRowParser;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
-import org.apache.druid.data.input.impl.MapInputRowParser;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
-import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -44,11 +41,7 @@ import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
-import org.apache.druid.sql.calcite.aggregation.ApproxCountDistinctSqlAggregator;
-import org.apache.druid.sql.calcite.aggregation.builtin.BuiltinApproxCountDistinctSqlAggregator;
-import org.apache.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
 import org.apache.druid.timeline.DataSegment;
@@ -57,7 +50,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
@@ -148,22 +140,22 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
           .build()
   );
 
-  private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new TimestampSpec("t", "iso", null),
-          DimensionsSpec.builder().setDimensions(
-              ImmutableList.<DimensionSchema>builder()
-                  .add(new StringDimensionSchema("string"))
-                  .add(new IpPrefixDimensionSchema("ipv4", true))
-                  .add(new IpPrefixDimensionSchema("ipv6", true))
-                  .add(new IpPrefixDimensionSchema("ipvmix", true))
-                  .add(new LongDimensionSchema("long"))
-                  .build()
-          ).build()
-      ));
+  private static final InputRowSchema SCHEMA = new InputRowSchema(
+      new TimestampSpec("t", "iso", null),
+      DimensionsSpec.builder().setDimensions(
+          ImmutableList.<DimensionSchema>builder()
+                       .add(new StringDimensionSchema("string"))
+                       .add(new IpPrefixDimensionSchema("ipv4", true))
+                       .add(new IpPrefixDimensionSchema("ipv6", true))
+                       .add(new IpPrefixDimensionSchema("ipvmix", true))
+                       .add(new LongDimensionSchema("long"))
+                       .build()
+      ).build(),
+      null
+  );
 
   private static final List<InputRow> ROWS =
-      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
+      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, SCHEMA)).collect(Collectors.toList());
 
   @Override
   public void configureGuice(DruidInjectorBuilder builder)
@@ -189,7 +181,7 @@ public class IpPrefixCalciteQueryTest extends BaseCalciteQueryTest
                             .withMetrics(
                                 new CountAggregatorFactory("cnt")
                             )
-                            .withDimensionsSpec(PARSER)
+                            .withDimensionsSpec(SCHEMA.getDimensionsSpec())
                             .withRollup(false)
                             .build()
                     )

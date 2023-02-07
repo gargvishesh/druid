@@ -23,8 +23,8 @@ import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngineV2;
+import org.apache.druid.query.groupby.epinephelinae.GroupByTestColumnSelectorFactory;
 import org.apache.druid.query.groupby.epinephelinae.Grouper;
-import org.apache.druid.query.groupby.epinephelinae.TestColumnSelectorFactory;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorPlus;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorStrategy;
 import org.apache.druid.segment.DimensionHandlerUtils;
@@ -207,7 +207,7 @@ public class SamplingBufferHashGrouperTest
     }
   }
 
-  private static class TestLongColumnSelectorFactory extends TestColumnSelectorFactory
+  private static class TestLongColumnSelectorFactory extends GroupByTestColumnSelectorFactory
   {
     @Override
     public ColumnCapabilities getColumnCapabilities(String columnName)

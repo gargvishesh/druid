@@ -25,12 +25,10 @@ import com.google.inject.Injector;
 import io.imply.druid.UtilityBeltModule;
 import io.imply.druid.inet.IpAddressModule;
 import org.apache.druid.data.input.InputRow;
+import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.impl.DimensionSchema;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.DoubleDimensionSchema;
-import org.apache.druid.data.input.impl.InputRowParser;
-import org.apache.druid.data.input.impl.MapInputRowParser;
-import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -55,7 +53,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
@@ -70,20 +67,20 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
                   .build()
   );
 
-  private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new TimestampSpec("t", "iso", null),
-          DimensionsSpec.builder()
-                        .setDimensions(
-                            ImmutableList.<DimensionSchema>builder()
-                                         .add(new DoubleDimensionSchema("lon"))
-                                         .add(new DoubleDimensionSchema("lat"))
-                                         .build()
-                        ).build()
-      ));
+  private static final InputRowSchema SCHEMA = new InputRowSchema(
+      new TimestampSpec("t", "iso", null),
+      DimensionsSpec.builder()
+                    .setDimensions(
+                        ImmutableList.<DimensionSchema>builder()
+                                     .add(new DoubleDimensionSchema("lon"))
+                                     .add(new DoubleDimensionSchema("lat"))
+                                     .build()
+                    ).build(),
+      null
+  );
 
   private static final List<InputRow> ROWS =
-      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, PARSER)).collect(Collectors.toList());
+      RAW_ROWS.stream().map(raw -> TestDataBuilder.createRow(raw, SCHEMA)).collect(Collectors.toList());
 
   @Override
   public void configureGuice(DruidInjectorBuilder builder)
@@ -109,7 +106,7 @@ public class GeohashCalciteQueryTest extends BaseCalciteQueryTest
                             .withMetrics(
                                 new CountAggregatorFactory("cnt")
                             )
-                            .withDimensionsSpec(PARSER)
+                            .withDimensionsSpec(SCHEMA.getDimensionsSpec())
                             .withRollup(false)
                             .build()
                     )
