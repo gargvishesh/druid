@@ -13,7 +13,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
@@ -68,8 +67,8 @@ public class ImplyExternalDruidSchemaCommonConfig
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
       @Deprecated @JsonProperty("tablesServiceUrl") @Nullable String tablesServiceUrl,
-      @JsonProperty("tablesSchemasUrl") @Nonnull String tablesSchemasUrl,
-      @JsonProperty("tableFunctionMappingUrl") @Nonnull String tableFunctionMappingUrl
+      @JsonProperty("tablesSchemasUrl") @Nullable String tablesSchemasUrl,
+      @JsonProperty("tableFunctionMappingUrl") @Nullable String tableFunctionMappingUrl
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
@@ -202,6 +201,7 @@ public class ImplyExternalDruidSchemaCommonConfig
         enableCacheNotifications,
         cacheNotificationTimeout,
         notifierUpdatePeriod,
+        tablesServiceUrl,
         tablesSchemasUrl,
         tableFunctionMappingUrl
     );
