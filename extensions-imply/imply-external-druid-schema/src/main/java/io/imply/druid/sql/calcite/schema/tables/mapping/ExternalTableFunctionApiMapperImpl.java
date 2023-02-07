@@ -48,7 +48,7 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
 {
   private static final EmittingLogger LOG = new EmittingLogger(ExternalTableFunctionApiMapperImpl.class);
 
-  // A unique prefix tag that Polaris could use to decode the original exception.
+  // A unique prefix tag that Polaris can use to decode the original exception.
   @VisibleForTesting
   public static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
   private static final Duration POLARIS_POST_TIMEOUT = Duration.millis(5000L);
