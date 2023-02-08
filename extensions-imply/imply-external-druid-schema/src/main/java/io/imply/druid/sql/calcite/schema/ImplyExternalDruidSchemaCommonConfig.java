@@ -16,7 +16,7 @@ import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import java.util.Objects;
 
-public class ImplyExternalDruidSchemaCommonCacheConfig
+public class ImplyExternalDruidSchemaCommonConfig
 {
   private static final long DEFAULT_POLLING_PERIOD = 60000;
   private static final long DEFAULT_MAX_RANDOM_DELAY = DEFAULT_POLLING_PERIOD / 10;
@@ -46,11 +46,18 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
   @JsonProperty
   private final long notifierUpdatePeriod;
 
+  @Deprecated
   @JsonProperty
   private final String tablesServiceUrl;
 
+  @JsonProperty
+  private final String tablesSchemasUrl;
+
+  @JsonProperty
+  private final String tableFunctionMappingUrl;
+
   @JsonCreator
-  public ImplyExternalDruidSchemaCommonCacheConfig(
+  public ImplyExternalDruidSchemaCommonConfig(
       @JsonProperty("pollingPeriod") @Nullable Long pollingPeriod,
       @JsonProperty("maxRandomDelay") @Nullable Long maxRandomDelay,
       @JsonProperty("cacheDirectory") @Nullable String cacheDirectory,
@@ -58,7 +65,9 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
       @JsonProperty("enableCacheNotifications") @Nullable Boolean enableCacheNotifications,
       @JsonProperty("cacheNotificationTimeout") @Nullable Long cacheNotificationTimeout,
       @JsonProperty("notifierUpdatePeriod") @Nullable Long notifierUpdatePeriod,
-      @JsonProperty("tablesServiceUrl") String tablesServiceUrl
+      @Deprecated @JsonProperty("tablesServiceUrl") @Nullable String tablesServiceUrl,
+      @JsonProperty("tablesSchemasUrl") @Nullable String tablesSchemasUrl,
+      @JsonProperty("tableFunctionMappingUrl") @Nullable String tableFunctionMappingUrl
   )
   {
     this.pollingPeriod = pollingPeriod == null ? DEFAULT_POLLING_PERIOD : pollingPeriod;
@@ -68,11 +77,14 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     this.enableCacheNotifications = enableCacheNotifications == null || enableCacheNotifications;
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
-    this.tablesServiceUrl = tablesServiceUrl;
+    // Use the new URL config if present, otherwise fallback to the old config. The old config will be removed in a future release.
+    this.tablesServiceUrl = tablesServiceUrl == null ? tablesSchemasUrl : tablesServiceUrl;
+    this.tablesSchemasUrl = tablesSchemasUrl == null ? tablesServiceUrl : tablesSchemasUrl;
+    this.tableFunctionMappingUrl = tableFunctionMappingUrl;
   }
 
   @VisibleForTesting
-  public ImplyExternalDruidSchemaCommonCacheConfig()
+  public ImplyExternalDruidSchemaCommonConfig()
   {
     this.pollingPeriod = DEFAULT_POLLING_PERIOD;
     this.maxRandomDelay = DEFAULT_MAX_RANDOM_DELAY;
@@ -82,6 +94,8 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     this.cacheNotificationTimeout = DEFAULT_CACHE_NOTIFY_TIMEOUT_MS;
     this.notifierUpdatePeriod = DEFAULT_NOTIFIER_UPDATE_PERIOD;
     this.tablesServiceUrl = null;
+    this.tablesSchemasUrl = null;
+    this.tableFunctionMappingUrl = null;
   }
 
   @JsonProperty
@@ -127,10 +141,24 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     return notifierUpdatePeriod;
   }
 
+  @Deprecated
   @JsonProperty
   public String getTablesServiceUrl()
   {
     return tablesServiceUrl;
+  }
+
+
+  @JsonProperty
+  public String getTablesSchemasUrl()
+  {
+    return tablesSchemasUrl;
+  }
+
+  @JsonProperty
+  public String getTableFunctionMappingUrl()
+  {
+    return tableFunctionMappingUrl;
   }
 
   @Override
@@ -142,7 +170,7 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ImplyExternalDruidSchemaCommonCacheConfig that = (ImplyExternalDruidSchemaCommonCacheConfig) o;
+    ImplyExternalDruidSchemaCommonConfig that = (ImplyExternalDruidSchemaCommonConfig) o;
     return pollingPeriod == that.pollingPeriod
            && maxRandomDelay == that.maxRandomDelay
            && maxSyncRetries == that.maxSyncRetries
@@ -150,7 +178,9 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
            && cacheNotificationTimeout == that.cacheNotificationTimeout
            && notifierUpdatePeriod == that.notifierUpdatePeriod
            && Objects.equals(cacheDirectory, that.cacheDirectory)
-           && Objects.equals(tablesServiceUrl, that.tablesServiceUrl);
+           && Objects.equals(tablesServiceUrl, that.tablesServiceUrl)
+           && Objects.equals(tablesSchemasUrl, that.tablesSchemasUrl)
+           && Objects.equals(tableFunctionMappingUrl, that.tableFunctionMappingUrl);
   }
 
   @Override
@@ -164,7 +194,9 @@ public class ImplyExternalDruidSchemaCommonCacheConfig
         enableCacheNotifications,
         cacheNotificationTimeout,
         notifierUpdatePeriod,
-        tablesServiceUrl
+        tablesServiceUrl,
+        tablesSchemasUrl,
+        tableFunctionMappingUrl
     );
   }
 }

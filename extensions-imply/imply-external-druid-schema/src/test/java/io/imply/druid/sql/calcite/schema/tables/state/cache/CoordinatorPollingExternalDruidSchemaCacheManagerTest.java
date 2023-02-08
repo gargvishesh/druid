@@ -15,7 +15,7 @@ import com.fasterxml.jackson.dataformat.smile.SmileGenerator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.CoordinatorPollingMapCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
@@ -58,7 +58,7 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
 
   private Injector injector;
   private AuthorizerMapper authorizerMapper;
-  private ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig;
+  private ImplyExternalDruidSchemaCommonConfig commonConfig;
   private ObjectMapper objectMapper;
   private DruidLeaderClient druidLeaderClient;
 
@@ -77,9 +77,9 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
     authorizerMapper = Mockito.mock(AuthorizerMapper.class);
     Mockito.when(injector.getInstance(AuthorizerMapper.class)).thenReturn(authorizerMapper);
 
-    commonCacheConfig = Mockito.mock(ImplyExternalDruidSchemaCommonCacheConfig.class);
-    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(200_000L);
-    Mockito.when(commonCacheConfig.getMaxSyncRetries()).thenReturn(1);
+    commonConfig = Mockito.mock(ImplyExternalDruidSchemaCommonConfig.class);
+    Mockito.when(commonConfig.getPollingPeriod()).thenReturn(200_000L);
+    Mockito.when(commonConfig.getMaxSyncRetries()).thenReturn(1);
 
     druidLeaderClient = Mockito.mock(DruidLeaderClient.class);
     BytesFullResponseHolder responseHolder = Mockito.mock(BytesFullResponseHolder.class);
@@ -88,15 +88,15 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
 
     schemaCache = Mockito.spy(
         CoordinatorPollingExternalDruidSchemaCacheManager.makeSchemaCache(
-            commonCacheConfig,
+            commonConfig,
             objectMapper,
             druidLeaderClient
         )
     );
     target = Mockito.spy(
         new CoordinatorPollingExternalDruidSchemaCacheManager(
-          commonCacheConfig,
-          schemaCache
+            commonConfig,
+            schemaCache
       )
     );
   }
@@ -105,8 +105,8 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
   public void test_start_doesPollCoordinator()
       throws IOException, InterruptedException
   {
-    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
-    Mockito.when(commonCacheConfig.getMaxRandomDelay()).thenReturn(1L);
+    Mockito.when(commonConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
+    Mockito.when(commonConfig.getMaxRandomDelay()).thenReturn(1L);
     Request schemaRequest = Mockito.mock(Request.class);
     Mockito.when(schemaRequest.getUrl()).thenReturn(new URL("http://localhost:8081/druid-ext/imply-external-druid-schema/cachedSerializedSchemaMap"));
     Mockito.when(druidLeaderClient.makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")))).thenReturn(schemaRequest);
@@ -129,9 +129,9 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
   public void test_start_CacheDirectoryPresent_doesPollCoordinatorAndWriteToDisk()
       throws IOException, InterruptedException
   {
-    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
-    Mockito.when(commonCacheConfig.getMaxRandomDelay()).thenReturn(1L);
-    Mockito.when(commonCacheConfig.getCacheDirectory()).thenReturn("/tmp/cache");
+    Mockito.when(commonConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
+    Mockito.when(commonConfig.getMaxRandomDelay()).thenReturn(1L);
+    Mockito.when(commonConfig.getCacheDirectory()).thenReturn("/tmp/cache");
     Request schemaRequest = Mockito.mock(Request.class);
     Mockito.when(schemaRequest.getUrl()).thenReturn(new URL("http://localhost:8081/druid-ext/imply-external-druid-schema/cachedSerializedSchemaMap"));
     Mockito.when(druidLeaderClient.makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")))).thenReturn(schemaRequest);
@@ -153,10 +153,10 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
   public void test_start_CacheDirectoryPresentAndNullSchemasFromCoordinator_doesPollCoordinatorAndDoesNotWriteToDisk()
       throws IOException, InterruptedException
   {
-    Mockito.when(commonCacheConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
-    Mockito.when(commonCacheConfig.getMaxRandomDelay()).thenReturn(1L);
-    Mockito.when(commonCacheConfig.getCacheDirectory()).thenReturn("/tmp/cache");
-    Mockito.when(commonCacheConfig.isEnableCacheNotifications()).thenReturn(true);
+    Mockito.when(commonConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
+    Mockito.when(commonConfig.getMaxRandomDelay()).thenReturn(1L);
+    Mockito.when(commonConfig.getCacheDirectory()).thenReturn("/tmp/cache");
+    Mockito.when(commonConfig.isEnableCacheNotifications()).thenReturn(true);
     BytesFullResponseHolder responseHolder = Mockito.mock(BytesFullResponseHolder.class);
     Mockito.when(responseHolder.getContent()).thenReturn(null);
     Mockito.when(druidLeaderClient.go(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(responseHolder);

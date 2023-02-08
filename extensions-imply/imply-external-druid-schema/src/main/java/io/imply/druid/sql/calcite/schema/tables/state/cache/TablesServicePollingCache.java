@@ -11,11 +11,12 @@ package io.imply.druid.sql.calcite.schema.tables.state.cache;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.PollingManagedCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.notifier.ExternalDruidSchemaCacheNotifier;
 import org.apache.commons.io.IOUtils;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
@@ -24,6 +25,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import javax.annotation.Nullable;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,18 +45,18 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
 
   public TablesServicePollingCache(
       String cacheName,
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper objectMapper,
       HttpClient httpClient,
       ExternalDruidSchemaCacheNotifier notifier
   )
   {
-    super(cacheName, commonCacheConfig, objectMapper);
+    super(cacheName, commonConfig, objectMapper);
     this.notifier = notifier;
     this.httpClient = httpClient;
     this.cachedMap = new ConcurrentHashMap<>();
 
-    if (commonCacheConfig.isEnableCacheNotifications()) {
+    if (commonConfig.isEnableCacheNotifications()) {
       this.notifier.setSchemaUpdateSource(
           () -> cacheBytes
       );
@@ -100,7 +102,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
         cachedMap = new ConcurrentHashMap<>(data);
       }
 
-      if (commonCacheConfig.getCacheDirectory() != null) {
+      if (commonConfig.getCacheDirectory() != null) {
         writeCachedDataToDisk(serializedData);
       }
       notifier.setSchemaUpdateSource(() -> serializedData);
@@ -118,7 +120,7 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   {
     try {
       final InputStream is = httpClient.go(
-          new Request(HttpMethod.GET, new URL(commonCacheConfig.getTablesServiceUrl())),
+          new Request(HttpMethod.GET, getTablesSchemasURL()),
           new InputStreamResponseHandler()
       ).get();
       return IOUtils.toByteArray(is);
@@ -131,6 +133,19 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
       // Unwrap if possible
       LOG.warn(e, "Got ExecutionException when fetching table schemas.");
       return null;
+    }
+  }
+
+  private URL getTablesSchemasURL()
+  {
+    try {
+      return new URL(commonConfig.getTablesSchemasUrl());
+    }
+    catch (MalformedURLException mue) {
+      String errContext = StringUtils.format("Malformed table schema URL specified - tablesSchemasUrl: %s",
+                                             commonConfig.getTablesSchemasUrl());
+      LOG.error(mue, errContext);
+      throw new RuntimeException(errContext, mue);
     }
   }
 }

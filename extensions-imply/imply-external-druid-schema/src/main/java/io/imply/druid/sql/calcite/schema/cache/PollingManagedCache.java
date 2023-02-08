@@ -12,7 +12,7 @@ package io.imply.druid.sql.calcite.schema.cache;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.StringUtils;
@@ -35,17 +35,17 @@ public abstract class PollingManagedCache<T>
   private static final EmittingLogger LOG = new EmittingLogger(PollingManagedCache.class);
 
   protected final String cacheName;
-  protected final ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig;
+  protected final ImplyExternalDruidSchemaCommonConfig commonConfig;
   protected final ObjectMapper objectMapper;
 
   public PollingManagedCache(
       String cacheName,
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper objectMapper
   )
   {
     this.cacheName = cacheName;
-    this.commonCacheConfig = commonCacheConfig;
+    this.commonConfig = commonConfig;
     this.objectMapper = objectMapper;
   }
 
@@ -90,7 +90,7 @@ public abstract class PollingManagedCache<T>
       final byte[] cacheValueBytes = RetryUtils.retry(
           () -> tryFetchDataForPath(path),
           e -> true,
-          commonCacheConfig.getMaxSyncRetries()
+          commonConfig.getMaxSyncRetries()
       );
       final T cacheValue;
       if (cacheValueBytes != null) {
@@ -104,7 +104,7 @@ public abstract class PollingManagedCache<T>
     catch (Exception e) {
       LOG.makeAlert(e, "Encountered exception while fetching fresh data for [%s]", cacheName).emit();
       if (isInit) {
-        if (commonCacheConfig.getCacheDirectory() != null) {
+        if (commonConfig.getCacheDirectory() != null) {
           try {
             LOG.info("Attempting to load [%s] cache snapshot from disk.", cacheName);
             return readCachedDataFromDisk();
@@ -124,7 +124,7 @@ public abstract class PollingManagedCache<T>
   @Nullable
   public T readCachedDataFromDisk() throws IOException
   {
-    File cacheFile = new File(commonCacheConfig.getCacheDirectory(), getCacheFilename());
+    File cacheFile = new File(commonConfig.getCacheDirectory(), getCacheFilename());
     if (!cacheFile.exists()) {
       LOG.debug("cache map file [%s] does not exist", cacheFile.getAbsolutePath());
       return null;
@@ -137,9 +137,9 @@ public abstract class PollingManagedCache<T>
 
   protected void writeCachedDataToDisk(byte[] cacheBytes) throws IOException
   {
-    File cacheDir = new File(commonCacheConfig.getCacheDirectory());
+    File cacheDir = new File(commonConfig.getCacheDirectory());
     FileUtils.mkdirp(cacheDir);
-    File cacheFile = new File(commonCacheConfig.getCacheDirectory(), getCacheFilename());
+    File cacheFile = new File(commonConfig.getCacheDirectory(), getCacheFilename());
     LOG.debug("Writing cached data to file [%s]", cacheFile.getAbsolutePath());
     writeFileAtomically(cacheFile, cacheBytes);
   }

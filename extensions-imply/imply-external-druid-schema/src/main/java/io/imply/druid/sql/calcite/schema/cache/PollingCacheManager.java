@@ -9,7 +9,7 @@
 
 package io.imply.druid.sql.calcite.schema.cache;
 
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.concurrent.LifecycleLock;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.concurrent.Execs;
@@ -33,14 +33,14 @@ public abstract class PollingCacheManager
   private final ScheduledExecutorService exec;
   protected final LifecycleLock lifecycleLock = new LifecycleLock();
   protected final CopyOnWriteArrayList<PollingManagedCache<?>> caches;
-  protected final ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig;
+  protected final ImplyExternalDruidSchemaCommonConfig commonConfig;
 
   public PollingCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig
+      ImplyExternalDruidSchemaCommonConfig commonConfig
   )
   {
     this.exec = Execs.scheduledSingleThreaded("PollingCacheManager-Exec--%d");
-    this.commonCacheConfig = commonCacheConfig;
+    this.commonConfig = commonConfig;
     this.caches = new CopyOnWriteArrayList<>();
   }
 
@@ -90,11 +90,11 @@ public abstract class PollingCacheManager
 
       ScheduledExecutors.scheduleWithFixedDelay(
           exec,
-          new Duration(commonCacheConfig.getPollingPeriod()),
-          new Duration(commonCacheConfig.getPollingPeriod()),
+          new Duration(commonConfig.getPollingPeriod()),
+          new Duration(commonConfig.getPollingPeriod()),
           () -> {
             try {
-              long randomDelay = ThreadLocalRandom.current().nextLong(0, commonCacheConfig.getMaxRandomDelay());
+              long randomDelay = ThreadLocalRandom.current().nextLong(0, commonConfig.getMaxRandomDelay());
               LOG.debug("Inserting random polling delay of [%s] ms", randomDelay);
               Thread.sleep(randomDelay);
 

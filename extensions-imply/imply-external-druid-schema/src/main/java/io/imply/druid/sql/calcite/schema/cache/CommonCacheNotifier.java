@@ -13,7 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
@@ -68,7 +68,7 @@ public class CommonCacheNotifier
   private long timeOfLastNotifyMillis = -1;
 
   public CommonCacheNotifier(
-      ImplyExternalDruidSchemaCommonCacheConfig cacheConfig,
+      ImplyExternalDruidSchemaCommonConfig cacheConfig,
       DruidNodeDiscoveryProvider discoveryProvider,
       HttpClient httpClient,
       String baseUrl,

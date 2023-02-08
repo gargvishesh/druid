@@ -11,14 +11,11 @@ package io.imply.druid.sql.calcite.schema.tables.endpoint;
 
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.ExternalDruidSchemaCacheManager;
-import org.apache.druid.java.util.common.logger.Logger;
 
 import javax.ws.rs.core.Response;
 
 public class BrokerExternalDruidSchemaResourceHandler implements ExternalDruidSchemaResourceHandler
 {
-  private static final Logger LOG = new Logger(BrokerExternalDruidSchemaResourceHandler.class);
-
   private static final Response NOT_FOUND_RESPONSE = Response.status(Response.Status.NOT_FOUND).build();
 
   private final ExternalDruidSchemaCacheManager cache;
