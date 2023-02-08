@@ -48,7 +48,6 @@ public class ImplyExternalDruidSchemaCommonConfig
 
   @Deprecated
   @JsonProperty
-  @Nullable
   private final String tablesServiceUrl;
 
   @JsonProperty
@@ -78,8 +77,9 @@ public class ImplyExternalDruidSchemaCommonConfig
     this.enableCacheNotifications = enableCacheNotifications == null || enableCacheNotifications;
     this.cacheNotificationTimeout = cacheNotificationTimeout == null ? DEFAULT_CACHE_NOTIFY_TIMEOUT_MS : cacheNotificationTimeout;
     this.notifierUpdatePeriod = notifierUpdatePeriod == null ? DEFAULT_NOTIFIER_UPDATE_PERIOD : notifierUpdatePeriod;
-    this.tablesServiceUrl = tablesServiceUrl;
-    this.tablesSchemasUrl = tablesSchemasUrl;
+    // Use the new URL config if present, otherwise fallback to the old config. The old config will be removed in a future release.
+    this.tablesServiceUrl = tablesServiceUrl == null ? tablesSchemasUrl : tablesServiceUrl;
+    this.tablesSchemasUrl = tablesSchemasUrl == null ? tablesServiceUrl : tablesSchemasUrl;
     this.tableFunctionMappingUrl = tableFunctionMappingUrl;
   }
 
@@ -143,23 +143,16 @@ public class ImplyExternalDruidSchemaCommonConfig
 
   @Deprecated
   @JsonProperty
-  @Nullable
-  private String getTablesServiceUrl()
+  public String getTablesServiceUrl()
   {
     return tablesServiceUrl;
   }
 
-   /**
-    * Use the new URL config if present, otherwise fallback to the old config. The
-    * old config will be removed in a future release when the Druid clusters are
-    * updated with the new config.
-   * @return table schemas url
-   */
+
   @JsonProperty
   public String getTablesSchemasUrl()
   {
-    // Use the new URL config if present, otherwise fallback to the old config for backwards compatibility.
-    return tablesSchemasUrl != null ? tablesSchemasUrl : tablesServiceUrl;
+    return tablesSchemasUrl;
   }
 
   @JsonProperty
