@@ -12,7 +12,7 @@ package io.imply.druid.sql.calcite.schema.tables.state.cache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.PollingCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.notifier.ExternalDruidSchemaCacheNotifier;
@@ -41,17 +41,17 @@ public class CoordinatorExternalDruidSchemaCacheManager extends PollingCacheMana
 
   @Inject
   public CoordinatorExternalDruidSchemaCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ExternalDruidSchemaCacheNotifier notifier,
       ObjectMapper jsonMapper,
       @EscalatedClient HttpClient httpClient
   )
   {
-    super(commonCacheConfig);
+    super(commonConfig);
 
     this.tablesServiceCache = new TablesServicePollingCache(
         "table-schemas",
-        commonCacheConfig,
+        commonConfig,
         jsonMapper,
         httpClient,
         notifier

@@ -13,41 +13,38 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.ExternalDruidSchemaUtils;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.CoordinatorPollingMapCache;
 import io.imply.druid.sql.calcite.schema.cache.PollingCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import org.apache.druid.client.coordinator.Coordinator;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.guice.ManageLifecycle;
-import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Doesn't run on the coordinator, but does run on the broker. Periodically polls the coordinator to
+ * Doesn't run on the coordinator, but does run on the broker. Periodically polls the coordinator
  * to update the table schemas, which is a {@link CoordinatorPollingMapCache}.
  *
- * This cache manager then acts as a provider of this state the Druid SQL layer.
+ * This cache manager then acts as a provider of this state for the Druid SQL layer.
  */
 @ManageLifecycle
 public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCacheManager implements
     ExternalDruidSchemaCacheManager
 {
-  private static final EmittingLogger LOG = new EmittingLogger(CoordinatorPollingExternalDruidSchemaCacheManager.class);
-
   private final CoordinatorPollingMapCache<TableSchema> schemaCache;
 
   @Inject
   public CoordinatorPollingExternalDruidSchemaCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper jsonMapper,
       @Coordinator DruidLeaderClient druidLeaderClient
   )
   {
-    super(commonCacheConfig);
-    this.schemaCache = makeSchemaCache(commonCacheConfig, jsonMapper, druidLeaderClient);
+    super(commonConfig);
+    this.schemaCache = makeSchemaCache(commonConfig, jsonMapper, druidLeaderClient);
     this.addCache(schemaCache);
   }
 
@@ -78,13 +75,13 @@ public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCa
 
   @VisibleForTesting
   static CoordinatorPollingMapCache<TableSchema> makeSchemaCache(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       ObjectMapper jsonMapper,
       DruidLeaderClient druidLeaderClient
   )
   {
     return new CoordinatorPollingMapCache<>(
-        commonCacheConfig,
+        commonConfig,
         jsonMapper,
         druidLeaderClient,
         "table-schemas",
@@ -95,11 +92,11 @@ public class CoordinatorPollingExternalDruidSchemaCacheManager extends PollingCa
 
   @VisibleForTesting
   public CoordinatorPollingExternalDruidSchemaCacheManager(
-      ImplyExternalDruidSchemaCommonCacheConfig commonCacheConfig,
+      ImplyExternalDruidSchemaCommonConfig commonConfig,
       CoordinatorPollingMapCache<TableSchema> schemaCache
   )
   {
-    super(commonCacheConfig);
+    super(commonConfig);
     this.schemaCache = schemaCache;
     this.addCache(schemaCache);
   }

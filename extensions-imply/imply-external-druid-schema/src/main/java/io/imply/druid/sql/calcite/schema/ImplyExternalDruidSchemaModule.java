@@ -15,14 +15,17 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
-import io.imply.druid.sql.calcite.external.DefaultPolarisTableFunctionResolver;
 import io.imply.druid.sql.calcite.external.PolarisSourceOperatorConversion;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolver;
+import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolverImpl;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.BrokerExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.CoordinatorExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.DefaultExternalDruidSchemaResourceHandler;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.ExternalDruidSchemaResource;
 import io.imply.druid.sql.calcite.schema.tables.endpoint.ExternalDruidSchemaResourceHandler;
+import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionApiMapperImpl;
+import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
+import io.imply.druid.sql.calcite.schema.tables.mapping.NoopTableFunctionApiResolver;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorExternalDruidSchemaCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.DefaultExternalDruidSchemaCacheManager;
@@ -62,7 +65,7 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    JsonConfigProvider.bind(binder, "druid.sql.schemamanager.imply", ImplyExternalDruidSchemaCommonCacheConfig.class);
+    JsonConfigProvider.bind(binder, "druid.sql.schemamanager.imply", ImplyExternalDruidSchemaCommonConfig.class);
 
     PolyBind.optionBinder(binder, Key.get(DruidSchemaManager.class))
             .addBinding(TYPE)
@@ -73,7 +76,9 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
 
     LifecycleModule.register(binder, ExternalDruidSchemaCacheManager.class);
     LifecycleModule.register(binder, ExternalDruidSchemaCacheNotifier.class);
-    binder.bind(PolarisTableFunctionResolver.class).to(DefaultPolarisTableFunctionResolver.class).in(LazySingleton.class);
+    LifecycleModule.register(binder, ExternalTableFunctionMapper.class);
+
+    binder.bind(PolarisTableFunctionResolver.class).to(PolarisTableFunctionResolverImpl.class).in(LazySingleton.class);
     SqlBindings.addOperatorConversion(binder, PolarisSourceOperatorConversion.class);
   }
 
@@ -81,14 +86,9 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
   public static Set<NodeRole> getNodeRoles(Injector injector)
   {
     try {
-      return injector.getInstance(
-          Key.get(
-              new TypeLiteral<Set<NodeRole>>()
-              {
-              },
-              Self.class
-          )
-      );
+      return injector.getInstance(Key.get(new TypeLiteral<Set<NodeRole>>()
+      {
+      }, Self.class));
     }
     catch (Exception e) {
       log.error(e, "Got exception while getting node roles.");
@@ -127,6 +127,16 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
     return injector.getInstance(getCacheNotifierClassForService(nodeRoles));
   }
 
+  @Provides
+  @LazySingleton
+  public static ExternalTableFunctionMapper createExternalTableFunctionMapper(
+      final Injector injector
+  )
+  {
+    Set<NodeRole> nodeRoles = getNodeRoles(injector);
+    return injector.getInstance(getTableFunctionMapperForService(nodeRoles));
+  }
+
   private static Class<? extends ExternalDruidSchemaResourceHandler> getResourceHandlerClassForService(Set<NodeRole> nodeRoles)
   {
     if (isCoordinatorRole(nodeRoles)) {
@@ -155,6 +165,15 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
       return CoordinatorExternalDruidSchemaCacheNotifier.class;
     } else {
       return NoopExternalDruidSchemaCacheNotifier.class;
+    }
+  }
+
+  private static Class<? extends ExternalTableFunctionMapper> getTableFunctionMapperForService(Set<NodeRole> nodeRoles)
+  {
+    if (isBrokerRole(nodeRoles)) {
+      return ExternalTableFunctionApiMapperImpl.class;
+    } else {
+      return NoopTableFunctionApiResolver.class;
     }
   }
 

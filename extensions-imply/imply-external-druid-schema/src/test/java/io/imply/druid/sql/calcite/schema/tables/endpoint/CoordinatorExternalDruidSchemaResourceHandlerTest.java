@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonCacheConfig;
+import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorExternalDruidSchemaCacheManager;
@@ -32,7 +32,7 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
 {
   private CoordinatorExternalDruidSchemaCacheManager cacheManager;
 
-  private ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private CoordinatorExternalDruidSchemaResourceHandler resourceHandler;
 
@@ -40,7 +40,7 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
   public void setup()
   {
     cacheManager = new CoordinatorExternalDruidSchemaCacheManager(
-        new ImplyExternalDruidSchemaCommonCacheConfig(
+        new ImplyExternalDruidSchemaCommonConfig(
             null,
             null,
             null,
@@ -48,7 +48,9 @@ public class CoordinatorExternalDruidSchemaResourceHandlerTest
             null,
             null,
             null,
-            "http://test:9000"
+            null,
+            "http://test:9000/v2/tableSchemas",
+            "http://test:9000/v2/jobsDML/internal/tableFunctionMapping"
         ),
         Mockito.mock(ExternalDruidSchemaCacheNotifier.class),
         objectMapper,
