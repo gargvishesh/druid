@@ -20,7 +20,7 @@ druid.extensions.loadList=["druid-lookups-cached-global","druid-datasketches","i
 ...
 
 druid.sql.schemamanager.type=imply
-druid.sql.schemamanager.imply.tablesSchemasUrl=http://localhost:4800/v2/tableSchemas # local configuration
+druid.sql.schemamanager.imply.tablesSchemasUrl=http://localhost:4800/v2/tablesSchemas # local configuration
 druid.sql.schemamanager.imply.tableFunctionMappingUrl=http://localhost:4800/v2/jobsDML/internal/tableFunctionMapping # local configuration
 ...
 ```
