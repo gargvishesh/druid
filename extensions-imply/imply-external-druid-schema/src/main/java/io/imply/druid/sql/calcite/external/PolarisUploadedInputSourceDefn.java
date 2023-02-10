@@ -17,7 +17,7 @@ import java.util.Objects;
 
 public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInputSourceDefn
 {
-  public static final String TYPE_KEY = "POLARIS_UPLOADED";
+  public static final String FUNCTION_NAME = "POLARIS_UPLOADED";
   public static final String FILES_PARAMETER = "files";
 
   private static final TableFunction.ParameterDefn FILES_PARAM_DEFN =
@@ -26,7 +26,7 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
 
   static class PolarisUploadedFunctionSpec implements PolarisTableFunctionSpec
   {
-    public static final String FUNCTION_NAME = PolarisUploadedInputSourceDefn.TYPE_KEY;
+    public static final String FUNCTION_NAME = PolarisUploadedInputSourceDefn.FUNCTION_NAME;
     private @NotNull final List<String> files;
 
     @JsonCreator

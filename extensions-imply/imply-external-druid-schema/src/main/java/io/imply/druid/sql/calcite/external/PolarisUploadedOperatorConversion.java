@@ -14,6 +14,6 @@ public class PolarisUploadedOperatorConversion extends CatalogExternalTableOpera
       @Json final ObjectMapper jsonMapper,
       final PolarisTableFunctionResolver resolver)
   {
-    super(FUNCTION_NAME, new PolarisSourceOperatorConversion.PolarisSourceFunction(resolver), jsonMapper);
+    super(FUNCTION_NAME, new PolarisUploadedInputSourceDefn(resolver).adHocTableFn(), jsonMapper);
   }
 }
