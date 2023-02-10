@@ -1,0 +1,38 @@
+name: Checksum verification
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: master
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  checksumVerificatoin:
+    runs-on: imply-ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        checksum: [ {script: run-druid, checksum: 070e9573bcb2980596156121b851d5b8de848dff},
+                    {script: run-java, checksum: adcff92ea4f9626ed48c5b56a582510830f6b9fc},
+                    {script: verify-java, checksum: d3a1c1dd6c997dfb68d6756fd165b73707cf5b0e},
+                    {script: run-zk, checksum: 6a995c9279ebe3015598891c3896820f33a97d8f} ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: implydata/druid
+          ref: ${{ matrix.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
+
+      - name: Verify Checksum
+        run: |
+          ACTUAL_CHECKSUM=$(shasum examples/bin/${{ matrix.checksum.script }} | awk '{print $1}')
+          if [[ $ACTUAL_CHECKSUM == ${{ matrix.checksum.checksum }} ]]; then
+            echo "${{ matrix.checksum.script }} checksum verification was successful"
+          else
+            echo "Expected Checksum - ${{ matrix.checksum.checksum }}\nActual checksum - $ACTUAL_CHECKSUM"
+            exit 1
+          fi
+        shell: bash
