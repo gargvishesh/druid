@@ -10,6 +10,7 @@ import org.apache.druid.data.input.InputSource;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +38,7 @@ public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedI
    * Convert the input source using arguments to a "from scratch" table function.
    */
   @Override
+  @Nullable
   protected InputSource convertArgsToSource(Map<String, Object> args, ObjectMapper jsonMapper)
   {
     final PolarisTableFunctionSpec tblFnSpec = convertArgsToTblFnDefn(args);
@@ -66,11 +68,7 @@ public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedI
   protected abstract List<TableFunction.ParameterDefn> adHocTableFnParameters();
 
   @Override
-  public String typeValue()
-  {
-    // this shouldnt be called for polaris resolved tabe functions
-    return null;
-  }
+  public abstract String typeValue();
 
   @Override
   public TableFunction partialTableFn(ResolvedExternalTable table)

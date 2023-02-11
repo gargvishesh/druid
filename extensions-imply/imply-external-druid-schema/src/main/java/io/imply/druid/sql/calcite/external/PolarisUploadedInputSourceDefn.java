@@ -17,7 +17,7 @@ import java.util.Objects;
 
 public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInputSourceDefn
 {
-  public static final String FUNCTION_NAME = "POLARIS_UPLOADED";
+  public static final String TYPE_KEY = "POLARIS_UPLOADED";
   public static final String FILES_PARAMETER = "files";
 
   private static final TableFunction.ParameterDefn FILES_PARAM_DEFN =
@@ -26,7 +26,7 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
 
   static class PolarisUploadedFunctionSpec implements PolarisTableFunctionSpec
   {
-    public static final String FUNCTION_NAME = PolarisUploadedInputSourceDefn.FUNCTION_NAME;
+    public static final String FUNCTION_NAME = PolarisUploadedInputSourceDefn.TYPE_KEY;
     private @NotNull final List<String> files;
 
     @JsonCreator
@@ -81,7 +81,7 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
   @Override
   protected Class<? extends InputSource> inputSourceClass()
   {
-    // input sourcs is really S3InputSource which is in another extension.
+    // input source  is really S3InputSource which is in another extension.
     // OK to return null here, as this function is not used for Polaris resolved
     // input source.
     return null;
@@ -98,5 +98,11 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
   protected List<TableFunction.ParameterDefn> adHocTableFnParameters()
   {
     return AD_HOC_PARAMS;
+  }
+
+  @Override
+  public String typeValue()
+  {
+    return TYPE_KEY;
   }
 }
