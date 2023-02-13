@@ -28,8 +28,8 @@ always_run_jobs = ['license checks', 'license checks with Hadoop3', '(openjdk8) 
 # of CI can be skipped. however, jobs which are always run will still be run even if only these files are changed
 ignore_prefixes = ['.github', '.idea', '.asf.yaml', '.backportrc.json', '.codecov.yml', '.dockerignore', '.gitignore',
                    '.lgtm.yml', 'CONTRIBUTING.md', 'setup-hooks.sh', 'upload.sh', 'dev', 'distribution/docker',
-                   'distribution/asf-release-process-guide.md', '.travis.yml',
-                   'owasp-dependency-check-suppressions.xml','licenses','check_test_suite_jenkins.py',
+                   'distribution/asf-release-process-guide.md',
+                   'owasp-dependency-check-suppressions.xml', 'licenses', 'check_test_suite_jenkins.py',
                    'jenkinsfile', 'hooks/']
 
 script_prefixes = ['check_test_suite.py', 'check_test_suite_test.py']
