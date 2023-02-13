@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
+import org.apache.druid.guice.DruidBinders;
+import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.PolyBind;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.query.GenericQueryMetricsFactory;
@@ -28,6 +30,8 @@ public class ClarityMetricsModule implements DruidModule
 {
   public static final String CLARITY_METRICS_NAME = "clarity";
   private static final String PROPERTY_COEXIST = "druid.emitter.clarity.metricsFactoryChoice";
+  private static final String PROPERTY_THREAD_DUMP_MONITOR = "druid.emitter.clarity.threadDump";
+
   @Inject
   private Properties props;
 
@@ -40,7 +44,7 @@ public class ClarityMetricsModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (Boolean.valueOf(props.getProperty(PROPERTY_COEXIST, "false"))) {
+    if (Boolean.parseBoolean(props.getProperty(PROPERTY_COEXIST, "false"))) {
       // Add choices through PolyBind.
       PolyBind
           .optionBinder(binder, Key.get(GenericQueryMetricsFactory.class))
@@ -67,6 +71,11 @@ public class ClarityMetricsModule implements DruidModule
       binder.bind(GroupByQueryMetricsFactory.class).to(ClarityGroupByQueryMetricsFactory.class);
       binder.bind(TopNQueryMetricsFactory.class).to(ClarityTopNQueryMetricsFactory.class);
       binder.bind(TimeseriesQueryMetricsFactory.class).to(ClarityTimeseriesQueryMetricsFactory.class);
+    }
+
+    if (Boolean.parseBoolean(props.getProperty(PROPERTY_THREAD_DUMP_MONITOR, "false"))) {
+      DruidBinders.metricMonitorBinder(binder).addBinding().toInstance(ThreadDumpMonitor.class);
+      binder.bind(ThreadDumpMonitor.class).in(LazySingleton.class);
     }
   }
 }
