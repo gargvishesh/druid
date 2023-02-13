@@ -3,6 +3,7 @@ package io.imply.druid.sql.calcite.external;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.catalog.model.CatalogUtils;
+import org.apache.druid.catalog.model.TableDefnRegistry;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
@@ -72,9 +73,12 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
     }
   }
 
-  public PolarisUploadedInputSourceDefn(PolarisTableFunctionResolver resolver)
+  public PolarisUploadedInputSourceDefn(
+      final TableDefnRegistry registry,
+      final PolarisTableFunctionResolver resolver)
   {
     super(resolver);
+    bind(registry);
   }
 
   @Nullable
