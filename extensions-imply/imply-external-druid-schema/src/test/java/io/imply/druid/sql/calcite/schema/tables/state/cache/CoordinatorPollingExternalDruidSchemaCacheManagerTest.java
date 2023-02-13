@@ -26,6 +26,7 @@ import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.server.security.AuthorizerMapper;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -112,6 +113,7 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
     Mockito.when(druidLeaderClient.makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")))).thenReturn(schemaRequest);
     BytesFullResponseHolder schemaResponseHolder = Mockito.mock(BytesFullResponseHolder.class);
     byte[] schemaSerialized = objectMapper.writeValueAsBytes(SCHEMA_MAP);
+    Mockito.when(schemaResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
     Mockito.when(schemaResponseHolder.getContent()).thenReturn(schemaSerialized);
     Mockito.when(druidLeaderClient.go(ArgumentMatchers.argThat(req -> req != null && req.getUrl().getPath().contains("cachedSerializedSchemaMap")), ArgumentMatchers.any())).thenReturn(schemaResponseHolder);
 
@@ -120,6 +122,29 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
     Thread.sleep(5000L);
 
     Assert.assertEquals(SCHEMA_MAP, target.getTableSchemas());
+
+    Mockito.verify(druidLeaderClient, Mockito.times(2)).makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")));
+    Mockito.verify(druidLeaderClient, Mockito.times(2)).go(ArgumentMatchers.argThat(req -> req.getUrl().getPath().contains("cachedSerializedSchemaMap")), ArgumentMatchers.any());
+  }
+
+  @Test
+  public void test_startWithBadResponse_doesPollCoordinatorAndDoesNotSaveSchema()
+      throws IOException, InterruptedException
+  {
+    Mockito.when(commonConfig.getPollingPeriod()).thenReturn(0L, 200_000L);
+    Mockito.when(commonConfig.getMaxRandomDelay()).thenReturn(1L);
+    Request schemaRequest = Mockito.mock(Request.class);
+    Mockito.when(schemaRequest.getUrl()).thenReturn(new URL("http://localhost:8081/druid-ext/imply-external-druid-schema/cachedSerializedSchemaMap"));
+    Mockito.when(druidLeaderClient.makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")))).thenReturn(schemaRequest);
+    BytesFullResponseHolder schemaResponseHolder = Mockito.mock(BytesFullResponseHolder.class);
+    Mockito.when(schemaResponseHolder.getStatus()).thenReturn(HttpResponseStatus.BAD_GATEWAY);
+    Mockito.when(druidLeaderClient.go(ArgumentMatchers.argThat(req -> req != null && req.getUrl().getPath().contains("cachedSerializedSchemaMap")), ArgumentMatchers.any())).thenReturn(schemaResponseHolder);
+
+    target.start();
+    // sleep to wait for scheduled thread executer to run through an interation.
+    Thread.sleep(5000L);
+
+    Assert.assertEquals(null, target.getTableSchemas());
 
     Mockito.verify(druidLeaderClient, Mockito.times(2)).makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")));
     Mockito.verify(druidLeaderClient, Mockito.times(2)).go(ArgumentMatchers.argThat(req -> req.getUrl().getPath().contains("cachedSerializedSchemaMap")), ArgumentMatchers.any());
@@ -137,6 +162,7 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
     Mockito.when(druidLeaderClient.makeRequest(ArgumentMatchers.any(), ArgumentMatchers.argThat(req -> req != null && req.contains("cachedSerializedSchemaMap")))).thenReturn(schemaRequest);
     BytesFullResponseHolder schemaResponseHolder = Mockito.mock(BytesFullResponseHolder.class);
     byte[] schemaSerialized = objectMapper.writeValueAsBytes(SCHEMA_MAP);
+    Mockito.when(schemaResponseHolder.getStatus()).thenReturn(HttpResponseStatus.OK);
     Mockito.when(schemaResponseHolder.getContent()).thenReturn(schemaSerialized);
     Mockito.when(druidLeaderClient.go(ArgumentMatchers.argThat(req -> req != null && req.getUrl().getPath().contains("cachedSerializedSchemaMap")), ArgumentMatchers.any())).thenReturn(schemaResponseHolder);
     target.start();
