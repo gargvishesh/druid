@@ -20,11 +20,12 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.java.util.http.client.Request;
-import org.apache.druid.java.util.http.client.response.InputStreamResponseHandler;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHandler;
+import org.apache.druid.java.util.http.client.response.InputStreamFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nullable;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
@@ -119,11 +120,19 @@ public class TablesServicePollingCache extends PollingManagedCache<Map<String, T
   protected byte[] tryFetchDataForPath(String path) throws Exception
   {
     try {
-      final InputStream is = httpClient.go(
+      final InputStreamFullResponseHolder responseHolder = httpClient.go(
           new Request(HttpMethod.GET, getTablesSchemasURL()),
-          new InputStreamResponseHandler()
+          new InputStreamFullResponseHandler()
       ).get();
-      return IOUtils.toByteArray(is);
+      if (!HttpResponseStatus.OK.equals(responseHolder.getStatus())) {
+        LOG.warn(
+            "Got an error status when fetching schemas from table service: %s, content: %s",
+            responseHolder.getStatus(),
+            responseHolder.getContent()
+        );
+        return null;
+      }
+      return IOUtils.toByteArray(responseHolder.getContent());
     }
     catch (InterruptedException e) {
       LOG.warn(e, "Got InterruptedException when fetching table schemas.");
