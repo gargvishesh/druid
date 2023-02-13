@@ -12,10 +12,12 @@ package io.imply.druid.sql.calcite.schema.cache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import org.apache.druid.discovery.DruidLeaderClient;
+import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.http.client.Request;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHandler;
 import org.apache.druid.java.util.http.client.response.BytesFullResponseHolder;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * {@link PollingManagedCache} with a {@link DruidLeaderClient} which can poll a Druid coordinator to fetch some set
@@ -23,6 +25,8 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
  */
 public abstract class CoordinatorPollingCache<T> extends PollingManagedCache<T>
 {
+  private static final EmittingLogger LOG = new EmittingLogger(CoordinatorPollingCache.class);
+
   protected final DruidLeaderClient druidLeaderClient;
   protected final String coordinatorPath;
 
@@ -50,6 +54,14 @@ public abstract class CoordinatorPollingCache<T> extends PollingManagedCache<T>
         req,
         new BytesFullResponseHandler()
     );
+    if (!HttpResponseStatus.OK.equals(responseHolder.getStatus())) {
+      LOG.warn(
+          "Got an error status when fetching schemas from coordinator: %s, content: %s",
+          responseHolder.getStatus(),
+          responseHolder.getContent()
+      );
+      return null;
+    }
     return responseHolder.getContent();
   }
 }

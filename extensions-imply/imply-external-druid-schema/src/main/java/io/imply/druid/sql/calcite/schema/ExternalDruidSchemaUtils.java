@@ -12,6 +12,7 @@ package io.imply.druid.sql.calcite.schema;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
+import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.table.DatasourceTable;
@@ -24,6 +25,8 @@ import java.util.concurrent.ConcurrentMap;
 
 public class ExternalDruidSchemaUtils
 {
+  private static final EmittingLogger LOG = new EmittingLogger(ExternalDruidSchemaUtils.class);
+
   public static final TypeReference<Map<String, TableSchema>> TABLE_SCHEMA_MAP_TYPE_REFERENCE =
       new TypeReference<Map<String, TableSchema>>()
       {
@@ -34,7 +37,12 @@ public class ExternalDruidSchemaUtils
   )
   {
     final ConcurrentMap<String, DruidTable> druidTableMap = new ConcurrentHashMap<>();
-    for (TableSchema tableSchema : tableSchemaMap.values()) {
+    for (Map.Entry<String, TableSchema> entry : tableSchemaMap.entrySet()) {
+      final TableSchema tableSchema = entry.getValue();
+      if (tableSchema == null) {
+        LOG.warn("Got a null table schema for table name: " + entry.getKey());
+        continue;
+      }
       RowSignature.Builder rowSignatureBuilder = RowSignature.builder();
       for (TableColumn tableColumn : tableSchema.getColumns()) {
         rowSignatureBuilder.add(tableColumn.getName(), tableColumn.getType());
