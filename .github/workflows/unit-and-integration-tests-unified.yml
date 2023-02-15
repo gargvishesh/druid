@@ -18,10 +18,14 @@ on:
   push:
     branches:
       - master
+      - monthly
+      - 'release/*' # release branches
       - /^\d+\.\d+\.\d+(-\S*)?$/ # release branches
   pull_request:
     branches:
       - master
+      - monthly
+      - 'release/*' # release branches
       - /^\d+\.\d+\.\d+(-\S*)?$/ # release branches
 
 concurrency:
