@@ -38,7 +38,8 @@ import { deepGet, LocalStorageKeys } from '../../utils';
 import { MultiSelectDialog } from './multi-select-dialog/multi-select-dialog';
 import { RoleEditorDialog } from './role-editor-dialog/role-editor-dialog';
 import { UserEditorDialog } from './user-editor-dialog/user-editor-dialog';
-import { formatPermission, Permission, RoleEntry, UserEntry } from './user-management-models';
+import type { Permission, RoleEntry, UserEntry } from './user-management-models';
+import { formatPermission } from './user-management-models';
 
 import './users-and-roles.scss';
 

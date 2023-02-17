@@ -30,18 +30,14 @@ import { IconNames } from '@blueprintjs/icons';
 import React, { useState } from 'react';
 
 import { deepSet } from '../../../utils';
-import {
-  ALL_PERMISSIONS,
-  Permission,
-  PERMISSION_TYPES,
-  RoleEntry,
-} from '../user-management-models';
+import type { Permission, RoleEntry } from '../user-management-models';
+import { ALL_PERMISSIONS, PERMISSION_TYPES } from '../user-management-models';
 
 import './role-editor-dialog.scss';
 
 interface RoleEditorDialogProps {
   initRole: RoleEntry | undefined;
-  onSave(roleName: string, permissions: Permission[]): void;
+  onSave(roleName: string, permissions: Permission[]): void | Promise<void>;
   onClose(): void;
 }
 
@@ -140,7 +136,7 @@ export const RoleEditorDialog = React.memo(function RoleEditorDialog(props: Role
             disabled={!name}
             onClick={() => {
               if (!name) return;
-              onSave(name, permissions);
+              void onSave(name, permissions);
               onClose();
             }}
           />
