@@ -411,7 +411,9 @@ export class ConsoleApplication extends React.PureComponent<
               />
 
               {/* BEGIN: Imply-added code for user management */}
-              <Route path="/user-management" component={this.wrappedUserManagementView} />
+              {capabilities.hasCoordinatorAccess() && (
+                <Route path="/user-management" component={this.wrappedUserManagementView} />
+              )}
               {/* END: Imply-modified code for user management */}
 
               {capabilities.hasCoordinatorAccess() && (
