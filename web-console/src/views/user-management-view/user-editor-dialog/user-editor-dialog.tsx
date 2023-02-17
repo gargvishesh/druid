@@ -26,7 +26,7 @@ import './user-editor-dialog.scss';
 
 interface UserEditorDialogProps {
   initUser: UserEntry | undefined;
-  onSave(username: string, password: string): void;
+  onSave(username: string, password: string): void | Promise<void>;
   onClose(): void;
 }
 
@@ -68,7 +68,7 @@ export const UserEditorDialog = React.memo(function UserEditorDialog(props: User
             disabled={initUser ? !password : !username}
             onClick={() => {
               if (!username) return;
-              onSave(username, password);
+              void onSave(username, password);
               onClose();
             }}
           />

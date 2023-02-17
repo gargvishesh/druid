@@ -41,7 +41,7 @@ import './role-editor-dialog.scss';
 
 interface RoleEditorDialogProps {
   initRole: RoleEntry | undefined;
-  onSave(roleName: string, permissions: Permission[]): void;
+  onSave(roleName: string, permissions: Permission[]): void | Promise<void>;
   onClose(): void;
 }
 
@@ -140,7 +140,7 @@ export const RoleEditorDialog = React.memo(function RoleEditorDialog(props: Role
             disabled={!name}
             onClick={() => {
               if (!name) return;
-              onSave(name, permissions);
+              void onSave(name, permissions);
               onClose();
             }}
           />
