@@ -363,7 +363,7 @@ export class ConsoleApplication extends React.PureComponent<
   };
 
   render(): JSX.Element {
-    const { capabilitiesLoading } = this.state;
+    const { capabilities, capabilitiesLoading } = this.state;
 
     if (capabilitiesLoading) {
       return (
@@ -378,15 +378,24 @@ export class ConsoleApplication extends React.PureComponent<
         <HashRouter hashType="noslash">
           <div className="console-application">
             <Switch>
-              <Route path="/data-loader" component={this.wrappedDataLoaderView} />
-              <Route
-                path="/streaming-data-loader"
-                component={this.wrappedStreamingDataLoaderView}
-              />
-              <Route
-                path="/classic-batch-data-loader"
-                component={this.wrappedClassicBatchDataLoaderView}
-              />
+              {capabilities.hasCoordinatorAccess() && (
+                <Route path="/data-loader" component={this.wrappedDataLoaderView} />
+              )}
+              {capabilities.hasCoordinatorAccess() && (
+                <Route
+                  path="/streaming-data-loader"
+                  component={this.wrappedStreamingDataLoaderView}
+                />
+              )}
+              {capabilities.hasCoordinatorAccess() && (
+                <Route
+                  path="/classic-batch-data-loader"
+                  component={this.wrappedClassicBatchDataLoaderView}
+                />
+              )}
+              {capabilities.hasCoordinatorAccess() && capabilities.hasMultiStageQuery() && (
+                <Route path="/sql-data-loader" component={this.wrappedSqlDataLoaderView} />
+              )}
 
               <Route path="/ingestion" component={this.wrappedIngestionView} />
               <Route path="/datasources" component={this.wrappedDatasourcesView} />
@@ -400,13 +409,16 @@ export class ConsoleApplication extends React.PureComponent<
                 path={['/workbench/:tabId', '/workbench']}
                 component={this.wrappedWorkbenchView}
               />
-              <Route path="/sql-data-loader" component={this.wrappedSqlDataLoaderView} />
 
               {/* BEGIN: Imply-added code for user management */}
-              <Route path="/user-management" component={this.wrappedUserManagementView} />
+              {capabilities.hasCoordinatorAccess() && (
+                <Route path="/user-management" component={this.wrappedUserManagementView} />
+              )}
               {/* END: Imply-modified code for user management */}
 
-              <Route path="/lookups" component={this.wrappedLookupsView} />
+              {capabilities.hasCoordinatorAccess() && (
+                <Route path="/lookups" component={this.wrappedLookupsView} />
+              )}
               <Route component={this.wrappedHomeView} />
             </Switch>
           </div>
