@@ -27,7 +27,7 @@ interface MultiSelectDialogProps {
   title: string;
   initSelection: string[];
   suggestions: string[];
-  onSave(newSelection: string[]): void;
+  onSave(newSelection: string[]): void | Promise<void>;
   onClose(): void;
 }
 
@@ -62,7 +62,7 @@ export const MultiSelectDialog = React.memo(function MultiSelectDialog(
             text="Save"
             intent={Intent.PRIMARY}
             onClick={() => {
-              onSave(selection);
+              void onSave(selection);
               onClose();
             }}
           />

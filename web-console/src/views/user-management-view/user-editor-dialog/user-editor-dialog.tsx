@@ -20,13 +20,13 @@ import { Button, Classes, Dialog, FormGroup, InputGroup, Intent } from '@bluepri
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { UserEntry } from '../user-management-models';
+import type { UserEntry } from '../user-management-models';
 
 import './user-editor-dialog.scss';
 
 interface UserEditorDialogProps {
   initUser: UserEntry | undefined;
-  onSave(username: string, password: string): void;
+  onSave(username: string, password: string): void | Promise<void>;
   onClose(): void;
 }
 
@@ -68,7 +68,7 @@ export const UserEditorDialog = React.memo(function UserEditorDialog(props: User
             disabled={initUser ? !password : !username}
             onClick={() => {
               if (!username) return;
-              onSave(username, password);
+              void onSave(username, password);
               onClose();
             }}
           />
