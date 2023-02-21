@@ -39,6 +39,7 @@ public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedI
   {
     this.resolver = resolver;
   }
+
   @Override
   protected abstract Class<? extends InputSource> inputSourceClass();
 
