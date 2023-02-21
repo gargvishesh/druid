@@ -9,11 +9,14 @@ import org.apache.druid.catalog.model.CatalogUtils;
 import org.apache.druid.common.aws.AWSModule;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.impl.CsvInputFormat;
+import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.s3.S3InputSource;
 import org.apache.druid.data.input.s3.S3InputSourceDruidModule;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.CalciteIngestionDmlTest;
@@ -29,6 +32,7 @@ import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -36,6 +40,7 @@ import java.util.List;
 
 public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
 {
+  private static final String VALID_SOURCE_ARG = "<polaris_source>";
 
   protected static URI toURI(String uri)
   {
@@ -69,6 +74,8 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       false,
       0
   );
+
+  protected final InputFormat jsonInputFormat = new JsonInputFormat(null, null, null, null, null);
   protected final RowSignature rowSignature = RowSignature
       .builder()
       .add("x", ColumnType.STRING)
@@ -76,9 +83,15 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       .add("z", ColumnType.LONG)
       .build();
 
-  protected final ExternalDataSource s3DataSource = new ExternalDataSource(
+  protected final ExternalDataSource polarisSourceDataSource = new ExternalDataSource(
       s3InputSource,
       csvInputFormat,
+      rowSignature
+  );
+
+  protected final ExternalDataSource polarisUploadedDataSource = new ExternalDataSource(
+      s3InputSource,
+      jsonInputFormat,
       rowSignature
   );
 
@@ -92,11 +105,34 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   );
   public static final S3InputDataConfig S3_INPUT_DATA_CONFIG = new S3InputDataConfig();
 
-  protected final PolarisTableFunctionResolver resolver = fn -> new PolarisExternalTableSpec(
-      s3DataSource.getInputSource(),
-      s3DataSource.getInputFormat(),
-      s3DataSource.getSignature()
-  );
+  protected final PolarisTableFunctionResolver resolver = new PolarisTableFunctionResolver()
+  {
+    @Override
+    public PolarisExternalTableSpec resolve(@Nullable PolarisTableFunctionSpec fn)
+    {
+      if (fn instanceof PolarisSourceOperatorConversion.PolarisSourceFunctionSpec) {
+        PolarisSourceOperatorConversion.PolarisSourceFunctionSpec polarisSourceFnSpec =
+            (PolarisSourceOperatorConversion.PolarisSourceFunctionSpec) fn;
+        if (polarisSourceFnSpec.getSource().equals(VALID_SOURCE_ARG)) {
+          return new PolarisExternalTableSpec(
+              polarisSourceDataSource.getInputSource(),
+              polarisSourceDataSource.getInputFormat(),
+              polarisSourceDataSource.getSignature()
+          );
+        }
+      }
+
+      if (fn instanceof PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec) {
+        return new PolarisExternalTableSpec(
+            polarisSourceDataSource.getInputSource(),
+            null,
+            null
+        );
+      }
+
+      throw new IAE(StringUtils.format("Undefined resolving of polarisFunction %s", fn));
+    }
+  };
 
   @Override
   public void configureGuice(DruidInjectorBuilder builder)
@@ -104,7 +140,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
     super.configureGuice(builder);
 
     builder.addModule(new DruidModule() {
-      
+
       @Override
       public List<? extends Module> getJacksonModules()
       {
@@ -133,21 +169,46 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   public void test_PolarisSource_withProperArgs_valid()
   {
     testIngestionQuery()
-        .sql("INSERT INTO dst SELECT *\n" +
-             "FROM TABLE(POLARIS_SOURCE(source => '<polaris_source>'))\n" +
-             "PARTITIONED BY ALL TIME")
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                        "FROM TABLE(POLARIS_SOURCE(source => '%s'))\n" +
+                        "PARTITIONED BY ALL TIME", VALID_SOURCE_ARG))
         .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
-        .expectTarget("dst", s3DataSource.getSignature())
+        .expectTarget("dst", polarisSourceDataSource.getSignature())
         .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
         .expectQuery(
             newScanQueryBuilder()
-                .dataSource(s3DataSource)
+                .dataSource(polarisSourceDataSource)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
                 .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
                 .build()
         )
         .expectLogicalPlanFrom("polarisSourceExtern")
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisUploaded_withProperArgs_valid()
+  {
+    testIngestionQuery()
+        .sql("INSERT INTO dst SELECT *\n" +
+             "FROM TABLE(POLARIS_UPLOADED(\n"
+             + "                          files => ARRAY['zach_test.json'],"
+             + "                          format => 'json'))\n" +
+             "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+             "PARTITIONED BY ALL TIME")
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .expectTarget("dst", polarisUploadedDataSource.getSignature())
+        .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(polarisUploadedDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+        )
+        .expectLogicalPlanFrom("polarisUploadedExtern")
         .verify();
   }
 }
