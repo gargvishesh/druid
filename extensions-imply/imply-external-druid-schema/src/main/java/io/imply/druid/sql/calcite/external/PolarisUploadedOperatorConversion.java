@@ -11,9 +11,9 @@ package io.imply.druid.sql.calcite.external;
 
 import com.google.inject.Inject;
 import org.apache.druid.catalog.model.TableDefnRegistry;
-import org.apache.druid.sql.calcite.external.CatalogExternalTableOperatorConversion;
+import org.apache.druid.sql.calcite.external.DruidUserDefinedTableMacroConversion;
 
-public class PolarisUploadedOperatorConversion extends CatalogExternalTableOperatorConversion
+public class PolarisUploadedOperatorConversion extends DruidUserDefinedTableMacroConversion
 {
   @Inject
   public PolarisUploadedOperatorConversion(
