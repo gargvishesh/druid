@@ -18,7 +18,8 @@ public class PolarisUploadedOperatorConversion extends DruidUserDefinedTableMacr
   @Inject
   public PolarisUploadedOperatorConversion(
       final PolarisTableFunctionResolver resolver,
-      final TableDefnRegistry registry)
+      final TableDefnRegistry registry
+  )
   {
     super(
         PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.FUNCTION_NAME,

@@ -12,6 +12,7 @@ package io.imply.druid.sql.calcite.external;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -30,5 +31,11 @@ public class PolarisUploadedFunctionSpecTest
         PolarisTableFunctionSpec.class);
 
     Assert.assertEquals(spec, specSerde);
+  }
+
+  @Test
+  public void testEquals()
+  {
+    EqualsVerifier.simple().forClass(PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.class).verify();
   }
 }

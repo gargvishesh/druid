@@ -304,7 +304,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
             CoreMatchers.allOf(
                 CoreMatchers.instanceOf(SqlPlanningException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
-                    "Must provide a value for the [files] parameter"))
+                    "Must provide a non-empty value for the [files] parameter"))
             ))
         .verify();
   }

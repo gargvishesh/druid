@@ -16,8 +16,8 @@ import org.apache.druid.catalog.model.table.FormattedInputSourceDefn;
 import org.apache.druid.catalog.model.table.ResolvedExternalTable;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
-import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.UOE;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -29,20 +29,16 @@ import java.util.Map;
  * specific input sources can be more restrictive. The list of formats defines the list
  * of SQL function arguments available when defining a table from scratch.
  */
-public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedInputSourceDefn
+public abstract class BasePolarisInputSourceDefn extends FormattedInputSourceDefn
 {
   private final PolarisTableFunctionResolver resolver;
 
-  public PolarisResolvedFormattedInputSourceDefn(
+  public BasePolarisInputSourceDefn(
       final PolarisTableFunctionResolver resolver
   )
   {
     this.resolver = resolver;
   }
-
-  @Override
-  protected abstract Class<? extends InputSource> inputSourceClass();
-
 
   /**
    * Convert the input source using arguments to a "from scratch" table function.
@@ -71,7 +67,7 @@ public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedI
       List<ColumnSpec> columns
   )
   {
-    throw new IAE(StringUtils.format("Input source type [%s] does not allow for partial tables", typeValue()));
+    throw new UOE(StringUtils.format("Input source type [%s] does not allow for partial tables", typeValue()));
   }
 
   @Override
@@ -83,6 +79,6 @@ public abstract class PolarisResolvedFormattedInputSourceDefn extends FormattedI
   @Override
   public TableFunction partialTableFn(ResolvedExternalTable table)
   {
-    throw new IAE(StringUtils.format("Input source type [%s] does not allow for partial tables", typeValue()));
+    throw new UOE(StringUtils.format("Input source type [%s] does not allow for partial tables", typeValue()));
   }
 }

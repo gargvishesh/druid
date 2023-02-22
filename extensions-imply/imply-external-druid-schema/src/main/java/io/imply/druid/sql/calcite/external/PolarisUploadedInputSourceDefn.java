@@ -17,6 +17,7 @@ import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.utils.CollectionUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,14 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInputSourceDefn
+public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
 {
   public static final String TYPE_KEY = "POLARIS_UPLOADED";
   public static final String FILES_PARAMETER = "files";
 
   private static final TableFunction.ParameterDefn FILES_PARAM_DEFN =
       new BaseTableFunction.Parameter(FILES_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
-  private static final List<TableFunction.ParameterDefn> AD_HOC_PARAMS = Collections.singletonList(FILES_PARAM_DEFN);
 
   static class PolarisUploadedFunctionSpec implements PolarisTableFunctionSpec
   {
@@ -79,7 +79,7 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
     @Override
     public int hashCode()
     {
-      return Objects.hash(FUNCTION_NAME, files);
+      return Objects.hash(files);
     }
   }
 
@@ -105,8 +105,8 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
   protected PolarisTableFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args)
   {
     final List<String> files = CatalogUtils.getStringArray(args, FILES_PARAMETER);
-    if (null == files) {
-      throw new IAE("Must provide a value for the [%s] parameter", FILES_PARAMETER);
+    if (CollectionUtils.isNullOrEmpty(files)) {
+      throw new IAE("Must provide a non-empty value for the [%s] parameter", FILES_PARAMETER);
     }
     return new PolarisUploadedFunctionSpec(files);
   }
@@ -114,7 +114,7 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
   @Override
   protected List<TableFunction.ParameterDefn> adHocTableFnParameters()
   {
-    return AD_HOC_PARAMS;
+    return Collections.singletonList(FILES_PARAM_DEFN);
   }
 
   @Override
