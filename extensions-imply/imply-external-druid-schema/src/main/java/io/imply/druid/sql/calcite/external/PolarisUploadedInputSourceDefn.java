@@ -16,6 +16,7 @@ import org.apache.druid.catalog.model.TableDefnRegistry;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
+import org.apache.druid.java.util.common.IAE;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -104,6 +105,9 @@ public class PolarisUploadedInputSourceDefn extends PolarisResolvedFormattedInpu
   protected PolarisTableFunctionSpec convertArgsToTblFnDefn(Map<String, Object> args)
   {
     final List<String> files = CatalogUtils.getStringArray(args, FILES_PARAMETER);
+    if (null == files) {
+      throw new IAE("Must provide a value for the [%s] parameter", FILES_PARAMETER);
+    }
     return new PolarisUploadedFunctionSpec(files);
   }
 

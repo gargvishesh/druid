@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.sql.calcite.external;
 
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -19,6 +28,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.calcite.CalciteIngestionDmlTest;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.external.Externals;
@@ -30,7 +40,9 @@ import org.apache.druid.storage.s3.S3InputDataConfig;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
 import org.easymock.EasyMock;
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import javax.annotation.Nullable;
 import java.net.URI;
@@ -40,7 +52,14 @@ import java.util.List;
 
 public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
 {
-  private static final String VALID_SOURCE_ARG = "<polaris_source>";
+  private static final String VALID_SOURCE_ARG = "<valid polaris_source>";
+  private static final String INVALID_SOURCE_ARG = "<invalid polaris_source>";
+
+  private static final String VALID_POLARIS_FILE = "valid_file.json";
+
+  private static final String INVALID_POLARIS_FILE = "invalid_file.json";
+
+  private static final String RESOLVER_FAILURE_MESSAGE = "failure occurred when resolving polaris source";
 
   protected static URI toURI(String uri)
   {
@@ -120,14 +139,24 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
               polarisSourceDataSource.getSignature()
           );
         }
+        if (polarisSourceFnSpec.getSource().equals(INVALID_SOURCE_ARG)) {
+          throw new RuntimeException(RESOLVER_FAILURE_MESSAGE);
+        }
       }
 
       if (fn instanceof PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec) {
-        return new PolarisExternalTableSpec(
-            polarisSourceDataSource.getInputSource(),
-            null,
-            null
-        );
+        PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec polarisUploadedFnSpec =
+            (PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec) fn;
+        if (polarisUploadedFnSpec.getFiles().contains(INVALID_POLARIS_FILE)) {
+          throw new RuntimeException(RESOLVER_FAILURE_MESSAGE);
+        }
+        if (polarisUploadedFnSpec.getFiles().contains(VALID_POLARIS_FILE)) {
+          return new PolarisExternalTableSpec(
+              polarisSourceDataSource.getInputSource(),
+              null,
+              null
+          );
+        }
       }
 
       throw new IAE(StringUtils.format("Undefined resolving of polarisFunction %s", fn));
@@ -188,15 +217,47 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   }
 
   @Test
+  public void test_PolarisSource_withExtend_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_SOURCE(source => '%s'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_SOURCE_ARG))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "POLARIS_SOURCE does not support the EXTEND clause."))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisSource_resolvingFailure_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_SOURCE(source => '%s'))\n" +
+                                "PARTITIONED BY ALL TIME", INVALID_SOURCE_ARG))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
+            ))
+        .verify();
+  }
+
+  @Test
   public void test_PolarisUploaded_withProperArgs_valid()
   {
     testIngestionQuery()
-        .sql("INSERT INTO dst SELECT *\n" +
-             "FROM TABLE(POLARIS_UPLOADED(\n"
-             + "                          files => ARRAY['zach_test.json'],"
-             + "                          format => 'json'))\n" +
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+             "FROM TABLE(POLARIS_UPLOADED(\n" +
+             "                          files => ARRAY['%s']," +
+             "                          format => 'json'))\n" +
              "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
-             "PARTITIONED BY ALL TIME")
+             "PARTITIONED BY ALL TIME", VALID_POLARIS_FILE))
         .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
         .expectTarget("dst", polarisUploadedDataSource.getSignature())
         .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
@@ -209,6 +270,60 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                 .build()
         )
         .expectLogicalPlanFrom("polarisUploadedExtern")
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisUploaded_withoutFormatArg_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_UPLOADED(\n" +
+                                "                          files => ARRAY['%s']))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_FILE))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Must provide a value for the [format] parameter"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisUploaded_withoutfilesArg_validationError()
+  {
+    testIngestionQuery()
+        .sql("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_UPLOADED(\n" +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME")
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Must provide a value for the [files] parameter"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisUploaded_resolvingFailure_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_UPLOADED(\n" +
+                                "                          files => ARRAY['%s']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", INVALID_POLARIS_FILE))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
+            ))
         .verify();
   }
 }
