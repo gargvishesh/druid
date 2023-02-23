@@ -24,7 +24,6 @@ import org.apache.druid.data.input.s3.S3InputSourceDruidModule;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -45,8 +44,6 @@ import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import javax.annotation.Nullable;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 
@@ -60,16 +57,6 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   private static final String INVALID_POLARIS_FILE = "invalid_file.json";
 
   private static final String RESOLVER_FAILURE_MESSAGE = "failure occurred when resolving polaris source";
-
-  protected static URI toURI(String uri)
-  {
-    try {
-      return new URI(uri);
-    }
-    catch (URISyntaxException e) {
-      throw new ISE("Bad URI: %s", uri);
-    }
-  }
 
   protected final S3InputSource s3InputSource = new S3InputSource(
       S3_SERVICE,
