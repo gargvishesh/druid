@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableSet;
 import io.imply.druid.ArrayBasedIndexedTableDruidModule;
 import io.imply.druid.segment.join.CloseTableFirstReferenceCountingIndexedTable;
 import io.imply.druid.segment.join.IndexedTableManager;
-import it.unimi.dsi.fastutil.ints.IntLists;
+import it.unimi.dsi.fastutil.ints.IntSortedSets;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.jackson.SegmentizerModule;
 import org.apache.druid.java.util.common.DateTimes;
@@ -51,7 +51,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -554,6 +553,6 @@ public class IndexedTableSegmentizerFactoryTest extends InitializedNullHandlingT
     Assert.assertEquals(837, table.columnIndex(marketColumnIndex).find("spot").size());
 
     // get index for market column, is key column, expect there to be a empty list for value that isn't in the table
-    Assert.assertEquals(Collections.emptySet(), table.columnIndex(marketColumnIndex).find("not in the table"));
+    Assert.assertEquals(IntSortedSets.EMPTY_SET, table.columnIndex(marketColumnIndex).find("not in the table"));
   }
 }
