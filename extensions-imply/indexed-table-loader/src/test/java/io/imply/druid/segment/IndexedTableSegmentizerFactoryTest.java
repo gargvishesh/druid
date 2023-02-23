@@ -51,6 +51,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -553,6 +554,6 @@ public class IndexedTableSegmentizerFactoryTest extends InitializedNullHandlingT
     Assert.assertEquals(837, table.columnIndex(marketColumnIndex).find("spot").size());
 
     // get index for market column, is key column, expect there to be a empty list for value that isn't in the table
-    Assert.assertEquals(IntLists.EMPTY_LIST, table.columnIndex(marketColumnIndex).find("not in the table"));
+    Assert.assertEquals(Collections.emptySet(), table.columnIndex(marketColumnIndex).find("not in the table"));
   }
 }
