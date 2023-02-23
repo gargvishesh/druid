@@ -13,26 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Github workflow that runs revised/new ITs
-on:
-  workflow_call:
-  workflow_dispatch:
+from template import BaseTemplate, generate
 
-jobs:
-  it:
-    strategy:
-      fail-fast: false
-      matrix:
-        #jdk: [8, 11, 17]
-        jdk: [8]
-        it: [HighAvailability, MultiStageQuery, Catalog, BatchIndex, MultiStageQueryWithMM, InputSource, InputFormat]
-        #indexer: [indexer, middleManager]
-        indexer: [middleManager]
-    uses: ./.github/workflows/reusable-revised-its.yml
-    with:
-      build_jdk: ${{ matrix.jdk }}
-      runtime_jdk: ${{ matrix.jdk }}
-      use_indexer: ${{ matrix.indexer }}
-      script: ./it.sh github ${{ matrix.it }}
-      it: ${{ matrix.it }}
-      mysql_driver: com.mysql.jdbc.Driver
+class Template(BaseTemplate):
+
+    def define_indexer(self):
+        service = super().define_indexer()
+        self.add_property(service, 'druid.msq.intermediate.storage.enable', 'true')
+        self.add_property(service, 'druid.msq.intermediate.storage.type', 'local')
+        self.add_property(service, 'druid.msq.intermediate.storage.basePath', '/shared/durablestorage/')
+
+generate(__file__, Template())
