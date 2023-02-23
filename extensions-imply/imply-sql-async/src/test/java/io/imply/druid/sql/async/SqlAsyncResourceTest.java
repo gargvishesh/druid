@@ -41,6 +41,7 @@ import org.apache.druid.sql.SqlLifecycleManager;
 import org.apache.druid.sql.SqlStatementFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.CalciteRulesManager;
+import org.apache.druid.sql.calcite.planner.CatalogResolver;
 import org.apache.druid.sql.calcite.planner.PlannerConfig;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.run.SqlEngine;
@@ -164,7 +165,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         jsonMapper,
         CalciteTests.DRUID_SCHEMA_NAME,
         new CalciteRulesManager(ImmutableSet.of()),
-        new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of()))
+        new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of())),
+        CatalogResolver.NULL_RESOLVER
     );
     final SqlStatementFactory sqlLifecycleFactory = CalciteTests.createSqlStatementFactory(
         engine,
