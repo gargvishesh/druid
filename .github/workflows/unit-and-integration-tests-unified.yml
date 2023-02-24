@@ -51,6 +51,8 @@ env:
 jobs:
   build:
     name: build (jdk${{ matrix.jdk }})
+    env:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,6 +71,13 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ matrix.jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
+          cat ~/.m2/settings.xml
+          ls -l ~/.m2/
 
       - name: Cache targets
         id: target

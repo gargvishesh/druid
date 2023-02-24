@@ -47,6 +47,8 @@ jobs:
   unit-tests:
     name: ${{ inputs.module }} modules test
     runs-on: imply-ubuntu-latest
+    env:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     steps:
       - name: checkout branch
         uses: actions/checkout@v3
@@ -62,6 +64,11 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ inputs.jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: setup node
         uses: actions/setup-node@v3

@@ -46,11 +46,14 @@ on:
 env:
   MYSQL_DRIVER_CLASSNAME: ${{ inputs.mysql_driver }} # Used by tests to connect to metadata store directly.
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
 jobs:
   test: # Github job that runs a given revised/new IT against retrieved cached druid docker image
     name: ${{ inputs.it }} integration test (Compile=jdk${{ inputs.build_jdk }}, Run=jdk${{ inputs.runtime_jdk }}, Indexer=${{ inputs.use_indexer }})
     runs-on: imply-ubuntu-latest
+    env:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v3
@@ -64,6 +67,11 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ inputs.build_jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Restore targets
         id: targets-restore

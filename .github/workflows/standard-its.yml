@@ -112,6 +112,7 @@ jobs:
       POD_NAME: int-test
       POD_NAMESPACE: default
       BUILD_DRUID_CLUSTER: true
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v3
@@ -125,6 +126,11 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-8-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true'
