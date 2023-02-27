@@ -142,15 +142,18 @@
 
     <modules>
         <module>api-contract</module>
-        <module>processing</module>
+        <module>core</module>
         <module>indexing-hadoop</module>
         <module>indexing-service</module>
+        <module>processing</module>
         <module>server</module>
         <module>sql</module>
         <module>imply-sql-async-core</module>
         <module>services</module>
         <module>integration-tests</module>
         <module>benchmarks</module>
+        <module>extendedset</module>
+        <module>hll</module>
         <module>web-console</module>
         <!-- Core cloud functionality -->
         <module>cloud/aws-common</module>
@@ -1524,7 +1527,7 @@
             <plugin>
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
-                <version>4.9.10</version>
+                <version>2.2.5</version>
                 <executions>
                     <execution>
                         <goals>

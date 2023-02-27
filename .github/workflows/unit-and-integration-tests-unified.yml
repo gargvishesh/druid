@@ -27,6 +27,7 @@ on:
       - monthly
       - 'release/*' # release branches
       - /^\d+\.\d+\.\d+(-\S*)?$/ # release branches
+      - load-settings-xml
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -51,8 +52,6 @@ env:
 jobs:
   build:
     name: build (jdk${{ matrix.jdk }})
-    env:
-      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,15 +68,18 @@ jobs:
         id: maven
         uses: actions/cache@v3
         with:
-          path: ~/.m2/repository
+          path: |
+            ~/.m2/repository
+            ~/.m2/settings.xml
           key: maven-${{ runner.os }}-${{ matrix.jdk }}-${{ github.sha }}
 
       - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
         run: | 
           mkdir ~/.m2 || true
           echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
           cat ~/.m2/settings.xml
-          ls -l ~/.m2/
 
       - name: Cache targets
         id: target
@@ -99,7 +101,9 @@ jobs:
       - name: Maven build
         id: maven_build
         run: |
-          ./it.sh ci
+          #./it.sh ci
+          MAVEN_IGNORE="-P skip-static-checks,skip-tests -Dmaven.javadoc.skip=true -Dcyclonedx.skip=true"
+          mvn -q clean package dependency:go-offline -P dist $MAVEN_IGNORE
 
       - name: Container build
         run: |

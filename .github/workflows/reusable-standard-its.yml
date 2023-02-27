@@ -53,13 +53,12 @@ env:
   DOCKER_IP: 127.0.0.1  # for integration tests
   MYSQL_DRIVER_CLASSNAME: ${{ inputs.mysql_driver }}
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  APACHE_ARCHIVE_MIRROR_HOST: https://repo.cnc.imply.io/artifactory/archive-apache-org-remote
 
 jobs:
   test: # Github job that runs a given standard/old IT for a given testing group
     name: ${{ inputs.group }} integration test (Compile=jdk${{ inputs.build_jdk }}, Run=jdk${{ inputs.runtime_jdk }}, Indexer=${{ inputs.use_indexer }}, Mysql=${{ inputs.mysql_driver }})
     runs-on: imply-ubuntu-latest
-    env:
-      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v3
@@ -71,13 +70,10 @@ jobs:
         id: maven-restore
         uses: actions/cache/restore@v3
         with:
-          path: ~/.m2/repository
+          path: 
+            ~/.m2/repository
+            ~/.m2/settings.xml
           key: maven-${{ runner.os }}-${{ inputs.build_jdk }}-${{ github.sha }}
-
-      - name: Load maven settings.xml from Github Secrets (base64)
-        run: | 
-          mkdir ~/.m2 || true
-          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true'
