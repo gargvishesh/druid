@@ -35,7 +35,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
   public static final String OBJECTS_PARAMETER = "objects";
   public static final String PATTERN_PARAMETER = "pattern";
 
-  private static final TableFunction.ParameterDefn CONNECTION_NAME_PARAM_DEFN = new BaseTableFunction.Parameter(CONNECTION_NAME_PARAMETER, TableFunction.ParameterType.VARCHAR, true);
+  private static final TableFunction.ParameterDefn CONNECTION_NAME_PARAM_DEFN = new BaseTableFunction.Parameter(CONNECTION_NAME_PARAMETER, TableFunction.ParameterType.VARCHAR, false);
   private static final TableFunction.ParameterDefn URI_PARAM_DEFN = new BaseTableFunction.Parameter(URIS_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
   private static final TableFunction.ParameterDefn PREFIXES_PARAM_DEFN = new BaseTableFunction.Parameter(PREFIXES_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
   private static final TableFunction.ParameterDefn OBJECTS_PARAM_DEFN = new BaseTableFunction.Parameter(OBJECTS_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
@@ -164,6 +164,10 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
     final List<String> objects = CatalogUtils.getStringArray(args, OBJECTS_PARAMETER);
     final String pattern = CatalogUtils.getString(args, PATTERN_PARAMETER);
 
+    // Sanity check args before constructing the spec.
+    if (connectionName == null) {
+      throw new IAE("Must provide a value for the [%s] parameter", CONNECTION_NAME_PARAMETER);
+    }
     if (CollectionUtils.isNullOrEmpty(uris)
         && CollectionUtils.isNullOrEmpty(prefixes)
         && CollectionUtils.isNullOrEmpty(objects)
