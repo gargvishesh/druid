@@ -379,7 +379,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   }
 
   @Test
-  public void test_PolarisS3connection_withoutAnyObjectsArg_validationError()
+  public void test_PolarisS3connection_withoutAnyS3Arg_validationError()
   {
     testIngestionQuery()
         .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
@@ -393,6 +393,27 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                 CoreMatchers.instanceOf(SqlPlanningException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Must provide a non-empty value for one of [uris, prefixes, objects, pattern] parameters"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3connection_multipleS3Args_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          objects => ARRAY['foo.json']," +
+                                "                          uris => ARRAY['s3://bar/baz.json']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Exactly one of [uris, prefixes, objects, pattern] must be specified"))
             ))
         .verify();
   }

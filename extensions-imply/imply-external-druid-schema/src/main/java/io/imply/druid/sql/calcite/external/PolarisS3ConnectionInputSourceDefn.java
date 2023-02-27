@@ -11,6 +11,7 @@ package io.imply.druid.sql.calcite.external;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Strings;
 import org.apache.druid.catalog.model.CatalogUtils;
 import org.apache.druid.catalog.model.TableDefnRegistry;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
@@ -170,11 +171,19 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
     if (connectionName == null) {
       throw new IAE("Must provide a value for the [%s] parameter", CONNECTION_NAME_PARAMETER);
     }
-    if (CollectionUtils.isNullOrEmpty(uris)
-        && CollectionUtils.isNullOrEmpty(prefixes)
-        && CollectionUtils.isNullOrEmpty(objects)
-        && pattern == null) {
+
+    final int hasUris = !CollectionUtils.isNullOrEmpty(uris) ? 1 : 0;
+    final int hasPrefixes = !CollectionUtils.isNullOrEmpty(prefixes) ? 1 : 0;
+    final int hasObjects = !CollectionUtils.isNullOrEmpty(objects) ? 1 : 0;
+    final int hasPattern = !Strings.isNullOrEmpty(pattern) ? 1 : 0;
+    final int requestParam = hasObjects + hasPrefixes + hasUris + hasPattern;
+    if (requestParam == 0) {
       throw new IAE("Must provide a non-empty value for one of [%s, %s, %s, %s] parameters",
+                    URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER);
+    }
+
+    if (requestParam > 1) {
+      throw new IAE("Exactly one of [%s, %s, %s, %s] must be specified",
                     URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER);
     }
     return new PolarisS3ConnectionFunctionSpec(connectionName, uris, prefixes, objects, pattern);
