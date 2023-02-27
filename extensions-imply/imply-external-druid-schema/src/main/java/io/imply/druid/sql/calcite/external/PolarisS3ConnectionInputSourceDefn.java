@@ -125,9 +125,11 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
         return false;
       }
       PolarisS3ConnectionFunctionSpec that = (PolarisS3ConnectionFunctionSpec) o;
-      return Objects.equals(connectionName, that.connectionName) && Objects.equals(uris, that.uris) &&
-             Objects.equals(prefixes, that.prefixes) && Objects.equals(objects, that.objects) &&
-             Objects.equals(pattern, that.pattern);
+      return Objects.equals(connectionName, that.connectionName)
+             && Objects.equals(uris, that.uris)
+             && Objects.equals(prefixes, that.prefixes)
+             && Objects.equals(objects, that.objects)
+             && Objects.equals(pattern, that.pattern);
     }
 
     @Override
