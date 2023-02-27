@@ -33,7 +33,7 @@ public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
   public static final String FILES_PARAMETER = "files";
 
   private static final TableFunction.ParameterDefn FILES_PARAM_DEFN =
-      new BaseTableFunction.Parameter(FILES_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
+      new BaseTableFunction.Parameter(FILES_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, false);
 
   static class PolarisUploadedFunctionSpec implements PolarisTableFunctionSpec
   {

@@ -44,6 +44,7 @@ import java.util.UUID;
 public class VCpuMonitor extends AbstractMonitor
 {
   private static final String METRIC = "meter/vcpus_available";
+  private static final Path DEFAULT_PROC_FS_ROOT = Paths.get("/proc/");
   private static final Path PROC_SELF = Paths.get("/proc/self");
   private static final Duration DEFAULT_EMISSION_PERIOD = Duration.ofMinutes(10);
   private static final Logger LOGGER = new Logger(VCpuMonitor.class);
@@ -70,7 +71,7 @@ public class VCpuMonitor extends AbstractMonitor
     this(
         druidProcessingConfig,
         runtimeInfo,
-        ProcFsReader.DEFAULT_PROC_FS_ROOT,
+        DEFAULT_PROC_FS_ROOT,
         PROC_SELF,
         DEFAULT_EMISSION_PERIOD
     );

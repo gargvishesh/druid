@@ -43,7 +43,10 @@ public class EventMap extends HashMap<String, Object>
 
   /**
    * Convert this EventMap to a builder. Performs copy of the whole EventMap.
+   * This method is used by the `kafka-emitter` module, but it's not built,
+   * so temporarily suppress it to make static analysis happy.
    */
+  @SuppressWarnings("unused")
   public Builder asBuilder()
   {
     return new Builder().putAll(this);
@@ -76,15 +79,6 @@ public class EventMap extends HashMap<String, Object>
       if (value != null) {
         map.put(key, value);
       }
-      return this;
-    }
-
-    /**
-     * Adds map entry to the map
-     */
-    public Builder put(Map.Entry<String, Object> entry)
-    {
-      map.put(entry.getKey(), entry.getValue());
       return this;
     }
 
