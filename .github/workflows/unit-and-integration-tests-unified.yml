@@ -101,9 +101,7 @@ jobs:
       - name: Maven build
         id: maven_build
         run: |
-          #./it.sh ci
-          MAVEN_IGNORE="-P skip-static-checks,skip-tests -Dmaven.javadoc.skip=true -Dcyclonedx.skip=true"
-          mvn -q clean package dependency:go-offline -P dist $MAVEN_IGNORE
+          ./it.sh ci
 
       - name: Container build
         run: |
