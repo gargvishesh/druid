@@ -1115,26 +1115,6 @@ pipeline {
                 DOCKER_AGENT_ARGS = "-u root:root --runtime=sysbox-runc -e RUN_DOCKER=1"
             }
             parallel {
-                stage('(openjdk11) processing module test') {
-                    agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    environment {
-                        MAVEN_PROJECTS = "processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL = "true"
-                    }
-                    steps { runUnitTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(openjdk11) processing module test (SQL Compatibility)') {
-                    agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    environment {
-                        MAVEN_PROJECTS = "processing"
-                        DRUID_USE_DEFAULT_VALUE_FOR_NULL = "false"
-                    }
-                    steps { runUnitTest() }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
                 stage('(openjdk11) indexing modules test') {
                     agent { docker { image "${IMAGE_JDK11}-${DOCKER_TAG}"; args "-u jenkins --runtime=sysbox-runc -e RUN_DOCKER=1"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     environment {
