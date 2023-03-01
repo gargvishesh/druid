@@ -45,6 +45,9 @@ on:
         required: false
         type: string
         default: com.mysql.jdbc.Driver
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
 
 env:
   MVN: mvn --no-snapshot-updates
@@ -53,6 +56,7 @@ env:
   DOCKER_IP: 127.0.0.1  # for integration tests
   MYSQL_DRIVER_CLASSNAME: ${{ inputs.mysql_driver }}
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  APACHE_ARCHIVE_MIRROR_HOST: https://repo.cnc.imply.io/artifactory/archive-apache-org-remote
 
 jobs:
   test: # Github job that runs a given standard/old IT for a given testing group
@@ -71,6 +75,13 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ inputs.build_jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true'

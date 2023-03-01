@@ -70,6 +70,13 @@ jobs:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ matrix.jdk }}-${{ github.sha }}
 
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
+
       - name: Cache targets
         id: target
         uses: actions/cache@v3
@@ -115,6 +122,8 @@ jobs:
     with:
       jdk: 8
       sql_compatibility: ${{ matrix.sql_compatibility }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   unit-tests-phase2:
     strategy:
@@ -128,11 +137,17 @@ jobs:
     with:
       jdk: ${{ matrix.jdk }}
       sql_compatibility: ${{ matrix.sql_compatibility }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   standard-its:
     needs: unit-tests
     uses: ./.github/workflows/standard-its.yml
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   revised-its:
     needs: unit-tests
     uses: ./.github/workflows/revised-its.yml
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}

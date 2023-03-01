@@ -16,6 +16,9 @@
 # Github workflow that runs revised/new ITs
 on:
   workflow_call:
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
   workflow_dispatch:
 
 jobs:
@@ -36,3 +39,5 @@ jobs:
       script: ./it.sh github ${{ matrix.it }}
       it: ${{ matrix.it }}
       mysql_driver: com.mysql.jdbc.Driver
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
