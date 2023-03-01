@@ -27,7 +27,6 @@ on:
       - monthly
       - 'release/*' # release branches
       - /^\d+\.\d+\.\d+(-\S*)?$/ # release branches
-      - load-settings-xml
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -79,7 +78,6 @@ jobs:
         run: | 
           mkdir ~/.m2 || true
           echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
-          cat ~/.m2/settings.xml
 
       - name: Cache targets
         id: target
