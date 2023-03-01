@@ -25,6 +25,9 @@ on:
         type: boolean
         default: true
         description: 'For SQL compatibility'
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
 
 jobs:
   indexing_modules_test:
@@ -34,6 +37,8 @@ jobs:
       sql_compatibility: ${{ inputs.sql_compatibility }}
       module: indexing
       maven_projects: 'indexing-hadoop,indexing-service,extensions-core/kafka-indexing-service,extensions-core/kinesis-indexing-service'
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   processing_modules_test:
     uses: ./.github/workflows/reusable-unit-tests.yml
@@ -42,6 +47,8 @@ jobs:
       sql_compatibility: ${{ inputs.sql_compatibility }}
       module: processing
       maven_projects: 'processing'
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   server_modules_test:
     uses: ./.github/workflows/reusable-unit-tests.yml
@@ -50,6 +57,8 @@ jobs:
       sql_compatibility: ${{ inputs.sql_compatibility }}
       module: server
       maven_projects: 'server'
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   other_modules_test:
     uses: ./.github/workflows/reusable-unit-tests.yml
@@ -58,3 +67,5 @@ jobs:
       sql_compatibility: ${{ inputs.sql_compatibility }}
       module: other
       maven_projects: '!processing,!indexing-hadoop,!indexing-service,!extensions-core/kafka-indexing-service,!extensions-core/kinesis-indexing-service,!server,!web-console,!integration-tests,!:druid-it-tools,!:druid-it-image,!:druid-it-cases'
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
