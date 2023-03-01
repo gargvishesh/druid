@@ -42,6 +42,9 @@ on:
         required: false
         type: string
         default: com.mysql.jdbc.Driver
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
 
 env:
   MYSQL_DRIVER_CLASSNAME: ${{ inputs.mysql_driver }} # Used by tests to connect to metadata store directly.
@@ -62,10 +65,15 @@ jobs:
         id: maven-restore
         uses: actions/cache/restore@v3
         with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/settings.xml
+          path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ inputs.build_jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Restore targets
         id: targets-restore

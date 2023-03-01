@@ -16,6 +16,9 @@
 # Github workflow that runs standard/old ITs
 on:
   workflow_call:
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
   workflow_dispatch:
 
 jobs:
@@ -32,6 +35,8 @@ jobs:
       testing_groups: -Dgroups=${{ matrix.testing_group }}
       use_indexer: middleManager
       group: ${{ matrix.testing_group }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-index-tests-indexer:
     strategy:
@@ -46,6 +51,8 @@ jobs:
       testing_groups: -Dgroups=${{ matrix.testing_group }}
       use_indexer: indexer
       group: ${{ matrix.testing_group }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-query-tests-middleManager:
     strategy:
@@ -61,6 +68,8 @@ jobs:
       use_indexer: middleManager
       override_config_path: ./environment-configs/test-groups/prepopulated-data
       group: ${{ matrix.testing_group }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-query-tests-middleManager-mariaDB:
     strategy:
@@ -76,6 +85,8 @@ jobs:
       mysql_driver: org.mariadb.jdbc.Driver
       override_config_path: ./environment-configs/test-groups/prepopulated-data
       group: query
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-shuffle-deep-store-tests:
     strategy:
@@ -90,6 +101,8 @@ jobs:
       use_indexer: ${{ matrix.indexer }}
       override_config_path: ./environment-configs/test-groups/shuffle-deep-store
       group: shuffle deep store
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-custom-coordinator-duties-tests:
     uses: ./.github/workflows/reusable-standard-its.yml
@@ -100,6 +113,8 @@ jobs:
       use_indexer: middleManager
       override_config_path: ./environment-configs/test-groups/custom-coordinator-duties
       group: custom coordinator duties
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-k8s-leadership-tests:
     name: (Compile=openjdk8, Run=openjdk8, Cluster Build On K8s) ITNestedQueryPushDownTest integration test
@@ -125,10 +140,15 @@ jobs:
         id: maven-restore
         uses: actions/cache/restore@v3
         with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/settings.xml
+          path: ~/.m2/repository
           key: maven-${{ runner.os }}-8-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true'
@@ -163,3 +183,5 @@ jobs:
       testing_groups: -DexcludedGroups=batch-index,input-format,input-source,perfect-rollup-parallel-batch-index,kafka-index,query,query-retry,query-error,realtime-index,security,ldap-security,s3-deep-storage,gcs-deep-storage,azure-deep-storage,hdfs-deep-storage,s3-ingestion,kinesis-index,kinesis-data-format,kafka-transactional-index,kafka-index-slow,kafka-transactional-index-slow,kafka-data-format,hadoop-s3-to-s3-deep-storage,hadoop-s3-to-hdfs-deep-storage,hadoop-azure-to-azure-deep-storage,hadoop-azure-to-hdfs-deep-storage,hadoop-gcs-to-gcs-deep-storage,hadoop-gcs-to-hdfs-deep-storage,aliyun-oss-deep-storage,append-ingestion,compaction,high-availability,upgrade,shuffle-deep-store,custom-coordinator-duties
       use_indexer: ${{ matrix.indexer }}
       group: other
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
