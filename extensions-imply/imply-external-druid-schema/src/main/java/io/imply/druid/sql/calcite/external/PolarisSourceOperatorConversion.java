@@ -89,7 +89,7 @@ public class PolarisSourceOperatorConversion extends DruidUserDefinedTableMacroC
     @Override
     public int hashCode()
     {
-      return Objects.hash(FUNCTION_NAME, source);
+      return Objects.hash(source);
     }
   }
 
