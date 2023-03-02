@@ -34,7 +34,7 @@ concurrency:
 
 env:
   MVN: mvn -B
-  MAVEN_SKIP: -P skip-static-checks -Dweb.console.skip=true -Dmaven.javadoc.skip=true
+  MAVEN_SKIP: -P skip-static-checks -Dweb.console.skip=true -Dmaven.javadoc.skip=true -Dcyclonedx.skip=true
   MAVEN_SKIP_TESTS: -P skip-tests
   MAVEN_OPTS: -Xmx3000m
 
@@ -57,10 +57,17 @@ jobs:
       - name: setup ${{ matrix.java }}
         run: export JAVA_HOME=$JAVA_HOME_${{ env.java_version }}_X64
 
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
+
       - name: packaging check
         run: |
           ./.github/scripts/setup_generate_license.sh
-          ${MVN} clean install -Prat -Pbundle-contrib-exts --fail-at-end \
+          ${MVN} clean install -Prat --fail-at-end \
           -pl '!benchmarks, !distribution' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Dweb.console.skip=false -T1C
           ${MVN} install -Prat -Pdist -Pbundle-contrib-exts --fail-at-end \
           -pl 'distribution' ${MAVEN_SKIP} ${MAVEN_SKIP_TESTS} -Dweb.console.skip=false -T1C

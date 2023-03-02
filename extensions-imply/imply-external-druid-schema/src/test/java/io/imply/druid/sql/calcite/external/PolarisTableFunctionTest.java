@@ -151,7 +151,6 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
           );
         }
       }
-
       if (fn instanceof PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec) {
         PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec polarisS3ConnFunctionSpec =
             (PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec) fn;
