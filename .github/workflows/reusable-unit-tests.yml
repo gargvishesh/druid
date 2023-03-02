@@ -34,6 +34,9 @@ on:
         required: true
         type: string
         description: 'Name of group of tests running (to display)'
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
 
 env:
   MVN: mvn -B
@@ -62,6 +65,13 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ inputs.jdk }}-${{ github.sha }}
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: | 
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
       - name: setup node
         uses: actions/setup-node@v3
