@@ -20,7 +20,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = PolarisTableFunctionSpec.TYPE_PROPERTY)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.FUNCTION_NAME, value = PolarisSourceOperatorConversion.PolarisSourceFunctionSpec.class),
-    @JsonSubTypes.Type(name = PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.FUNCTION_NAME, value = PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.class)
+    @JsonSubTypes.Type(name = PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.FUNCTION_NAME, value = PolarisUploadedInputSourceDefn.PolarisUploadedFunctionSpec.class),
+    @JsonSubTypes.Type(name = PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec.FUNCTION_NAME, value = PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec.class)
 })
 public interface PolarisTableFunctionSpec
 {
