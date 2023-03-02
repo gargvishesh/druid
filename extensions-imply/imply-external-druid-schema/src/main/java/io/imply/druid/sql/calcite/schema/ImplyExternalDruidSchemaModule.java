@@ -15,6 +15,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.TypeLiteral;
+import io.imply.druid.sql.calcite.external.PolarisS3ConnectionOperatorConversion;
 import io.imply.druid.sql.calcite.external.PolarisSourceOperatorConversion;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolver;
 import io.imply.druid.sql.calcite.external.PolarisTableFunctionResolverImpl;
@@ -82,6 +83,7 @@ public class ImplyExternalDruidSchemaModule implements DruidModule
     binder.bind(PolarisTableFunctionResolver.class).to(PolarisTableFunctionResolverImpl.class).in(LazySingleton.class);
     SqlBindings.addOperatorConversion(binder, PolarisSourceOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, PolarisUploadedOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, PolarisS3ConnectionOperatorConversion.class);
   }
 
   @Nullable

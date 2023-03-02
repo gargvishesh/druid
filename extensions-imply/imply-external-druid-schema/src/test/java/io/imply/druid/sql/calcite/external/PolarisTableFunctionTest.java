@@ -10,7 +10,6 @@
 package io.imply.druid.sql.calcite.external;
 
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
@@ -53,8 +52,10 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   private static final String INVALID_SOURCE_ARG = "<invalid polaris_source>";
 
   private static final String VALID_POLARIS_FILE = "valid_file.json";
-
   private static final String INVALID_POLARIS_FILE = "invalid_file.json";
+
+  private static final String VALID_POLARIS_S3_CONN_NAME = "valid-connection";
+  private static final String INVALID_POLARIS_S3_CONN_NAME = "invalid-connection";
 
   private static final String RESOLVER_FAILURE_MESSAGE = "failure occurred when resolving polaris source";
 
@@ -101,8 +102,13 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       rowSignature
   );
 
+  protected final ExternalDataSource polarisS3ConnectionDataSource = new ExternalDataSource(
+      s3InputSource,
+      jsonInputFormat,
+      rowSignature
+  );
+
   public static final AmazonS3Client S3_CLIENT = EasyMock.createMock(AmazonS3Client.class);
-  public static final AmazonS3ClientBuilder AMAZON_S3_CLIENT_BUILDER = AmazonS3Client.builder();
   public static final ServerSideEncryptingAmazonS3.Builder SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER =
       EasyMock.createMock(ServerSideEncryptingAmazonS3.Builder.class);
   public static final ServerSideEncryptingAmazonS3 S3_SERVICE = new ServerSideEncryptingAmazonS3(
@@ -145,6 +151,18 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
           );
         }
       }
+      if (fn instanceof PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec) {
+        PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec polarisS3ConnFunctionSpec =
+            (PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec) fn;
+        if (polarisS3ConnFunctionSpec.getConnectionName().contains(INVALID_POLARIS_S3_CONN_NAME)) {
+          throw new RuntimeException(RESOLVER_FAILURE_MESSAGE);
+        }
+        return new PolarisExternalTableSpec(
+            polarisSourceDataSource.getInputSource(),
+            null,
+            null
+        );
+      }
 
       throw new IAE(StringUtils.format("Undefined resolving of polarisFunction %s", fn));
     }
@@ -177,6 +195,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         // Set up the POLARIS macros.
         SqlBindings.addOperatorConversion(binder, PolarisSourceOperatorConversion.class);
         SqlBindings.addOperatorConversion(binder, PolarisUploadedOperatorConversion.class);
+        SqlBindings.addOperatorConversion(binder, PolarisS3ConnectionOperatorConversion.class);
       }
     });
   }
@@ -306,6 +325,109 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "                          format => 'json'))\n" +
                                 "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
                                 "PARTITIONED BY ALL TIME", INVALID_POLARIS_FILE))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3Connection_withProperArgs_valid()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          uris => ARRAY['%s']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME, "s3://foo/bar.json"))
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .expectTarget("dst", polarisS3ConnectionDataSource.getSignature())
+        .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(polarisS3ConnectionDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+        )
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3connection_withoutConnectionNameArg_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          objects => ARRAY['s3://foo/bar.json']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME"))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Must provide a value for the [connectionName] parameter"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3connection_withoutAnyS3Arg_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Must provide a non-empty value for one of [uris, prefixes, objects, pattern] parameters"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3connection_multipleS3Args_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          objects => ARRAY['foo.json']," +
+                                "                          uris => ARRAY['s3://bar/baz.json']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME))
+        .expectValidationError(
+            CoreMatchers.allOf(
+                CoreMatchers.instanceOf(SqlPlanningException.class),
+                ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
+                    "Exactly one of [uris, prefixes, objects, pattern] must be specified"))
+            ))
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3connection_resolvingFailure_validationError()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          uris => ARRAY['s3://foo/bar.json']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", INVALID_POLARIS_S3_CONN_NAME))
         .expectValidationError(
             CoreMatchers.allOf(
                 CoreMatchers.instanceOf(SqlPlanningException.class),
