@@ -73,7 +73,7 @@ jobs:
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
           MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
-        run: | 
+        run: |
           mkdir ~/.m2 || true
           echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
@@ -130,13 +130,12 @@ jobs:
       fail-fast: false
       matrix:
         jdk: [11, 17]
-        sql_compatibility: [ false, true ]
     name: unit tests (jdk${{ matrix.jdk }}, sql-compat=${{ matrix.sql_compatibility }})
     uses: ./.github/workflows/unit-tests.yml
     needs: unit-tests
     with:
       jdk: ${{ matrix.jdk }}
-      sql_compatibility: ${{ matrix.sql_compatibility }}
+      sql_compatibility: true
     secrets:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
