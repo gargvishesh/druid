@@ -16,5 +16,4 @@
 io.imply.druid.sql.async.result.S3SqlAsyncResultStorageModule
 org.apache.druid.storage.s3.output.S3StorageConnectorModule
 org.apache.druid.storage.s3.S3StorageDruidModule
-org.apache.druid.firehose.s3.S3FirehoseDruidModule
 org.apache.druid.data.input.s3.S3InputSourceDruidModule
