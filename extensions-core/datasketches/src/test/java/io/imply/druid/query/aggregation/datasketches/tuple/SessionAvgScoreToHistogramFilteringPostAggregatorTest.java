@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesUpdatableSketch;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesUpdatableSketchBuilder;
+import org.apache.druid.common.config.NullHandlingTest;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -36,7 +37,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-public class SessionAvgScoreToHistogramFilteringPostAggregatorTest
+public class SessionAvgScoreToHistogramFilteringPostAggregatorTest extends NullHandlingTest
 {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
