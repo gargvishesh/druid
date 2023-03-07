@@ -180,7 +180,7 @@ jobs:
       - name: Slack Notification for job failed
         uses: rtCamp/action-slack-notify@v2.1.0
         env:
-          SLACK_CHANNEL: "testing-slack"
+          SLACK_CHANNEL: "espresso-machine"
           SLACK_USERNAME: "barista bob"
           SLACK_ICON_EMOJI: ":barista:"
           SLACK_MESSAGE: |
