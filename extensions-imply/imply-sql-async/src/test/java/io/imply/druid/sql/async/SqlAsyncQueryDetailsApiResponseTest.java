@@ -72,7 +72,7 @@ public class SqlAsyncQueryDetailsApiResponseTest
         "{\n"
         + "  \"error\" : {\n"
         + "    \"error\" : \"Query timeout\",\n"
-        + "    \"errorMessage\" : \"Query Timed Out!\",\n"
+        + "    \"errorMessage\" : \"Query did not complete within configured timeout period. You can increase query timeout or tune the performance of query.\",\n"
         + "    \"errorClass\" : \"org.apache.druid.query.QueryTimeoutException\",\n"
         + "    \"host\" : \"testHost\"\n"
         + "  },\n"
