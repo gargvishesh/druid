@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.aggregation.datasketches.tuple.AdTechInventoryAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -86,7 +87,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
       // log statement is not required, since Calcite throws an error of similar kind
       List<String> argListExpression = new ArrayList<>();
       for (Integer arg : argList) {
-        DruidExpression expression = extractColumnExpressionFromProject(rowSignature, project, arg, plannerContext);
+        DruidExpression expression = extractColumnExpressionFromProject(rexBuilder.getTypeFactory(), rowSignature, project, arg, plannerContext);
         argListExpression.add(expression.getExpression());
       }
 
@@ -96,6 +97,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
 
     Aggregation aggregationIfPrebuiltColumn = aggregationWhenPrebuiltColumn(
         plannerContext,
+        rexBuilder.getTypeFactory(),
         rowSignature,
         virtualColumnRegistry,
         name,
@@ -106,7 +108,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
       return aggregationIfPrebuiltColumn;
     }
 
-    RexNode node = Expressions.fromFieldAccess(rowSignature, project, argList.get(0));
+    RexNode node = Expressions.fromFieldAccess(rexBuilder.getTypeFactory(), rowSignature, project, argList.get(0));
     DruidExpression userColumn = Expressions.toDruidExpression(plannerContext, rowSignature, node);
     if (userColumn == null) {
       return null;
@@ -124,6 +126,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             argList.get(1)
@@ -142,7 +145,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
     // check if frequency cap is provided
     Integer frequencyCap = null;
     if (argList.size() >= 3) {
-      frequencyCap = extractIntFromProject(rowSignature, project, argList.get(2));
+      frequencyCap = extractIntFromProject(rexBuilder.getTypeFactory(), rowSignature, project, argList.get(2));
       if (frequencyCap == null) {
         return null;
       }
@@ -151,7 +154,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
     // check if sample size is provided
     Integer sampleSize = null;
     if (argList.size() >= 4) {
-      sampleSize = extractIntFromProject(rowSignature, project, argList.get(3));
+      sampleSize = extractIntFromProject(rexBuilder.getTypeFactory(), rowSignature, project, argList.get(3));
       if (sampleSize == null) {
         return null;
       }
@@ -172,6 +175,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
   @Nullable
   private Aggregation aggregationWhenPrebuiltColumn(
       PlannerContext plannerContext,
+      RelDataTypeFactory relDataTypeFactory,
       RowSignature rowSignature,
       VirtualColumnRegistry virtualColumnRegistry,
       String name,
@@ -187,6 +191,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
     }
 
     DruidExpression columnExpression = extractColumnExpressionFromProject(
+        relDataTypeFactory,
         rowSignature,
         project,
         argList.get(0),
@@ -213,7 +218,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
       return null;
     }
 
-    Integer frequencyCap = extractIntFromProject(rowSignature, project, argList.get(1));
+    Integer frequencyCap = extractIntFromProject(relDataTypeFactory, rowSignature, project, argList.get(1));
     if (frequencyCap == null) {
       return null;
     }
@@ -256,6 +261,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
   }
 
   DruidExpression extractColumnExpressionFromProject(
+      RelDataTypeFactory relDataTypeFactory,
       RowSignature rowSignature,
       Project project,
       Integer arg,
@@ -265,14 +271,14 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
     return Expressions.toDruidExpression(
         plannerContext,
         rowSignature,
-        Expressions.fromFieldAccess(rowSignature, project, arg)
+        Expressions.fromFieldAccess(relDataTypeFactory, rowSignature, project, arg)
     );
   }
 
   @Nullable
-  Integer extractIntFromProject(RowSignature rowSignature, Project project, int arg)
+  Integer extractIntFromProject(RelDataTypeFactory relDataTypeFactory, RowSignature rowSignature, Project project, int arg)
   {
-    final RexNode node = Expressions.fromFieldAccess(rowSignature, project, arg);
+    final RexNode node = Expressions.fromFieldAccess(relDataTypeFactory, rowSignature, project, arg);
     if (!node.isA(SqlKind.LITERAL)) {
       return null;
     }

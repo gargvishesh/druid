@@ -77,6 +77,7 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             aggregateCall.getArgList().get(0)
@@ -101,6 +102,7 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             aggregateCall.getArgList().get(1)
@@ -122,6 +124,7 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
 
     // fetch time window
     final RexNode timeWindow = Expressions.fromFieldAccess(
+        rexBuilder.getTypeFactory(),
         rowSignature,
         project,
         aggregateCall.getArgList().get(2)
@@ -132,6 +135,7 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
     int maxEntries;
     if (aggregateCall.getArgList().size() == 4) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
+          rexBuilder.getTypeFactory(),
           rowSignature,
           project,
           aggregateCall.getArgList().get(3)

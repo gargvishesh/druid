@@ -68,7 +68,7 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
     String sessionColumnName, scoreColumnName;
 
     // fetch session column name
-    RexNode node = Expressions.fromFieldAccess(rowSignature, project, aggregateCall.getArgList().get(0));
+    RexNode node = Expressions.fromFieldAccess(rexBuilder.getTypeFactory(), rowSignature, project, aggregateCall.getArgList().get(0));
     DruidExpression sessionColumn = Expressions.toDruidExpression(plannerContext, rowSignature, node);
     if (sessionColumn == null) {
       return null;
@@ -89,6 +89,7 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             aggregateCall.getArgList().get(1)
@@ -113,6 +114,7 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
     boolean zeroFiltering = false;
     if (aggregateCall.getArgList().size() == 3) {
       final RexNode targetSamplesOrZeroFilteringArg = Expressions.fromFieldAccess(
+          rexBuilder.getTypeFactory(),
           rowSignature,
           project,
           aggregateCall.getArgList().get(2)
@@ -134,12 +136,14 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
 
     if (aggregateCall.getArgList().size() == 4) {
       final RexNode targetSamplesArg = Expressions.fromFieldAccess(
+          rexBuilder.getTypeFactory(),
           rowSignature,
           project,
           aggregateCall.getArgList().get(2)
       );
 
       final RexNode zeroFilteringArg = Expressions.fromFieldAccess(
+          rexBuilder.getTypeFactory(),
           rowSignature,
           project,
           aggregateCall.getArgList().get(3)
