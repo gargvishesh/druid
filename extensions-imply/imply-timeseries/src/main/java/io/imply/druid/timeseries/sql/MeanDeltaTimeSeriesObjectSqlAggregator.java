@@ -146,6 +146,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             aggregateCall.getArgList().get(0)
@@ -170,6 +171,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
+            rexBuilder.getTypeFactory(),
             rowSignature,
             project,
             aggregateCall.getArgList().get(1)
@@ -191,6 +193,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
 
     // fetch time window
     final RexNode timeWindow = Expressions.fromFieldAccess(
+        rexBuilder.getTypeFactory(),
         rowSignature,
         project,
         aggregateCall.getArgList().get(2)
@@ -198,6 +201,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
     Interval window = Intervals.of(RexLiteral.stringValue(timeWindow));
 
     final RexNode timeBucketMillisArg = Expressions.fromFieldAccess(
+        rexBuilder.getTypeFactory(),
         rowSignature,
         project,
         aggregateCall.getArgList().get(3)
@@ -208,6 +212,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
     Integer maxEntries = null;
     if (aggregateCall.getArgList().size() == 5) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
+          rexBuilder.getTypeFactory(),
           rowSignature,
           project,
           aggregateCall.getArgList().get(4)
