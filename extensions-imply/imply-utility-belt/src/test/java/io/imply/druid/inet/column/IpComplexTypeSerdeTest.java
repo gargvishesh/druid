@@ -39,7 +39,7 @@ import java.nio.ByteBuffer;
 
 public class IpComplexTypeSerdeTest
 {
-  BitmapSerdeFactory roaringFactory = new RoaringBitmapSerdeFactory(null);
+  BitmapSerdeFactory roaringFactory = RoaringBitmapSerdeFactory.getInstance();
 
   static {
     NullHandling.initializeForTests();
