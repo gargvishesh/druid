@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# GitHub workflow that runs revised/new ITs
+on:
+  workflow_call:
+    secrets:
+      MVN_SETTINGS_XML:
+        required: true
+      AZURE_KEY:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      GC_KEY:
+        required: true
+  workflow_dispatch:
+
+jobs:
+
+  s3-deep-storage:
+    uses: ./.github/workflows/imply-reusable-revised-its.yml
+    with:
+      build_jdk: 8
+      runtime_jdk: 11
+      use_indexer: middleManager
+      script: ./it.sh github S3DeepStorage
+      it: S3DeepStorage
+      mysql_driver: com.mysql.jdbc.Driver
+      DRUID_CLOUD_BUCKET: druid-qa
+      DRUID_CLOUD_PATH: aws-${{ github.run_id }}-${{ github.run_attempt }}
+      AWS_REGION: us-east-1
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  azure-deep-storage:
+    uses: ./.github/workflows/imply-reusable-revised-its.yml
+    with:
+      build_jdk: 8
+      runtime_jdk: 11
+      use_indexer: middleManager
+      script: ./it.sh github AzureDeepStorage
+      it: AzureDeepStorage
+      mysql_driver: com.mysql.jdbc.Driver
+      DRUID_CLOUD_PATH: druid-qa
+      AZURE_ACCOUNT: implyqastorage
+      AZURE_CONTAINER: azure-${{ github.run_id }}-${{ github.run_attempt }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+      AZURE_KEY: ${{ secrets.AZURE_KEY }}
+
+  gcs-deep-storage:
+    uses: ./.github/workflows/imply-reusable-revised-its.yml
+    with:
+      build_jdk: 8
+      runtime_jdk: 11
+      use_indexer: middleManager
+      script: ./it.sh github GcsDeepStorage
+      it: GcsDeepStorage
+      mysql_driver: com.mysql.jdbc.Driver
+      GOOGLE_BUCKET: imply-qa-testing
+      GOOGLE_PREFIX: gcs-${{ github.run_id }}-${{ github.run_attempt }}
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+      GC_KEY: ${{ secrets.GC_KEY }}

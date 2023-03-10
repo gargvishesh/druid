@@ -151,6 +151,16 @@ jobs:
     secrets:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
+  imply-revised-its:
+    needs: unit-tests
+    uses: ./.github/workflows/imply-revised-its.yml
+    secrets:
+      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AZURE_KEY: ${{ secrets.AZURE_KEY }}
+      GC_KEY: ${{ secrets.GC_KEY }}
+
   notify-slack-on-failure:
     needs: [ build, unit-tests, unit-tests-phase2, standard-its, revised-its ]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.event_name == 'push' }}

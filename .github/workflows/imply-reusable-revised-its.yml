@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Revised Integration Tests shared workflow
+name: Imply specific Revised Integration Tests shared workflow
 on:
   workflow_call:
     inputs:
@@ -42,13 +42,52 @@ on:
         required: false
         type: string
         default: com.mysql.jdbc.Driver
+      DRUID_CLOUD_BUCKET:
+        required: false
+        type: string
+      DRUID_CLOUD_PATH:
+        required: false
+        type: string
+      AWS_REGION:
+        required: false
+        type: string
+      AZURE_ACCOUNT:
+        required: false
+        type: string
+      AZURE_CONTAINER:
+        required: false
+        type: string
+      GOOGLE_BUCKET:
+        required: false
+        type: string
+      GOOGLE_PREFIX:
+        required: false
+        type: string
     secrets:
       MVN_SETTINGS_XML:
         required: true
+      AZURE_KEY:
+        required: false
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      GC_KEY:
+        required: false
 
 env:
   MYSQL_DRIVER_CLASSNAME: ${{ inputs.mysql_driver }} # Used by tests to connect to metadata store directly.
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  DRUID_CLOUD_BUCKET: ${{ inputs.DRUID_CLOUD_BUCKET }}
+  DRUID_CLOUD_PATH: ${{ inputs.DRUID_CLOUD_PATH }}
+  AWS_REGION: ${{ inputs.AWS_REGION }}
+  AZURE_ACCOUNT: ${{ inputs.AZURE_ACCOUNT }}
+  AZURE_KEY: ${{ inputs.AZURE_KEY }}
+  AZURE_CONTAINER: ${{ inputs.AZURE_CONTAINER }}
+  GOOGLE_BUCKET: ${{ inputs.GOOGLE_BUCKET }}
+  GOOGLE_PREFIX: ${{ inputs.GOOGLE_PREFIX }}
+  # This will set by "Authenticate to Google Cloud" step. Setting it empty here so that it is accessible in "Setting permission for Google credentials file" step
+  GOOGLE_APPLICATION_CREDENTIALS: ""
 
 jobs:
   test: # GitHub job that runs a given revised/new IT against retrieved cached druid docker image
@@ -90,6 +129,28 @@ jobs:
           path: |
             ./druid-container-jdk${{ inputs.build_jdk }}.tar.gz
             ./integration-tests-ex/image/target/env.sh
+
+      - name: Add Azure key to environment
+        if: ${{ inputs.it == 'AzureDeepStorage' }}
+        run: echo "AZURE_KEY=${{ secrets.AZURE_KEY }}" >> $GITHUB_ENV
+
+      - name: Add AWS credentials to environment
+        if: ${{ inputs.it == 'S3DeepStorage' }}
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+
+      - name: Authenticate to Google Cloud
+        if: ${{ inputs.it == 'GcsDeepStorage' }}
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GC_KEY }}
+
+      # Container runs as a different UID, so need to give that user permission to access the credentials file.
+      - name: Setting permission for Google credentials file
+        if: ${{ inputs.it == 'GcsDeepStorage' }}
+        run: |
+          chmod 644 ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true' || ( steps.docker-restore.outputs.cache-hit != 'true' && steps.targets-restore.outputs.cache-hit != 'true' )
