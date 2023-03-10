@@ -46,8 +46,7 @@ public class PolarisExplainTableMacro implements TableMacro
       RowSignature signature = jsonMapper.readValue((String) arguments.get(0), RowSignature.class);
 
       return new InlineTable(
-          InlineDataSource.fromIterable(ImmutableList.of(), signature),
-          signature
+          InlineDataSource.fromIterable(ImmutableList.of(), signature)
       );
     }
     catch (JsonProcessingException e) {
