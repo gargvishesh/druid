@@ -58,7 +58,7 @@ import java.util.List;
  */
 public class IpAddressTestUtils
 {
-  public static final BitmapSerdeFactory roaringFactory = new RoaringBitmapSerdeFactory(null);
+  public static final BitmapSerdeFactory roaringFactory = RoaringBitmapSerdeFactory.getInstance();
   public static final ObjectMapper JSON_MAPPER;
   public static final IpAddressModule LICENSED_IP_ADDRESS_MODULE;
 

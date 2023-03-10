@@ -81,7 +81,7 @@ public class DruidSamplingGroupByQueryRel extends DruidRel<DruidSamplingGroupByQ
   {
     return new DruidSamplingGroupByQueryRel(
         sourceRel.getCluster(),
-        sourceRel.getTraitSet().plusAll(partialQuery.getRelTraits()),
+        sourceRel.getTraitSet().merge(partialQuery.getTraitSet(sourceRel.getConvention())),
         sourceRel,
         partialQuery,
         sourceRel.getPlannerContext(),
@@ -101,7 +101,7 @@ public class DruidSamplingGroupByQueryRel extends DruidRel<DruidSamplingGroupByQ
   {
     return new DruidSamplingGroupByQueryRel(
         getCluster(),
-        getTraitSet().plusAll(newQueryBuilder.getRelTraits()),
+        getTraitSet().merge(newQueryBuilder.getTraitSet(getConvention())),
         sourceRel,
         newQueryBuilder,
         getPlannerContext(),
