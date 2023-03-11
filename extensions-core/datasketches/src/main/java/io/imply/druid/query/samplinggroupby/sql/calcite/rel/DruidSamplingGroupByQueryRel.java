@@ -255,9 +255,7 @@ public class DruidSamplingGroupByQueryRel extends DruidRel<DruidSamplingGroupByQ
       throw new RuntimeException(e);
     }
 
-    return super.explainTerms(pw)
-                .item("query", queryString)
-                .item("signature", druidQuery.getOutputRowSignature());
+    return pw.item("query", queryString).item("signature", druidQuery.getOutputRowSignature());
   }
 
   @Override
