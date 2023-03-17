@@ -62,7 +62,7 @@ export const LocalStorageKeys = {
   ROLES_REFRESH_RATE: 'roles-refresh-rate' as const,
   // END: Imply-modified code for user management
 };
-export type LocalStorageKeys = typeof LocalStorageKeys[keyof typeof LocalStorageKeys];
+export type LocalStorageKeys = (typeof LocalStorageKeys)[keyof typeof LocalStorageKeys];
 
 // ----------------------------
 
