@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.aggregation.datasketches.expressions.MurmurHashExprMacros;
 import io.imply.druid.query.aggregation.datasketches.expressions.SessionizeExprMacro;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
@@ -106,7 +105,6 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
     ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
     arrayOfDoublesSketch.configure(null);
     ImplyArrayOfDoublesSketchModule implyArrayOfDoublesSketchModule = new ImplyArrayOfDoublesSketchModule();
-    implyArrayOfDoublesSketchModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     for (Module mod : Stream
         .concat(
             arrayOfDoublesSketch.getJacksonModules().stream(),

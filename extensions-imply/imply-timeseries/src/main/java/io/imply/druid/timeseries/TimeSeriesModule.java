@@ -14,9 +14,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.multibindings.Multibinder;
-import io.imply.druid.license.ImplyLicenseManager;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
@@ -37,28 +35,16 @@ import java.util.List;
 
 public class TimeSeriesModule implements DruidModule
 {
-  static final String TIMESERIES_FEATURE_NAME = "timeseries";
   private static final String SIMPLE_TIMESERIES = "timeseries";
   private static final String AVG_TIMESERIES = "avgTimeseries";
   private static final String DELTA_TIMESERIES = "deltaTimeseries";
   private static final String INTERPOLATION_POST_AGG = "interpolation_timeseries";
   private static final String TIME_WEIGHTED_AVERAGE_POST_AGG = "time_weighted_average_timeseries";
-  private ImplyLicenseManager implyLicenseManager;
   private final Logger log = new Logger(TimeSeriesModule.class);
-
-  @Inject
-  public void setImplyLicenseManager(ImplyLicenseManager implyLicenseManager)
-  {
-    this.implyLicenseManager = implyLicenseManager;
-  }
 
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    if (!implyLicenseManager.isFeatureEnabled(TIMESERIES_FEATURE_NAME)) {
-      return ImmutableList.of();
-    }
-
     log.info("The imply-timeseries feature is enabled");
     return ImmutableList.of(
         new SimpleModule("TimeSeriesModule").registerSubtypes(
@@ -88,10 +74,6 @@ public class TimeSeriesModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (!implyLicenseManager.isFeatureEnabled(TIMESERIES_FEATURE_NAME)) {
-      return;
-    }
-
     registerSerde();
 
     // add aggregators

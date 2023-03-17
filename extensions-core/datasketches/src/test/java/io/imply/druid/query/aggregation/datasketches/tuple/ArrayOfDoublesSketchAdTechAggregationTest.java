@@ -10,7 +10,6 @@
 package io.imply.druid.query.aggregation.datasketches.tuple;
 
 import com.fasterxml.jackson.databind.Module;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
@@ -47,7 +46,6 @@ public class ArrayOfDoublesSketchAdTechAggregationTest
     DruidModule module = new ArrayOfDoublesSketchModule();
     ImplyArrayOfDoublesSketchModule adTechModule = new ImplyArrayOfDoublesSketchModule();
     module.configure(null);
-    adTechModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     List<Module> modules = Stream.concat(module.getJacksonModules().stream(), adTechModule.getJacksonModules().stream())
                                  .collect(Collectors.toList());
     helper = AggregationTestHelper.createGroupByQueryAggregationTestHelper(modules, config, tempFolder);

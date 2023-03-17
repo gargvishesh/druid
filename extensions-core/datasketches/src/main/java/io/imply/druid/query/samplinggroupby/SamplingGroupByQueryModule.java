@@ -14,12 +14,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.multibindings.Multibinder;
-import io.imply.druid.license.ImplyLicenseManager;
-import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetricsFactory;
 import io.imply.druid.query.samplinggroupby.sql.SamplingRateSqlAggregator;
@@ -42,21 +39,10 @@ import java.util.List;
 public class SamplingGroupByQueryModule implements DruidModule
 {
   public static final String SAMPLING_GROUPBY_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.samplingGroupBy.queryMetricsFactory";
-  private ImplyLicenseManager implyLicenseManager;
-
-  @Inject
-  public void setImplyLicenseManager(ImplyLicenseManager implyLicenseManager)
-  {
-    this.implyLicenseManager = implyLicenseManager;
-  }
 
   @Override
   public void configure(Binder binder)
   {
-    if (!implyLicenseManager.isFeatureEnabled(ImplyArrayOfDoublesSketchModule.SESSIONIZATION_FEATURE_NAME)) {
-      return;
-    }
-
     MapBinder<Class<? extends Query>, QueryToolChest> toolChests = DruidBinders.queryToolChestBinder(binder);
     toolChests.addBinding(SamplingGroupByQuery.class).to(SamplingGroupByQueryToolChest.class);
     binder.bind(SamplingGroupByQueryToolChest.class).in(LazySingleton.class);
@@ -90,10 +76,6 @@ public class SamplingGroupByQueryModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    if (!implyLicenseManager.isFeatureEnabled(ImplyArrayOfDoublesSketchModule.SESSIONIZATION_FEATURE_NAME)) {
-      return ImmutableList.of();
-    }
-
     return ImmutableList.of(
         new SimpleModule("SamplingGroupBy").registerSubtypes(
             new NamedType(SamplingGroupByQuery.class, SamplingGroupByQuery.QUERY_TYPE),
