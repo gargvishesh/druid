@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.util.Modules;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQueryRunnerFactory;
@@ -82,7 +81,6 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
     // QueryRunnerFactory doesn't find required bindings.
     // We supply testing QueryRunnerFactory for SamplingGroupBy via createCongolmerate method.
     SamplingGroupByQueryModule originalModule = new SamplingGroupByQueryModule();
-    originalModule.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     com.google.inject.Module overriddenModule = Modules.override(originalModule).with(
         binder -> binder.bind(SamplingGroupByQueryRunnerFactory.class)
               .toInstance(new SamplingGroupByQueryRunnerFactory(

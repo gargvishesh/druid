@@ -12,7 +12,6 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.io.Files;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
@@ -50,7 +49,6 @@ public class TimeSeriesGroupByAggregationTest
   public static void setup() throws Exception
   {
     TimeSeriesModule module = new TimeSeriesModule();
-    module.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     SimpleModule granularityModule = new GranularityModule();
     List<Module> jacksonModules = new ArrayList<>(module.getJacksonModules());
     jacksonModules.add(granularityModule);

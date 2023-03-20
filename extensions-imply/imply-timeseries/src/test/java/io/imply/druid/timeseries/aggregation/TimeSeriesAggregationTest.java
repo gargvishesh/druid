@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.aggregation.postprocessors.InterpolatorTimeSeriesFn;
@@ -60,7 +59,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
   public static void setup() throws Exception
   {
     TimeSeriesModule module = new TimeSeriesModule();
-    module.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     SimpleModule granularityModule = new GranularityModule();
     List<Module> jacksonModules = new ArrayList<>(module.getJacksonModules());
     jacksonModules.add(granularityModule);
