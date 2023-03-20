@@ -15,7 +15,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import io.imply.druid.license.TestingImplyLicenseManager;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.interpolation.Interpolator;
@@ -72,7 +71,6 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
   {
     TimeSeriesModule module = new TimeSeriesModule();
     TimeSeriesModule.registerSerde();
-    module.setImplyLicenseManager(new TestingImplyLicenseManager(null));
     SimpleModule granularityModule = new GranularityModule();
     List<Module> jacksonModules = new ArrayList<>(module.getJacksonModules());
     jacksonModules.add(granularityModule);
