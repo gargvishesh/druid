@@ -9,7 +9,6 @@
 
 package io.imply.druid.inet.expression;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import inet.ipaddr.AddressStringException;
@@ -17,7 +16,6 @@ import inet.ipaddr.IPAddressString;
 import io.imply.druid.inet.column.IpAddressBlob;
 import io.imply.druid.inet.column.IpPrefixBlob;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
@@ -68,24 +66,24 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   private static final IpPrefixBlob V4_PREFIX_BLOB = IpPrefixBlob.ofString(CIDR_v4_STRING);
   private static final IpPrefixBlob V6_PREFIX_BLOB = IpPrefixBlob.ofString(CIDR_V6_STRING);
 
-  Expr.ObjectBinding inputBindings = InputBindings.withTypedSuppliers(
-      new ImmutableMap.Builder<String, Pair<ExpressionType, Supplier<Object>>>()
-          .put("ipv4", new Pair<>(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V4_BLOB))
-          .put("ipv6", new Pair<>(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V6_BLOB))
-          .put("ipv4_string", new Pair<>(ExpressionType.STRING, () -> V4_STRING))
-          .put("ipv6_string", new Pair<>(ExpressionType.STRING, () -> V6_STRING))
-          .put("cidr_v4", new Pair<>(IpAddressExpressions.IP_PREFIX_TYPE, () -> V4_PREFIX_BLOB))
-          .put("cidr_v6", new Pair<>(IpAddressExpressions.IP_PREFIX_TYPE, () -> V6_PREFIX_BLOB))
-          .put("cidr_v4_string", new Pair<>(ExpressionType.STRING, () -> CIDR_v4_STRING))
-          .put("cidr_v6_string", new Pair<>(ExpressionType.STRING, () -> CIDR_V6_STRING))
-          .put("string", new Pair<>(ExpressionType.STRING, () -> "abcdef"))
-          .put("ipv4_incomplete_string", new Pair<>(ExpressionType.STRING, () -> "1.2."))
-          .put("ipv6_incomplete_string", new Pair<>(ExpressionType.STRING, () -> "2001:"))
-          .put("long", new Pair<>(ExpressionType.LONG, () -> 1234L))
-          .put("double", new Pair<>(ExpressionType.DOUBLE, () -> 1.234))
-          .put("nullString", new Pair<>(ExpressionType.STRING, () -> null))
-          .put("nullLong", new Pair<>(ExpressionType.LONG, () -> null))
-          .put("nullDouble", new Pair<>(ExpressionType.DOUBLE, () -> null))
+  Expr.ObjectBinding inputBindings = InputBindings.forInputSuppliers(
+      new ImmutableMap.Builder<String, InputBindings.InputSupplier>()
+          .put("ipv4", InputBindings.inputSupplier(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V4_BLOB))
+          .put("ipv6", InputBindings.inputSupplier(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V6_BLOB))
+          .put("ipv4_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> V4_STRING))
+          .put("ipv6_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> V6_STRING))
+          .put("cidr_v4", InputBindings.inputSupplier(IpAddressExpressions.IP_PREFIX_TYPE, () -> V4_PREFIX_BLOB))
+          .put("cidr_v6", InputBindings.inputSupplier(IpAddressExpressions.IP_PREFIX_TYPE, () -> V6_PREFIX_BLOB))
+          .put("cidr_v4_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> CIDR_v4_STRING))
+          .put("cidr_v6_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> CIDR_V6_STRING))
+          .put("string", InputBindings.inputSupplier(ExpressionType.STRING, () -> "abcdef"))
+          .put("ipv4_incomplete_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> "1.2."))
+          .put("ipv6_incomplete_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> "2001:"))
+          .put("long", InputBindings.inputSupplier(ExpressionType.LONG, () -> 1234L))
+          .put("double", InputBindings.inputSupplier(ExpressionType.DOUBLE, () -> 1.234))
+          .put("nullString", InputBindings.inputSupplier(ExpressionType.STRING, () -> null))
+          .put("nullLong", InputBindings.inputSupplier(ExpressionType.LONG, () -> null))
+          .put("nullDouble", InputBindings.inputSupplier(ExpressionType.DOUBLE, () -> null))
           .build()
   );
 
