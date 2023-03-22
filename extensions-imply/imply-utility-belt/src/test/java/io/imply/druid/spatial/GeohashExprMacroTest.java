@@ -115,6 +115,6 @@ public class GeohashExprMacroTest extends InitializedNullHandlingTest
     final Map<String, Object> map = new HashMap<>();
     map.put("lon", lon);
     map.put("lat", lat);
-    return expr.eval(InputBindings.withMap(map)).asString();
+    return expr.eval(InputBindings.forMap(map)).asString();
   }
 }
