@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableMap;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
+import io.imply.druid.sql.calcite.schema.tables.entity.TableSchemaMode;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.ExternalDruidSchemaCacheManager;
 import org.apache.druid.discovery.DruidLeaderClient;
@@ -68,14 +69,16 @@ public class BrokerExternalDruidSchemaResourceHandlerTest
             ImmutableList.of(
                 new TableColumn("col1", ColumnType.STRING),
                 new TableColumn("col2", ColumnType.LONG)
-            )
+            ),
+            TableSchemaMode.STRICT
         ),
         "table2", new TableSchema(
             "table2",
             ImmutableList.of(
                 new TableColumn("col1", ColumnType.STRING),
                 new TableColumn("col2", ColumnType.FLOAT)
-            )
+            ),
+            TableSchemaMode.STRICT
         )
     );
     byte[] serializedMap = objectMapper.writeValueAsBytes(schemaMap);

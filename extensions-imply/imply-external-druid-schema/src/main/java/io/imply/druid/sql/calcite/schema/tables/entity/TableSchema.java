@@ -19,15 +19,18 @@ public class TableSchema
 {
   private final String name;
   private final List<TableColumn> columns;
+  private final TableSchemaMode schemaMode;
 
   @JsonCreator
   public TableSchema(
       @JsonProperty("name") String name,
-      @JsonProperty("columns") List<TableColumn> columns
+      @JsonProperty("columns") List<TableColumn> columns,
+      @JsonProperty("schemaMode") TableSchemaMode schemaMode
   )
   {
     this.name = name;
     this.columns = columns;
+    this.schemaMode = schemaMode == null ? TableSchemaMode.STRICT : schemaMode;
   }
 
   @JsonProperty
@@ -42,17 +45,24 @@ public class TableSchema
     return columns;
   }
 
+  @JsonProperty
+  public TableSchemaMode getSchemaMode()
+  {
+    return schemaMode;
+  }
+
   @Override
   public String toString()
   {
     return "TableSchema{" +
            "name='" + name + '\'' +
            ", columns=" + columns +
+           ", schemaMode=" + schemaMode +
            '}';
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) {
       return true;
@@ -60,13 +70,16 @@ public class TableSchema
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TableSchema that = (TableSchema) o;
-    return Objects.equals(name, that.name) && Objects.equals(columns, that.columns);
+    final TableSchema that = (TableSchema) o;
+    return Objects.equals(getName(), that.getName()) && Objects.equals(
+        getColumns(),
+        that.getColumns()
+    ) && getSchemaMode() == that.getSchemaMode();
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, columns);
+    return Objects.hash(getName(), getColumns(), getSchemaMode());
   }
 }

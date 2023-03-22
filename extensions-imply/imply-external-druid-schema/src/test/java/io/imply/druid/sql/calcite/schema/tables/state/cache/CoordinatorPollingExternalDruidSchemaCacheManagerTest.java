@@ -19,6 +19,7 @@ import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.cache.CoordinatorPollingMapCache;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
+import io.imply.druid.sql.calcite.schema.tables.entity.TableSchemaMode;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.ISE;
@@ -46,14 +47,16 @@ public class CoordinatorPollingExternalDruidSchemaCacheManagerTest
           ImmutableList.of(
               new TableColumn("col1", ColumnType.STRING),
               new TableColumn("col2", ColumnType.LONG)
-          )
+          ),
+          TableSchemaMode.STRICT
       ),
       "table2", new TableSchema(
           "table2",
           ImmutableList.of(
               new TableColumn("col1", ColumnType.STRING),
               new TableColumn("col2", ColumnType.FLOAT)
-          )
+          ),
+          TableSchemaMode.STRICT
       )
   );
 
