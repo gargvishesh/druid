@@ -135,6 +135,6 @@ public class GeoIpExprMacroTest extends InitializedNullHandlingTest
   {
     final Map<String, Object> map = new HashMap<>();
     map.put("addr", addr);
-    return expr.eval(InputBindings.withMap(map)).asString();
+    return expr.eval(InputBindings.forMap(map)).asString();
   }
 }
