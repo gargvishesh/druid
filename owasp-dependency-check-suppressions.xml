@@ -23,20 +23,11 @@
   <suppress>
     <!-- These are for keycloak server, but Druid uses only keycloak client. -->
     <notes><![CDATA[
-     file name: keycloak-core-12.0.4.jar
+     file name: keycloak-core-15.1.1.jar
      ]]></notes>
     <cve>CVE-2020-14359</cve>
-    <cve>CVE-2021-20195</cve>
-    <cve>CVE-2021-20202</cve>
-    <cve>CVE-2021-20222</cve>
-    <cve>CVE-2021-3513</cve>
-    <cve>CVE-2021-3637</cve>
-    <cve>CVE-2021-3632</cve>
     <cve>CVE-2021-3827</cve>
-    <cve>CVE-2021-4133</cve>
-    <cve>CVE-2022-1970</cve>
     <cve>CVE-2022-1245</cve>
-    <cve>CVE-2022-2668</cve>
   </suppress>
   <!-- End of Imply-specific exclusions -->
 
