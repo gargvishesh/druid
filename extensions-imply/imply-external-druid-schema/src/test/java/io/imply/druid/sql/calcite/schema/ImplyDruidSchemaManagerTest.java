@@ -11,20 +11,28 @@ package io.imply.druid.sql.calcite.schema;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableColumn;
 import io.imply.druid.sql.calcite.schema.tables.entity.TableSchema;
+import io.imply.druid.sql.calcite.schema.tables.entity.TableSchemaMode;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.discovery.DruidLeaderClient;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
 import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
+import org.apache.druid.sql.calcite.schema.SegmentMetadataCache;
+import org.apache.druid.sql.calcite.table.DatasourceTable;
+import org.apache.druid.sql.calcite.table.DruidTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SqlTestFramework.PlannerFixture;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -32,11 +40,13 @@ import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
 {
   private CoordinatorPollingExternalDruidSchemaCacheManager schemaCacheManager;
   private ImplyDruidSchemaManager schemaManager;
+  private SegmentMetadataCache segmentMetadataCache = Mockito.mock(SegmentMetadataCache.class);
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
@@ -77,6 +87,90 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGetTables() throws Exception
+  {
+    // Create this so that the schema manager is created and attached
+    // to the planner used for tests.
+    plannerFixture();
+    Map<String, TableSchema> schemaMap = ImmutableMap.of(
+        CalciteTests.DATASOURCE1,
+        new TableSchema(
+            CalciteTests.DATASOURCE1,
+            ImmutableList.of(
+                new TableColumn("__time", ColumnType.LONG),
+                new TableColumn("dim1", ColumnType.STRING)
+            ),
+            TableSchemaMode.STRICT
+        ),
+        "flex1",
+        new TableSchema(
+            "flex1",
+            ImmutableList.of(),
+            TableSchemaMode.FLEXIBLE
+        ),
+        "flex2",
+        new TableSchema(
+            "flex2",
+            ImmutableList.of(),
+            TableSchemaMode.FLEXIBLE
+        )
+    );
+    schemaCacheManager.updateTableSchemas(
+        queryFramework().queryJsonMapper().writeValueAsBytes(schemaMap)
+    );
+
+    DatasourceTable.PhysicalDatasourceMetadata flexMetadata = new DatasourceTable.PhysicalDatasourceMetadata(
+        new TableDataSource("flex1"),
+        RowSignature.builder().add("a", ColumnType.LONG).build(),
+        false,
+        false
+    );
+
+    Mockito.when(segmentMetadataCache.getDatasource("flex1")).thenReturn(flexMetadata);
+    Mockito.when(segmentMetadataCache.getDatasource("flex2")).thenReturn(null);
+
+    Set<String> tableNames = schemaManager.getTableNames(segmentMetadataCache);
+    Assert.assertEquals(
+        ImmutableSet.of(CalciteTests.DATASOURCE1, "flex1", "flex2"),
+        tableNames
+    );
+
+    DruidTable table1 = schemaManager.getTable(CalciteTests.DATASOURCE1, segmentMetadataCache);
+    Assert.assertEquals(
+        new DatasourceTable(
+            new DatasourceTable.PhysicalDatasourceMetadata(
+                new TableDataSource(CalciteTests.DATASOURCE1),
+                RowSignature.builder().addTimeColumn().add("dim1", ColumnType.STRING).build(),
+                false,
+                false
+            )
+        ),
+        table1
+    );
+
+    DruidTable flexTable = schemaManager.getTable("flex1", segmentMetadataCache);
+    Assert.assertEquals(
+        new DatasourceTable(flexMetadata),
+        flexTable
+    );
+
+    DruidTable flexTable2 = schemaManager.getTable("flex2", segmentMetadataCache);
+    Assert.assertEquals(
+        new DatasourceTable(
+            new DatasourceTable.PhysicalDatasourceMetadata(
+                new TableDataSource("flex2"),
+                RowSignature.builder().addTimeColumn().build(),
+                false,
+                false
+            )
+        ),
+        flexTable2
+    );
+
+    Assert.assertNull(schemaManager.getTable("doesNotExist", segmentMetadataCache));
+  }
+
+  @Test
   public void testSchemaManager() throws Exception
   {
     // Create this so that the schema manager is created and attached
@@ -93,7 +187,8 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
                 new TableColumn("dim1", ColumnType.STRING),
                 new TableColumn("dim2", ColumnType.STRING),
                 new TableColumn("dim3", ColumnType.STRING)
-            )
+            ),
+            TableSchemaMode.STRICT
         )
     );
     schemaCacheManager.updateTableSchemas(
@@ -149,7 +244,8 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
                 new TableColumn("dim1", ColumnType.STRING),
                 new TableColumn("dim3", ColumnType.STRING),
                 new TableColumn("dim99", ColumnType.STRING)
-            )
+            ),
+            TableSchemaMode.STRICT
         )
     );
     schemaCacheManager.updateTableSchemas(

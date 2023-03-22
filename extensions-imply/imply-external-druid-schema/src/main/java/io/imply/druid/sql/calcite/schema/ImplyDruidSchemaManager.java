@@ -12,9 +12,10 @@ package io.imply.druid.sql.calcite.schema;
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
 import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
+import org.apache.druid.sql.calcite.schema.SegmentMetadataCache;
 import org.apache.druid.sql.calcite.table.DruidTable;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 public class ImplyDruidSchemaManager implements DruidSchemaManager
@@ -32,9 +33,22 @@ public class ImplyDruidSchemaManager implements DruidSchemaManager
   @Override
   public ConcurrentMap<String, DruidTable> getTables()
   {
-    if (cacheManager.getTableSchemas() == null) {
-      return new ConcurrentHashMap<>();
-    }
-    return ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas());
+    return ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas(), null);
+  }
+
+  @Override
+  public DruidTable getTable(String name, SegmentMetadataCache segmentMetadataCache)
+  {
+    final ConcurrentMap<String, DruidTable> tableMap =
+        ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas(), segmentMetadataCache);
+    return tableMap.get(name);
+  }
+
+  @Override
+  public Set<String> getTableNames(SegmentMetadataCache segmentMetadataCache)
+  {
+    final ConcurrentMap<String, DruidTable> tableMap =
+        ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas(), segmentMetadataCache);
+    return tableMap.keySet();
   }
 }
