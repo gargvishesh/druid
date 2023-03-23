@@ -59,6 +59,8 @@
               <npmVersion>${npm.version}</npmVersion>
               <workingDirectory>${project.build.directory}</workingDirectory>
               <installDirectory>${project.build.directory}</installDirectory>
+              <nodeDownloadRoot>https://repo.cnc.imply.io/artifactory/node-dist-remote/</nodeDownloadRoot>
+              <npmDownloadRoot>https://repo.cnc.imply.io/artifactory/npm-remote/npm/-/</npmDownloadRoot>
             </configuration>
           </execution>
           <execution>
