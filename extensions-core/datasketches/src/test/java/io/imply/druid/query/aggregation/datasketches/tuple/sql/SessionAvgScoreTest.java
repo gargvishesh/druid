@@ -90,7 +90,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   public void configureGuice(DruidInjectorBuilder builder)
   {
     ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
-    arrayOfDoublesSketch.configure(null);
+    ArrayOfDoublesSketchModule.registerSerde();
     super.configureGuice(builder);
     builder.addModules(arrayOfDoublesSketch, new ImplyArrayOfDoublesSketchModule());
   }
@@ -103,7 +103,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
   ) throws IOException
   {
     ArrayOfDoublesSketchModule arrayOfDoublesSketch = new ArrayOfDoublesSketchModule();
-    arrayOfDoublesSketch.configure(null);
+    ArrayOfDoublesSketchModule.registerSerde();
     ImplyArrayOfDoublesSketchModule implyArrayOfDoublesSketchModule = new ImplyArrayOfDoublesSketchModule();
     for (Module mod : Stream
         .concat(

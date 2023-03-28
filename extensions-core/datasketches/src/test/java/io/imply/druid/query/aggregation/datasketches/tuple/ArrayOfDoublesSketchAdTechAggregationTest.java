@@ -45,7 +45,7 @@ public class ArrayOfDoublesSketchAdTechAggregationTest
   {
     DruidModule module = new ArrayOfDoublesSketchModule();
     ImplyArrayOfDoublesSketchModule adTechModule = new ImplyArrayOfDoublesSketchModule();
-    module.configure(null);
+    ArrayOfDoublesSketchModule.registerSerde();
     List<Module> modules = Stream.concat(module.getJacksonModules().stream(), adTechModule.getJacksonModules().stream())
                                  .collect(Collectors.toList());
     helper = AggregationTestHelper.createGroupByQueryAggregationTestHelper(modules, config, tempFolder);

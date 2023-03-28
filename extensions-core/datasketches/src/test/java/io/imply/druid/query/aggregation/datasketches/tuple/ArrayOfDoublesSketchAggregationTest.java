@@ -44,7 +44,7 @@ public class ArrayOfDoublesSketchAggregationTest
   public ArrayOfDoublesSketchAggregationTest(final GroupByQueryConfig config)
   {
     DruidModule module = new ArrayOfDoublesSketchModule();
-    module.configure(null);
+    ArrayOfDoublesSketchModule.registerSerde();
     ImplyArrayOfDoublesSketchModule implyArrayOfDoublesSketchModule = new ImplyArrayOfDoublesSketchModule();
     List<Module> modules = Stream.concat(module.getJacksonModules().stream(), implyArrayOfDoublesSketchModule.getJacksonModules().stream())
                                  .collect(Collectors.toList());
