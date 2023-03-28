@@ -15,7 +15,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.samplinggroupby.metrics.DefaultSamplingGroupByQueryMetricsFactory;
 import org.apache.druid.collections.CloseableStupidPool;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
@@ -30,7 +29,6 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.BySegmentQueryRunner;
 import org.apache.druid.query.FinalizeResultsQueryRunner;
 import org.apache.druid.query.Query;
@@ -67,6 +65,7 @@ import org.apache.druid.segment.incremental.IncrementalIndexSchema;
 import org.apache.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.After;
 import org.junit.Assert;
@@ -84,7 +83,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SamplingGroupByMultiSegmentTest
+public class SamplingGroupByMultiSegmentTest extends InitializedNullHandlingTest
 {
   public static final ObjectMapper JSON_MAPPER;
 
@@ -118,7 +117,6 @@ public class SamplingGroupByMultiSegmentTest
         }
     );
     INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO, OffHeapMemorySegmentWriteOutMediumFactory.instance());
-    NullHandling.initializeForTests();
   }
 
 
@@ -144,7 +142,6 @@ public class SamplingGroupByMultiSegmentTest
   @Before
   public void setup() throws Exception
   {
-    ExpressionProcessing.initializeForTests(true);
     tmpDir = FileUtils.createTempDir();
 
     InputRow row;

@@ -14,11 +14,9 @@ import com.google.common.collect.ImmutableMap;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
-import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.Result;
@@ -35,6 +33,7 @@ import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,7 +50,7 @@ import java.util.List;
 import java.util.Map;
 
 @RunWith(Parameterized.class)
-public class IpAddressTopNQueryTest
+public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
 {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -66,7 +65,6 @@ public class IpAddressTopNQueryTest
 
   public IpAddressTopNQueryTest(String vectorize, boolean useRealtimeSegments) throws Exception
   {
-    NullHandling.initializeForTests();
     IpAddressModule.registerHandlersAndSerde();
     this.vectorize = QueryContexts.Vectorize.fromString(vectorize);
     this.helper = AggregationTestHelper.createTopNQueryAggregationTestHelper(
@@ -354,7 +352,6 @@ public class IpAddressTopNQueryTest
   @Test
   public void testTopNStringifyWithoutNull()
   {
-    ExpressionProcessing.initializeForTests(null);
     TopNQuery query = new TopNQueryBuilder()
         .dataSource("test_datasource")
         .granularity(Granularities.ALL)
@@ -403,7 +400,6 @@ public class IpAddressTopNQueryTest
   @Test
   public void testTopNStringifyWithNull()
   {
-    ExpressionProcessing.initializeForTests(null);
     TopNQuery query = new TopNQueryBuilder()
         .dataSource("test_datasource")
         .granularity(Granularities.ALL)
