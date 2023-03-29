@@ -70,7 +70,7 @@ public class AdTechInventorySqlAggregatorTest extends BaseCalciteQueryTest
     def           5.0           ...
     abc           6.0           ...
      */
-    new ArrayOfDoublesSketchModule().configure(null);
+    ArrayOfDoublesSketchModule.registerSerde();
     final QueryableIndex index = IndexBuilder.create()
                                              .tmpDir(temporaryFolder.newFolder())
                                              .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
