@@ -22,9 +22,6 @@
     <relativePath>../../../pom.xml</relativePath>
   </parent>
 
-  <properties>
-    <kafka.client.version>3.4.0</kafka.client.version>
-  </properties>
   <dependencies>
     <dependency>
       <groupId>org.apache.druid</groupId>
@@ -46,7 +43,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>${kafka.client.version}</version>
+      <version>${apache.kafka.version}</version>
     </dependency>
 
     <!-- Override Jackson version for tests; Kafka server startup needs a newer one. -->
