@@ -75,7 +75,8 @@ public abstract class BasePolarisInputSourceDefn extends FormattedInputSourceDef
   protected abstract List<TableFunction.ParameterDefn> adHocTableFnParameters();
 
   @Override
-  public String typeValue() {
+  public String typeValue()
+  {
     return TYPE_KEY;
   }
 
