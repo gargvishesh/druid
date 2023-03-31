@@ -166,7 +166,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         CalciteTests.DRUID_SCHEMA_NAME,
         new CalciteRulesManager(ImmutableSet.of()),
         new JoinableFactoryWrapper(new MapJoinableFactory(ImmutableSet.of(), ImmutableMap.of())),
-        CatalogResolver.NULL_RESOLVER
+        CatalogResolver.NULL_RESOLVER,
+        new AuthConfig()
     );
     final SqlStatementFactory sqlLifecycleFactory = CalciteTests.createSqlStatementFactory(
         engine,
