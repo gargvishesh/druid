@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public abstract class BasePolarisInputSourceDefn extends FormattedInputSourceDefn
 {
-  public static String TYPE_KEY = "polaris";
+  public static final String TYPE_KEY = "polaris";
   private final PolarisTableFunctionResolver resolver;
 
   public BasePolarisInputSourceDefn(
