@@ -346,6 +346,7 @@ public class S3InputSourceDefnTest
         CatalogUtils.stringListToUriList(uris),
         s3InputSource.getUris()
     );
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // But, it fails if there are no columns.
     assertThrows(IAE.class, () -> fn.apply("x", args, Collections.emptyList(), mapper));
@@ -366,6 +367,7 @@ public class S3InputSourceDefnTest
         CatalogUtils.stringListToUriList(uris),
         s3InputSource.getUris()
     );
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
   }
 
   @Test
@@ -398,6 +400,7 @@ public class S3InputSourceDefnTest
         s3InputSource.getUris()
     );
     assertEquals("*.csv", s3InputSource.getObjectGlob());
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
   }
 
   @Test
@@ -417,6 +420,7 @@ public class S3InputSourceDefnTest
         CatalogUtils.stringListToUriList(prefixes),
         s3InputSource.getPrefixes()
     );
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // But, it fails if there are no columns.
     assertThrows(IAE.class, () -> fn.apply("x", args, Collections.emptyList(), mapper));
@@ -439,6 +443,7 @@ public class S3InputSourceDefnTest
         CatalogUtils.stringListToUriList(prefixes),
         s3InputSource.getPrefixes()
     );
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
   }
 
   @Test
@@ -458,6 +463,7 @@ public class S3InputSourceDefnTest
     CloudObjectLocation obj = s3InputSource.getObjects().get(0);
     assertEquals("foo.com", obj.getBucket());
     assertEquals("bar/file.csv", obj.getPath());
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // But, it fails if there are no columns.
     assertThrows(IAE.class, () -> fn.apply("x", args, Collections.emptyList(), mapper));
@@ -505,6 +511,7 @@ public class S3InputSourceDefnTest
     obj = s3InputSource.getObjects().get(1);
     assertEquals("foo.com", obj.getBucket());
     assertEquals("mumble/file2.csv", obj.getPath());
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
   }
 
   @Test
@@ -572,6 +579,7 @@ public class S3InputSourceDefnTest
     ExternalTableDefn externDefn = (ExternalTableDefn) resolved.defn();
     ExternalTableSpec externSpec = externDefn.convert(resolved);
     assertEquals(s3InputSource, externSpec.inputSource);
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // Get the partial table function
     TableFunction fn = externDefn.tableFn(resolved);
@@ -580,6 +588,7 @@ public class S3InputSourceDefnTest
     // Convert to an external table.
     externSpec = fn.apply("x", Collections.emptyMap(), Collections.emptyList(), mapper);
     assertEquals(s3InputSource, externSpec.inputSource);
+
 
     // But, it fails columns are provided since the table already has them.
     assertThrows(IAE.class, () -> fn.apply("x", Collections.emptyMap(), COLUMNS, mapper));
@@ -605,6 +614,7 @@ public class S3InputSourceDefnTest
     ExternalTableDefn externDefn = (ExternalTableDefn) resolved.defn();
     ExternalTableSpec externSpec = externDefn.convert(resolved);
     assertEquals(s3InputSource, externSpec.inputSource);
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // Get the partial table function
     TableFunction fn = externDefn.tableFn(resolved);
@@ -663,6 +673,7 @@ public class S3InputSourceDefnTest
     CloudObjectLocation obj = s3InputSource.getObjects().get(0);
     assertEquals("foo.com", obj.getBucket());
     assertEquals("bar/file.csv", obj.getPath());
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // But, it fails columns are provided since the table already has them.
     assertThrows(IAE.class, () -> fn.apply("x", args, COLUMNS, mapper));
@@ -704,6 +715,7 @@ public class S3InputSourceDefnTest
     assertEquals("foo.com", obj.getBucket());
     assertEquals("bar/file.csv", obj.getPath());
     assertTrue(externSpec.inputFormat instanceof CsvInputFormat);
+    assertEquals(S3InputSourceDefn.TYPE_KEY, externSpec.inputSourceType);
 
     // But, it fails columns are not provided since the table does not have them.
     assertThrows(IAE.class, () -> fn.apply("x", args, Collections.emptyList(), mapper));

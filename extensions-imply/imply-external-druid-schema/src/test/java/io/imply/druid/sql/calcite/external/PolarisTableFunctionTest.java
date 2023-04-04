@@ -26,6 +26,11 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceType;
 import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.calcite.CalciteIngestionDmlTest;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
@@ -224,6 +229,35 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   }
 
   @Test
+  public void test_PolarisSource_withProperArgsAndEnableInputSourceSecurity_valid()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_SOURCE(source => '%s'))\n" +
+                                "PARTITIONED BY ALL TIME", VALID_SOURCE_ARG))
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .authConfig(AuthConfig.newBuilder().setEnableInputSourceSecurity(true).build())
+        .expectTarget("dst", polarisSourceDataSource.getSignature())
+        .expectResources(
+            dataSourceWrite("dst"),
+            new ResourceAction(new Resource(
+                ResourceType.EXTERNAL,
+                BasePolarisInputSourceDefn.TYPE_KEY
+            ), Action.READ)
+        )
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(polarisSourceDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+        )
+        .expectLogicalPlanFrom("polarisSourceExtern")
+        .verify();
+  }
+
+  @Test
   public void test_PolarisSource_withExtend_validationError()
   {
     testIngestionQuery()
@@ -268,6 +302,39 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
         .expectTarget("dst", polarisUploadedDataSource.getSignature())
         .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(polarisUploadedDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+        )
+        .expectLogicalPlanFrom("polarisUploadedExtern")
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisUploaded_withProperArgsAndEnableInputSourceSecurity_valid()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_UPLOADED(\n" +
+                                "                          files => ARRAY['%s']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_FILE))
+        .authConfig(AuthConfig.newBuilder().setEnableInputSourceSecurity(true).build())
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .expectTarget("dst", polarisUploadedDataSource.getSignature())
+        .expectResources(
+            dataSourceWrite("dst"),
+            new ResourceAction(new Resource(
+                ResourceType.EXTERNAL,
+                BasePolarisInputSourceDefn.TYPE_KEY
+            ), Action.READ),
+            Externals.EXTERNAL_RESOURCE_ACTION
+        )
         .expectQuery(
             newScanQueryBuilder()
                 .dataSource(polarisUploadedDataSource)
@@ -348,6 +415,39 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
         .expectTarget("dst", polarisS3ConnectionDataSource.getSignature())
         .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
+        .expectQuery(
+            newScanQueryBuilder()
+                .dataSource(polarisS3ConnectionDataSource)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .columns("x", "y", "z")
+                .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
+                .build()
+        )
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3Connection_withProperArgsAndEnableInputSourceSecurity_valid()
+  {
+    testIngestionQuery()
+        .sql(StringUtils.format("INSERT INTO dst SELECT *\n" +
+                                "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+                                "                          connectionName => '%s'," +
+                                "                          uris => ARRAY['%s']," +
+                                "                          format => 'json'))\n" +
+                                "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME, "s3://foo/bar.json"))
+        .authConfig(AuthConfig.newBuilder().setEnableInputSourceSecurity(true).build())
+        .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
+        .expectTarget("dst", polarisS3ConnectionDataSource.getSignature())
+        .expectResources(
+            dataSourceWrite("dst"),
+            new ResourceAction(new Resource(
+                ResourceType.EXTERNAL,
+                BasePolarisInputSourceDefn.TYPE_KEY
+            ), Action.READ),
+            Externals.EXTERNAL_RESOURCE_ACTION
+        )
         .expectQuery(
             newScanQueryBuilder()
                 .dataSource(polarisS3ConnectionDataSource)

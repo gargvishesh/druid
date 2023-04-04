@@ -29,7 +29,6 @@ import java.util.Objects;
 
 public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDefn
 {
-  public static final String TYPE_KEY = "POLARIS_S3_CONNECTION";
   public static final String CONNECTION_NAME_PARAMETER = "connectionName";
   public static final String URIS_PARAMETER = "uris";
   public static final String PREFIXES_PARAMETER = "prefixes";
@@ -45,7 +44,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
 
   static class PolarisS3ConnectionFunctionSpec implements PolarisTableFunctionSpec
   {
-    public static final String FUNCTION_NAME = PolarisS3ConnectionInputSourceDefn.TYPE_KEY;
+    public static final String FUNCTION_NAME = "POLARIS_S3_CONNECTION";
     private @NotNull final String connectionName;
     private @Nullable final List<String> uris;
     private @Nullable final List<String> prefixes;
@@ -199,11 +198,5 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
         OBJECTS_PARAM_DEFN,
         PATTERN_PARAM_DEFN
     );
-  }
-
-  @Override
-  public String typeValue()
-  {
-    return TYPE_KEY;
   }
 }
