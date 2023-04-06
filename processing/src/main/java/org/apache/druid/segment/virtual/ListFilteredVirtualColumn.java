@@ -504,6 +504,7 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
+    @Nullable
     public BitmapColumnIndex forPredicate(DruidPredicateFactory matcherFactory)
     {
       return new SimpleBitmapColumnIndex()
@@ -543,6 +544,7 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
+    @Nullable
     public BitmapColumnIndex forRange(
         @Nullable String startValue,
         boolean startStrict,
@@ -554,6 +556,7 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
+    @Nullable
     public BitmapColumnIndex forRange(
         @Nullable String startValue,
         boolean startStrict,
@@ -626,6 +629,12 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     public String getValue(int index)
     {
       return delegate.getValue(idMapping.getReverseId(index));
+    }
+
+    @Override
+    public BitmapFactory getBitmapFactory()
+    {
+      return delegate.getBitmapFactory();
     }
 
     @Override
