@@ -613,12 +613,6 @@ public class ListFilteredVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return delegate.getBitmapFactory();
-    }
-
-    @Override
     public int getCardinality()
     {
       return idMapping.getValueCardinality();

@@ -456,12 +456,6 @@ public class ScalarLongColumnAndIndexSupplier implements Supplier<NestedCommonFo
     }
 
     @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return bitmapFactory;
-    }
-
-    @Override
     public int getCardinality()
     {
       return dictionary.size();

@@ -456,12 +456,6 @@ public class ScalarDoubleColumnAndIndexSupplier implements Supplier<NestedCommon
     }
 
     @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return bitmapFactory;
-    }
-
-    @Override
     public int getCardinality()
     {
       return dictionary.size();

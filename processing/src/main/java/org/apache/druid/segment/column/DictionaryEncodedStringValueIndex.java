@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
  */
 public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValueIndex
 {
-  BitmapFactory getBitmapFactory();
 
   /**
    * Get the cardinality of the underlying value dictionary

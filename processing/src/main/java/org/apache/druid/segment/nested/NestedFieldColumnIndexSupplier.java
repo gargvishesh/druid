@@ -321,12 +321,6 @@ public class NestedFieldColumnIndexSupplier<TStringDictionary extends Indexed<By
     final FixedIndexed<Double> doubleDictionary = globalDoubleDictionarySupplier.get();
 
     @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return bitmapFactory;
-    }
-
-    @Override
     public int getCardinality()
     {
       return localDictionary.size();
