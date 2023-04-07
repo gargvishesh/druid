@@ -68,11 +68,10 @@ public class AzureInputSource extends CloudObjectInputSource
       @JsonProperty("uris") @Nullable List<URI> uris,
       @JsonProperty("prefixes") @Nullable List<URI> prefixes,
       @JsonProperty("objects") @Nullable List<CloudObjectLocation> objects,
-      @Deprecated @JsonProperty("filter") @Nullable String filter,
       @JsonProperty("objectGlob") @Nullable String objectGlob
   )
   {
-    super(SCHEME, uris, prefixes, objects, filter, objectGlob);
+    super(SCHEME, uris, prefixes, objects, objectGlob);
     this.storage = Preconditions.checkNotNull(storage, "AzureStorage");
     this.entityFactory = Preconditions.checkNotNull(entityFactory, "AzureEntityFactory");
     this.azureCloudBlobIterableFactory = Preconditions.checkNotNull(
@@ -101,7 +100,6 @@ public class AzureInputSource extends CloudObjectInputSource
         null,
         null,
         split.get(),
-        getFilter(),
         getObjectGlob()
     );
   }

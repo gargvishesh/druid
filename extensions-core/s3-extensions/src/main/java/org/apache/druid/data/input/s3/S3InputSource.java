@@ -108,7 +108,6 @@ public class S3InputSource extends CloudObjectInputSource
       @JsonProperty("uris") @Nullable List<URI> uris,
       @JsonProperty("prefixes") @Nullable List<URI> prefixes,
       @JsonProperty("objects") @Nullable List<CloudObjectLocation> objects,
-      @Deprecated @JsonProperty("filter") @Nullable String filter,
       @JsonProperty("objectGlob") @Nullable String objectGlob,
       @JsonProperty("properties") @Nullable S3InputSourceConfig s3InputSourceConfig,
       @JsonProperty("proxyConfig") @Nullable AWSProxyConfig awsProxyConfig,
@@ -116,7 +115,7 @@ public class S3InputSource extends CloudObjectInputSource
       @JsonProperty("clientConfig") @Nullable AWSClientConfig awsClientConfig
   )
   {
-    super(S3StorageDruidModule.SCHEME, uris, prefixes, objects, filter, objectGlob);
+    super(S3StorageDruidModule.SCHEME, uris, prefixes, objects, objectGlob);
     this.inputDataConfig = Preconditions.checkNotNull(inputDataConfig, "S3DataSegmentPusherConfig");
     Preconditions.checkNotNull(s3Client, "s3Client");
     this.s3InputSourceConfig = s3InputSourceConfig;
@@ -200,7 +199,6 @@ public class S3InputSource extends CloudObjectInputSource
         uris,
         prefixes,
         objects,
-        null,
         objectGlob,
         s3InputSourceConfig,
         awsProxyConfig,
@@ -233,7 +231,6 @@ public class S3InputSource extends CloudObjectInputSource
         uris,
         prefixes,
         objects,
-        null,
         objectGlob,
         s3InputSourceConfig,
         awsProxyConfig,
@@ -371,7 +368,6 @@ public class S3InputSource extends CloudObjectInputSource
         null,
         null,
         split.get(),
-        getFilter(),
         getObjectGlob(),
         getS3InputSourceConfig(),
         getAwsProxyConfig(),

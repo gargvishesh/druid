@@ -75,12 +75,11 @@ public class OssInputSource extends CloudObjectInputSource
       @JsonProperty("uris") @Nullable List<URI> uris,
       @JsonProperty("prefixes") @Nullable List<URI> prefixes,
       @JsonProperty("objects") @Nullable List<CloudObjectLocation> objects,
-      @Deprecated @JsonProperty("filter") @Nullable String filter,
       @JsonProperty("objectGlob") @Nullable String objectGlob,
       @JsonProperty("properties") @Nullable OssClientConfig inputSourceConfig
   )
   {
-    super(OssStorageDruidModule.SCHEME, uris, prefixes, objects, filter, objectGlob);
+    super(OssStorageDruidModule.SCHEME, uris, prefixes, objects, objectGlob);
     this.inputDataConfig = Preconditions.checkNotNull(inputDataConfig, "inputDataConfig");
     Preconditions.checkNotNull(client, "client");
     this.inputSourceConfig = inputSourceConfig;
@@ -152,7 +151,6 @@ public class OssInputSource extends CloudObjectInputSource
         null,
         null,
         split.get(),
-        getFilter(),
         getObjectGlob(),
         getOssInputSourceConfig()
     );

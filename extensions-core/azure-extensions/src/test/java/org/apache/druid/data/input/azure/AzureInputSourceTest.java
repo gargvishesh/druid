@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import nl.jqno.equalsverifier.EqualsVerifier;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
@@ -109,7 +108,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         EMPTY_PREFIXES,
         EMPTY_OBJECTS,
-        null,
         null
     );
   }
@@ -130,7 +128,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         EMPTY_PREFIXES,
         objects,
-        null,
         null
     );
 
@@ -164,55 +161,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         prefixes,
         EMPTY_OBJECTS,
-        null,
-        null
-    );
-
-    Stream<InputSplit<List<CloudObjectLocation>>> cloudObjectStream = azureInputSource.getPrefixesSplitStream(
-        new MaxSizeSplitHintSpec(null, 1)
-    );
-
-    List<List<CloudObjectLocation>> actualCloudLocationList = cloudObjectStream.map(InputSplit::get)
-                                                                               .collect(Collectors.toList());
-    verifyAll();
-    Assert.assertEquals(expectedCloudLocations, actualCloudLocationList);
-  }
-
-  @Test
-  public void test_getPrefixesSplitStream_withFilter_successfullyCreatesCloudLocation_returnsExpectedLocations()
-  {
-    List<URI> prefixes = ImmutableList.of(PREFIX_URI);
-    List<List<CloudObjectLocation>> expectedCloudLocations = ImmutableList.of(ImmutableList.of(CLOUD_OBJECT_LOCATION_1));
-    List<CloudBlobHolder> expectedCloudBlobs = ImmutableList.of(cloudBlobDruid1);
-    Iterator<CloudBlobHolder> expectedCloudBlobsIterator = expectedCloudBlobs.iterator();
-    String filter = "*.csv";
-
-    expectedCloudBlobsIterator = Iterators.filter(
-        expectedCloudBlobsIterator,
-        object -> FilenameUtils.wildcardMatch(object.getName(), filter)
-    );
-
-    EasyMock.expect(inputDataConfig.getMaxListingLength()).andReturn(MAX_LISTING_LENGTH);
-    EasyMock.expect(azureCloudBlobIterableFactory.create(prefixes, MAX_LISTING_LENGTH)).andReturn(
-        azureCloudBlobIterable);
-    EasyMock.expect(azureCloudBlobIterable.iterator()).andReturn(expectedCloudBlobsIterator);
-    EasyMock.expect(azureCloudBlobToLocationConverter.createCloudObjectLocation(cloudBlobDruid1))
-            .andReturn(CLOUD_OBJECT_LOCATION_1);
-    EasyMock.expect(cloudBlobDruid1.getBlobLength()).andReturn(100L).anyTimes();
-    EasyMock.expect(cloudBlobDruid1.getName()).andReturn(BLOB_PATH).anyTimes();
-
-    replayAll();
-
-    azureInputSource = new AzureInputSource(
-        storage,
-        entityFactory,
-        azureCloudBlobIterableFactory,
-        azureCloudBlobToLocationConverter,
-        inputDataConfig,
-        EMPTY_URIS,
-        prefixes,
-        EMPTY_OBJECTS,
-        filter,
         null
     );
 
@@ -222,7 +170,7 @@ public class AzureInputSourceTest extends EasyMockSupport
     );
 
     List<List<CloudObjectLocation>> actualCloudLocationList = cloudObjectStream.map(InputSplit::get)
-                                                                               .collect(Collectors.toList());
+        .collect(Collectors.toList());
     verifyAll();
     Assert.assertEquals(expectedCloudLocations, actualCloudLocationList);
   }
@@ -262,7 +210,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         prefixes,
         EMPTY_OBJECTS,
-        null,
         objectGlob
     );
 
@@ -292,7 +239,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         prefixes,
         EMPTY_OBJECTS,
-        null,
         null
     );
 
@@ -313,7 +259,6 @@ public class AzureInputSourceTest extends EasyMockSupport
         EMPTY_URIS,
         prefixes,
         EMPTY_OBJECTS,
-        null,
         null
     );
 
