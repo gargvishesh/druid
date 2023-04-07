@@ -44,12 +44,6 @@ public final class IndexedStringDictionaryEncodedStringValueIndex<TDictionary ex
   }
 
   @Override
-  public BitmapFactory getBitmapFactory()
-  {
-    return bitmapFactory;
-  }
-
-  @Override
   public int getCardinality()
   {
     return dictionary.size();
@@ -60,6 +54,12 @@ public final class IndexedStringDictionaryEncodedStringValueIndex<TDictionary ex
   public String getValue(int index)
   {
     return dictionary.get(index);
+  }
+
+  @Override
+  public BitmapFactory getBitmapFactory()
+  {
+    return bitmapFactory;
   }
 
   @Override

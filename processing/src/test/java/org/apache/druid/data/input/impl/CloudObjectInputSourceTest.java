@@ -34,6 +34,7 @@ import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -155,6 +156,7 @@ public class CloudObjectInputSourceTest
                                                              .useConstructor(SCHEME, URIS2, null, null, null, "**.csv")
                                                              .defaultAnswer(Mockito.CALLS_REAL_METHODS)
     );
+    Mockito.when(inputSource.getSplitWidget()).thenReturn(new MockSplitWidget());
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
         new JsonInputFormat(JSONPathSpec.DEFAULT, null, null, null, null),
@@ -176,6 +178,7 @@ public class CloudObjectInputSourceTest
         .useConstructor(SCHEME, URIS, null, null, null, null)
         .defaultAnswer(Mockito.CALLS_REAL_METHODS)
     );
+    Mockito.when(inputSource.getSplitWidget()).thenReturn(new MockSplitWidget());
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
         new JsonInputFormat(JSONPathSpec.DEFAULT, null, null, null, null),
@@ -197,6 +200,7 @@ public class CloudObjectInputSourceTest
         .useConstructor(SCHEME, null, null, OBJECTS_BEFORE_GLOB, null, "**.csv")
         .defaultAnswer(Mockito.CALLS_REAL_METHODS)
     );
+    Mockito.when(inputSource.getSplitWidget()).thenReturn(new MockSplitWidget());
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
         new JsonInputFormat(JSONPathSpec.DEFAULT, null, null, null, null),
@@ -218,6 +222,7 @@ public class CloudObjectInputSourceTest
         .useConstructor(SCHEME, null, null, OBJECTS, null, null)
         .defaultAnswer(Mockito.CALLS_REAL_METHODS)
     );
+    Mockito.when(inputSource.getSplitWidget()).thenReturn(new MockSplitWidget());
 
     Stream<InputSplit<List<CloudObjectLocation>>> splits = inputSource.createSplits(
         new JsonInputFormat(JSONPathSpec.DEFAULT, null, null, null, null),
@@ -240,5 +245,20 @@ public class CloudObjectInputSourceTest
     PathMatcher m2 = FileSystems.getDefault().getPathMatcher("glob:db/date=2022-08-01/*.parquet");
     Assert.assertTrue(m2.matches(Paths.get("db/date=2022-08-01/001.parquet")));
     Assert.assertFalse(m2.matches(Paths.get("db/date=2022-08-01/_junk/0/001.parquet")));
+  }
+
+  private static class MockSplitWidget implements CloudObjectSplitWidget
+  {
+    @Override
+    public Iterator<LocationWithSize> getDescriptorIteratorForPrefixes(List<URI> prefixes)
+    {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long getObjectSize(CloudObjectLocation descriptor)
+    {
+      return 0;
+    }
   }
 }
