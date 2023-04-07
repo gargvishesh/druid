@@ -21,28 +21,32 @@ package org.apache.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.druid.data.input.AbstractInputSource;
 import org.apache.druid.data.input.InputEntity;
+import org.apache.druid.data.input.InputFileAttribute;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.SplitHintSpec;
 import org.apache.druid.utils.CollectionUtils;
+import org.apache.druid.utils.Streams;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class CloudObjectInputSource extends AbstractInputSource
@@ -52,38 +56,13 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
   private final List<URI> uris;
   private final List<URI> prefixes;
   private final List<CloudObjectLocation> objects;
-
-  /**
-   * Preserved filter for backward compatibility, should be removed on next major release;
-   * use objectGlob instead.
-   */
-  @Deprecated
-  private final String filter;
   private final String objectGlob;
 
   public CloudObjectInputSource(
       String scheme,
       @Nullable List<URI> uris,
       @Nullable List<URI> prefixes,
-      @Nullable List<CloudObjectLocation> objects
-  )
-  {
-    this.scheme = scheme;
-    this.uris = uris;
-    this.prefixes = prefixes;
-    this.objects = objects;
-    this.filter = null;
-    this.objectGlob = null;
-
-    illegalArgsChecker();
-  }
-
-  public CloudObjectInputSource(
-      String scheme,
-      @Nullable List<URI> uris,
-      @Nullable List<URI> prefixes,
       @Nullable List<CloudObjectLocation> objects,
-      @Deprecated @Nullable String filter,
       @Nullable String objectGlob
   )
   {
@@ -91,12 +70,8 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
     this.uris = uris;
     this.prefixes = prefixes;
     this.objects = objects;
-    this.filter = filter;
     this.objectGlob = objectGlob;
-    Preconditions.checkArgument(
-        filter == null || objectGlob == null,
-        "Cannot use filter and objectGlob together. Try using objectGlob instead of filter."
-    );
+
     illegalArgsChecker();
   }
 
@@ -125,14 +100,6 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
   @Nullable
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getFilter()
-  {
-    return filter;
-  }
-
-  @Nullable
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getObjectGlob()
   {
     return objectGlob;
@@ -145,15 +112,10 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
   protected abstract InputEntity createEntity(CloudObjectLocation location);
 
   /**
-   * Create a stream of {@link CloudObjectLocation} splits by listing objects that appear under {@link #prefixes} using
-   * this input sources backend API. This is called internally by {@link #createSplits} and {@link #estimateNumSplits},
-   * only if {@link #prefixes} is set, otherwise the splits are created directly from {@link #uris} or {@link #objects}.
-   * Calling if {@link #prefixes} is not set is likely to either lead to an empty iterator or null pointer exception.
-   *
-   * If {@link #objectGlob} is set, the objectGlob will be applied on {@link #uris} or {@link #objects}.
-   * {@link #objectGlob} uses a glob notation, for example: "**.parquet".
+   * Returns {@link CloudObjectSplitWidget}, which is used to implement
+   * {@link #createSplits(InputFormat, SplitHintSpec)}.
    */
-  protected abstract Stream<InputSplit<List<CloudObjectLocation>>> getPrefixesSplitStream(SplitHintSpec splitHintSpec);
+  protected abstract CloudObjectSplitWidget getSplitWidget();
 
   @Override
   public Stream<InputSplit<List<CloudObjectLocation>>> createSplits(
@@ -162,46 +124,34 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
   )
   {
     if (!CollectionUtils.isNullOrEmpty(objects)) {
-      Stream<CloudObjectLocation> objectStream = objects.stream();
-
-      if (StringUtils.isNotBlank(objectGlob)) {
-        PathMatcher m = FileSystems.getDefault().getPathMatcher("glob:" + getObjectGlob());
-        objectStream = objectStream.filter(object -> m.matches(Paths.get(object.getPath())));
-      } else if (StringUtils.isNotBlank(filter)) {
-        objectStream = objectStream.filter(object -> FilenameUtils.wildcardMatch(object.getPath(), getFilter()));
-      }
-
-      return objectStream.map(object -> new InputSplit<>(Collections.singletonList(object)));
+      return getSplitsForObjects(
+          getSplitWidget(),
+          getSplitHintSpecOrDefault(splitHintSpec),
+          objects,
+          objectGlob
+      );
+    } else if (!CollectionUtils.isNullOrEmpty(uris)) {
+      return getSplitsForObjects(
+          getSplitWidget(),
+          getSplitHintSpecOrDefault(splitHintSpec),
+          Lists.transform(uris, CloudObjectLocation::new),
+          objectGlob
+      );
+    } else {
+      return getSplitsForPrefixes(
+          getSplitWidget(),
+          getSplitHintSpecOrDefault(splitHintSpec),
+          prefixes,
+          objectGlob
+      );
     }
-
-    if (!CollectionUtils.isNullOrEmpty(uris)) {
-      Stream<URI> uriStream = uris.stream();
-
-      if (StringUtils.isNotBlank(objectGlob)) {
-        PathMatcher m = FileSystems.getDefault().getPathMatcher("glob:" + getObjectGlob());
-        uriStream = uriStream.filter(uri -> m.matches(Paths.get(uri.toString())));
-      } else if (StringUtils.isNotBlank(filter)) {
-        uriStream = uriStream.filter(uri -> FilenameUtils.wildcardMatch(uri.toString(), filter));
-      }
-
-      return uriStream.map(CloudObjectLocation::new).map(object -> new InputSplit<>(Collections.singletonList(object)));
-    }
-
-    return getPrefixesSplitStream(getSplitHintSpecOrDefault(splitHintSpec));
   }
 
   @Override
   public int estimateNumSplits(InputFormat inputFormat, @Nullable SplitHintSpec splitHintSpec)
   {
-    if (!CollectionUtils.isNullOrEmpty(objects)) {
-      return objects.size();
-    }
-
-    if (!CollectionUtils.isNullOrEmpty(uris)) {
-      return uris.size();
-    }
-
-    return Ints.checkedCast(getPrefixesSplitStream(getSplitHintSpecOrDefault(splitHintSpec)).count());
+    // We can't effectively estimate the number of splits without actually computing them.
+    return Ints.checkedCast(createSplits(inputFormat, splitHintSpec).count());
   }
 
   @Override
@@ -239,14 +189,13 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
            Objects.equals(uris, that.uris) &&
            Objects.equals(prefixes, that.prefixes) &&
            Objects.equals(objects, that.objects) &&
-           Objects.equals(filter, that.filter) &&
            Objects.equals(objectGlob, that.objectGlob);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(scheme, uris, prefixes, objects, filter, objectGlob);
+    return Objects.hash(scheme, uris, prefixes, objects, objectGlob);
   }
 
   private void illegalArgsChecker() throws IllegalArgumentException
@@ -268,5 +217,104 @@ public abstract class CloudObjectInputSource extends AbstractInputSource
     if (clause) {
       throw new IllegalArgumentException("Exactly one of uris, prefixes or objects must be specified");
     }
+  }
+
+  /**
+   * Stream of {@link InputSplit} for situations where this object is based on {@link #getPrefixes()}.
+   *
+   * If {@link CloudObjectSplitWidget#getDescriptorIteratorForPrefixes} returns objects with known sizes (as most
+   * implementations do), this method filters out empty objects.
+   */
+  private static Stream<InputSplit<List<CloudObjectLocation>>> getSplitsForPrefixes(
+      final CloudObjectSplitWidget splitWidget,
+      final SplitHintSpec splitHintSpec,
+      final List<URI> prefixes,
+      @Nullable final String objectGlob
+  )
+  {
+    Iterator<CloudObjectSplitWidget.LocationWithSize> iterator =
+        splitWidget.getDescriptorIteratorForPrefixes(prefixes);
+
+    if (StringUtils.isNotBlank(objectGlob)) {
+      final PathMatcher m = FileSystems.getDefault().getPathMatcher("glob:" + objectGlob);
+      iterator = Iterators.filter(
+          iterator,
+          location -> m.matches(Paths.get(location.getLocation().getPath()))
+      );
+    }
+
+    // Only consider nonempty objects. Note: size may be unknown; if so we allow it through, to avoid
+    // calling getObjectSize and triggering a network call.
+    return toSplitStream(
+        splitWidget,
+        splitHintSpec,
+        Iterators.filter(iterator, object -> object.getSize() != 0) // Allow UNKNOWN_SIZE through
+    );
+  }
+
+  /**
+   * Stream of {@link InputSplit} for situations where this object is based
+   * on {@link #getUris()} or {@link #getObjects()}.
+   *
+   * This method does not make network calls. In particular, unlike {@link #getSplitsForPrefixes}, this method does
+   * not filter out empty objects, because doing so would require calling {@link CloudObjectSplitWidget#getObjectSize}.
+   * The hope, and assumption, here is that users won't specify empty objects explicitly. (They're more likely to
+   * come in through prefixes.)
+   */
+  private static Stream<InputSplit<List<CloudObjectLocation>>> getSplitsForObjects(
+      final CloudObjectSplitWidget splitWidget,
+      final SplitHintSpec splitHintSpec,
+      final List<CloudObjectLocation> objectLocations,
+      @Nullable final String objectGlob
+  )
+  {
+    Iterator<CloudObjectLocation> iterator = objectLocations.iterator();
+
+    if (StringUtils.isNotBlank(objectGlob)) {
+      final PathMatcher m = FileSystems.getDefault().getPathMatcher("glob:" + objectGlob);
+      iterator = Iterators.filter(
+          iterator,
+          location -> m.matches(Paths.get(location.getPath()))
+      );
+    }
+
+    return toSplitStream(
+        splitWidget,
+        splitHintSpec,
+        Iterators.transform(
+            iterator,
+            location -> new CloudObjectSplitWidget.LocationWithSize(location, CloudObjectSplitWidget.UNKNOWN_SIZE)
+        )
+    );
+  }
+
+  private static Stream<InputSplit<List<CloudObjectLocation>>> toSplitStream(
+      final CloudObjectSplitWidget splitWidget,
+      final SplitHintSpec splitHintSpec,
+      final Iterator<CloudObjectSplitWidget.LocationWithSize> objectIterator
+  )
+  {
+    return Streams.sequentialStreamFrom(
+        splitHintSpec.split(
+            objectIterator,
+            o -> {
+              try {
+                if (o.getSize() == CloudObjectSplitWidget.UNKNOWN_SIZE) {
+                  return new InputFileAttribute(splitWidget.getObjectSize(o.getLocation()));
+                } else {
+                  return new InputFileAttribute(o.getSize());
+                }
+              }
+              catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            }
+        )
+    ).map(
+        locations -> new InputSplit<>(
+            locations.stream()
+                     .map(CloudObjectSplitWidget.LocationWithSize::getLocation)
+                     .collect(Collectors.toList()))
+    );
   }
 }
