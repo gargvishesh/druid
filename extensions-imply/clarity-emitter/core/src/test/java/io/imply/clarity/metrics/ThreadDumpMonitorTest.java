@@ -62,6 +62,7 @@ public class ThreadDumpMonitorTest
     for (Event event : eventList) {
       EventMap eventMap = event.toMap();
 
+      Assert.assertEquals("threadDump", eventMap.get("feed"));
       Assert.assertTrue(eventMap.get("timestamp") instanceof String);
       Assert.assertEquals("fuu", eventMap.get("service"));
       Assert.assertEquals("bar", eventMap.get("host"));
