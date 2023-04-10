@@ -29,6 +29,13 @@
     <cve>CVE-2021-3827</cve>
     <cve>CVE-2022-1245</cve>
   </suppress>
+  <suppress>
+    <!-- The latest version of aws-msk-iam-auth-all, 1.1.6 (so far) didn't address these CVEs hence had to suppress them -->
+    <notes><![CDATA[
+     file name: aws-msk-iam-auth-all-1.1.5.jar
+     ]]></notes>
+    <cve>CVE-2022-41881</cve>
+  </suppress>
   <!-- End of Imply-specific exclusions -->
 
   <suppress>
