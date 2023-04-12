@@ -141,7 +141,8 @@ public class PolarisSourceOperatorConversion extends PolarisSourceTableMacroConv
           polarisExtTblSpec.getInputSource(),
           polarisExtTblSpec.getInputFormat(),
           polarisExtTblSpec.getSignature(),
-          BasePolarisInputSourceDefn.TYPE_KEY);
+          () -> Collections.singleton(BasePolarisInputSourceDefn.TYPE_KEY)
+      );
     }
   }
 

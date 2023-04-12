@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -114,7 +115,7 @@ public class PolarisSourceFunctionTest
         inputSource,
         inputFormat,
         rowSignature,
-        BasePolarisInputSourceDefn.TYPE_KEY
+        () -> Collections.singleton(BasePolarisInputSourceDefn.TYPE_KEY)
     );
     Assert.assertEquals(expectedExtTblSpec.inputSource, extTableSpec.inputSource);
     Assert.assertEquals(expectedExtTblSpec.inputFormat, extTableSpec.inputFormat);
