@@ -18,7 +18,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.utils.Time;
 import scala.Some;
-import scala.collection.immutable.List$;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -73,14 +72,14 @@ public class TestBroker implements Closeable
         config,
         Time.SYSTEM,
         Some.apply(StringUtils.format("TestingBroker[%d]-", id)),
-        List$.MODULE$.empty()
+        false
     );
     server.startup();
   }
 
   public int getPort()
   {
-    return server.socketServer().config().port();
+    return server.advertisedListeners().apply(0).port();
   }
 
   public KafkaConsumer<byte[], byte[]> newConsumer()

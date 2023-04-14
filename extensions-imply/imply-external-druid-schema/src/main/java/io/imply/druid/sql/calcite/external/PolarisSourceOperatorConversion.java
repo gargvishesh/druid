@@ -19,7 +19,6 @@ import org.apache.druid.catalog.model.table.ExternalTableSpec;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.sql.calcite.external.DruidUserDefinedTableMacroConversion;
 
 import javax.annotation.Nonnull;
 import javax.validation.constraints.NotNull;
@@ -39,7 +38,7 @@ import java.util.Objects;
  * }</pre>
  * Where either the by-position or by-name forms are usable.
  */
-public class PolarisSourceOperatorConversion extends DruidUserDefinedTableMacroConversion
+public class PolarisSourceOperatorConversion extends PolarisSourceTableMacroConversion
 {
   public static final String FUNCTION_NAME = "POLARIS_SOURCE";
 
@@ -141,7 +140,9 @@ public class PolarisSourceOperatorConversion extends DruidUserDefinedTableMacroC
       return new ExternalTableSpec(
           polarisExtTblSpec.getInputSource(),
           polarisExtTblSpec.getInputFormat(),
-          polarisExtTblSpec.getSignature());
+          polarisExtTblSpec.getSignature(),
+          () -> Collections.singleton(BasePolarisInputSourceDefn.TYPE_KEY)
+      );
     }
   }
 

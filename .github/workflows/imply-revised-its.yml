@@ -30,24 +30,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
-  s3-deep-storage:
-    uses: ./.github/workflows/imply-reusable-revised-its.yml
-    with:
-      build_jdk: 8
-      runtime_jdk: 11
-      use_indexer: middleManager
-      script: ./it.sh github S3DeepStorage
-      it: S3DeepStorage
-      mysql_driver: com.mysql.jdbc.Driver
-      DRUID_CLOUD_BUCKET: druid-qa
-      DRUID_CLOUD_PATH: aws-${{ github.run_id }}-${{ github.run_attempt }}
-      AWS_REGION: us-east-1
-    secrets:
-      MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
   azure-deep-storage:
     uses: ./.github/workflows/imply-reusable-revised-its.yml
     with:

@@ -29,7 +29,6 @@ import java.util.Objects;
 
 public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
 {
-  public static final String TYPE_KEY = "POLARIS_UPLOADED";
   public static final String FILES_PARAMETER = "files";
 
   private static final TableFunction.ParameterDefn FILES_PARAM_DEFN =
@@ -37,7 +36,7 @@ public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
 
   static class PolarisUploadedFunctionSpec implements PolarisTableFunctionSpec
   {
-    public static final String FUNCTION_NAME = PolarisUploadedInputSourceDefn.TYPE_KEY;
+    public static final String FUNCTION_NAME = "POLARIS_UPLOADED";
     private @NotNull final List<String> files;
 
     @JsonCreator
@@ -115,11 +114,5 @@ public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
   protected List<TableFunction.ParameterDefn> adHocTableFnParameters()
   {
     return Collections.singletonList(FILES_PARAM_DEFN);
-  }
-
-  @Override
-  public String typeValue()
-  {
-    return TYPE_KEY;
   }
 }

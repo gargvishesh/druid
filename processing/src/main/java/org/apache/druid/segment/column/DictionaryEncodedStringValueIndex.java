@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
  */
 public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValueIndex
 {
-  BitmapFactory getBitmapFactory();
 
   /**
    * Get the cardinality of the underlying value dictionary
@@ -45,4 +44,7 @@ public interface DictionaryEncodedStringValueIndex extends DictionaryEncodedValu
    */
   @Nullable
   String getValue(int index);
+
+  @SuppressWarnings({"unreachable", "unused"})
+  BitmapFactory getBitmapFactory();
 }

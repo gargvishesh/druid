@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -110,7 +111,12 @@ public class PolarisSourceFunctionTest
 
     ExternalTableSpec extTableSpec =
         function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, null, MAPPER);
-    ExternalTableSpec expectedExtTblSpec = new ExternalTableSpec(inputSource, inputFormat, rowSignature);
+    ExternalTableSpec expectedExtTblSpec = new ExternalTableSpec(
+        inputSource,
+        inputFormat,
+        rowSignature,
+        () -> Collections.singleton(BasePolarisInputSourceDefn.TYPE_KEY)
+    );
     Assert.assertEquals(expectedExtTblSpec.inputSource, extTableSpec.inputSource);
     Assert.assertEquals(expectedExtTblSpec.inputFormat, extTableSpec.inputFormat);
     Assert.assertEquals(expectedExtTblSpec.signature, extTableSpec.signature);
