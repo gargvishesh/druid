@@ -44,8 +44,10 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"vectorizeVirtualColumns\":\"false\"},\"granularity\":{\"type\":\"all\"}},"
                                     + "\"signature\":[{\"name\":\"x\",\"type\":\"STRING\"},"
                                     + "{\"name\":\"y\",\"type\":\"STRING\"},{\"name\":\"z\",\"type\":\"LONG\"}]}]";
+    String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
+
     testQuery(
         "EXPLAIN PLAN FOR SELECT * FROM "
         + "TABLE(POLARIS_EXPLAIN('[{\"name\": \"x\", \"type\": \"STRING\"}, {\"name\": "
@@ -53,8 +55,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
         contextWithNativeExplain,
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{nonVectorizationResult, "[]"}
-
+            new Object[]{nonVectorizationResult, "[]", attributes}
         )
     );
   }
@@ -78,8 +79,10 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"vectorizeVirtualColumns\":\"false\"},\"granularity\":{\"type\":\"all\"}},"
                                     + "\"signature\":[{\"name\":\"v0\",\"type\":\"STRING\"},{\"name\":\"y\","
                                     + "\"type\":\"STRING\"},{\"name\":\"v1\",\"type\":\"LONG\"}]}]";
+    String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
+
     testQuery(
         "EXPLAIN PLAN FOR SELECT concat(x, 'foo'), y, z + 100 FROM "
         + "TABLE(POLARIS_EXPLAIN('[{\"name\": \"x\", \"type\": \"STRING\"}, {\"name\": "
@@ -87,8 +90,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
         contextWithNativeExplain,
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{nonVectorizationResult, "[]"}
-
+            new Object[]{nonVectorizationResult, "[]", attributes}
         )
     );
   }
