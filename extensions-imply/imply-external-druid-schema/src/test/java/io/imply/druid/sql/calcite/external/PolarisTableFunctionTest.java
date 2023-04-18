@@ -240,8 +240,8 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         .expectResources(
             dataSourceWrite("dst"),
             new ResourceAction(new Resource(
-                ResourceType.EXTERNAL,
-                BasePolarisInputSourceDefn.TYPE_KEY
+                BasePolarisInputSourceDefn.TYPE_KEY,
+                ResourceType.EXTERNAL
             ), Action.READ)
         )
         .expectQuery(
@@ -329,8 +329,8 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         .expectResources(
             dataSourceWrite("dst"),
             new ResourceAction(new Resource(
-                ResourceType.EXTERNAL,
-                BasePolarisInputSourceDefn.TYPE_KEY
+                BasePolarisInputSourceDefn.TYPE_KEY,
+                ResourceType.EXTERNAL
             ), Action.READ)
         )
         .expectQuery(
@@ -441,8 +441,8 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         .expectResources(
             dataSourceWrite("dst"),
             new ResourceAction(new Resource(
-                ResourceType.EXTERNAL,
-                BasePolarisInputSourceDefn.TYPE_KEY
+                BasePolarisInputSourceDefn.TYPE_KEY,
+                ResourceType.EXTERNAL
             ), Action.READ)
         )
         .expectQuery(
