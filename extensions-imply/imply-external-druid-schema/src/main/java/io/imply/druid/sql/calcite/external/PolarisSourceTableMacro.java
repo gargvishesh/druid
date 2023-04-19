@@ -35,8 +35,8 @@ public class PolarisSourceTableMacro extends DruidUserDefinedTableMacro
       return Collections.singleton(Externals.EXTERNAL_RESOURCE_ACTION);
     }
     return Collections.singleton(new ResourceAction(new Resource(
-        ResourceType.EXTERNAL,
-        BasePolarisInputSourceDefn.TYPE_KEY
+        BasePolarisInputSourceDefn.TYPE_KEY,
+        ResourceType.EXTERNAL
     ), Action.READ));
   }
 }
