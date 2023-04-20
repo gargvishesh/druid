@@ -91,6 +91,8 @@ public class SqlPlanningException extends BadQueryException
   /**
    * Planning errors should not be sanitized. This is an Imply only change since doing it in open-source breaks
    * compatability. The regex based approach isn't very flexible. we should revisit this once we have a better solution.
+   * If you are making a change here, please also ensure that no changes are needed for
+   * druid.server.http.errorResponseTransform.strategy configuration.
    */
   @Override
   public QueryException sanitize(Function<String, String> errorMessageTransformFunction)
