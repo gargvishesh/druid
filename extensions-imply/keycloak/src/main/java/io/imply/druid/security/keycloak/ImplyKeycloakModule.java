@@ -56,6 +56,7 @@ public class ImplyKeycloakModule implements DruidModule
         new SimpleModule(ImplyKeycloakModule.class.getSimpleName())
             .registerSubtypes(
                 ImplyKeycloakAuthenticator.class,
+                ImplyAPIKeyAuthenticator.class,
                 ImplyKeycloakAuthorizer.class,
                 ImplyKeycloakEscalator.class
             )
