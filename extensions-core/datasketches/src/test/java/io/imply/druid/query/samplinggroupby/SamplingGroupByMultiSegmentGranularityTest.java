@@ -166,7 +166,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
     final File fileA = INDEX_MERGER_V9.persist(
         indexA,
         new File(tmpDir, "A"),
-        new IndexSpec(),
+        IndexSpec.DEFAULT,
         null
     );
     QueryableIndex qindexA = INDEX_IO.loadIndex(fileA);
@@ -193,7 +193,7 @@ public class SamplingGroupByMultiSegmentGranularityTest
     final File fileB = INDEX_MERGER_V9.persist(
         indexB,
         new File(tmpDir, "B"),
-        new IndexSpec(),
+        IndexSpec.DEFAULT,
         null
     );
     QueryableIndex qindexB = INDEX_IO.loadIndex(fileB);

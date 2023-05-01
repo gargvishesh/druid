@@ -96,7 +96,7 @@ public class ArrayBasedTableTest extends InitializedNullHandlingTest
         data,
         testInterval,
         segment,
-        new IndexSpec(),
+        IndexSpec.DEFAULT,
         null
     );
     File factoryJson = new File(persisted, "factory.json");
