@@ -112,13 +112,7 @@ public class IndexedTableSegmentizerFactoryTest extends InitializedNullHandlingT
         data,
         testInterval,
         segment,
-        new IndexSpec(
-            null,
-            null,
-            null,
-            null,
-            expectedFactory
-        ),
+        IndexSpec.builder().withSegmentLoader(expectedFactory).build(),
         null
     );
 
