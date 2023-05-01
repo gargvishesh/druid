@@ -21,7 +21,6 @@ import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.column.ValueType;
-import org.apache.druid.segment.data.BitmapSerde;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.ColumnarIntsSerializer;
 import org.apache.druid.segment.data.CompressedVSizeColumnarIntsSerializer;
@@ -135,12 +134,11 @@ public class IpComplexTypeSerdeTest
 
   private void writeMetadataToBuffer(ByteBuffer buffer) throws Exception
   {
-    IndexSpec indexSpec = new IndexSpec(
-        new BitmapSerde.DefaultBitmapSerdeFactory(),
-        CompressionStrategy.LZ4,
-        CompressionStrategy.LZF,
-        CompressionFactory.LongEncodingStrategy.LONGS
-    );
+    IndexSpec indexSpec = IndexSpec.builder()
+                                   .withDimensionCompression(CompressionStrategy.LZ4)
+                                   .withMetricCompression(CompressionStrategy.LZF)
+                                   .withLongEncoding(CompressionFactory.LongEncodingStrategy.LONGS)
+                                   .build();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     new SerializerUtils().writeString(
         baos,
