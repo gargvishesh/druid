@@ -60,4 +60,36 @@ public class CalciteDateExpandQueryTest extends BaseCalciteQueryTest
         )
     );
   }
+
+  @Test
+  public void testDateExpandOperatorWithInvalidRange()
+  {
+    testQuery(
+        "select DATE_EXPAND(TIMESTAMP_TO_MILLIS(__time), TIMESTAMP_TO_MILLIS(__time) - 1, 'PT10S') "
+            + "FROM foo "
+            + "WHERE __time BETWEEN TIMESTAMP '2000-01-01 00:00:00' AND TIMESTAMP '2000-12-31 23:59:59.999' ",
+        ImmutableList.of(
+            Druids.newScanQueryBuilder()
+                .dataSource(CalciteTests.DATASOURCE1)
+                .intervals(querySegmentSpec(Intervals.of("2000-01-01/2001-01-01")))
+                .virtualColumns(
+                    expressionVirtualColumn(
+                        "v0",
+                        "date_expand(\"__time\",(\"__time\" - 1),'PT10S')",
+                        ColumnType.LONG_ARRAY
+                    )
+                )
+                .columns("v0")
+                .legacy(false)
+                .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                .context(QUERY_CONTEXT_DEFAULT)
+                .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"[]"},
+            new Object[]{"[]"},
+            new Object[]{"[]"}
+        )
+    );
+  }
 }
