@@ -22,38 +22,43 @@ package org.apache.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.java.util.common.parsers.UnparseableColumnsParseException;
+import org.apache.druid.java.util.emitter.EmittingLogger;
+import org.apache.druid.java.util.emitter.service.ServiceLogEvent;
 import org.apache.druid.utils.CircularBuffer;
 
 import javax.annotation.Nullable;
 
 /**
  * A handler for {@link ParseException}s thrown during ingestion. Based on the given configuration, this handler can
- *
  * - log ParseExceptions.
  * - keep most recent N ParseExceptions in memory.
  * - throw a RuntimeException when it sees more ParseExceptions than {@link #maxAllowedParseExceptions}.
- *
  * No matter what the handler does, the relevant metric should be updated first.
  */
 public class ParseExceptionHandler
 {
   private static final Logger LOG = new Logger(ParseExceptionHandler.class);
 
+  private final EmittingLogger emittingLogger;
   private final RowIngestionMeters rowIngestionMeters;
   private final boolean logParseExceptions;
   private final int maxAllowedParseExceptions;
+  private final int maxSavedParseExceptions;
   @Nullable
   private final CircularBuffer<ParseExceptionReport> savedParseExceptionReports;
 
-  public ParseExceptionHandler(
+  @VisibleForTesting
+  ParseExceptionHandler(
       RowIngestionMeters rowIngestionMeters,
       boolean logParseExceptions,
       int maxAllowedParseExceptions,
-      int maxSavedParseExceptions
+      int maxSavedParseExceptions,
+      EmittingLogger emittingLogger
   )
   {
     this.rowIngestionMeters = Preconditions.checkNotNull(rowIngestionMeters, "rowIngestionMeters");
@@ -64,6 +69,24 @@ public class ParseExceptionHandler
     } else {
       this.savedParseExceptionReports = null;
     }
+    this.maxSavedParseExceptions = maxSavedParseExceptions;
+    this.emittingLogger = emittingLogger;
+  }
+
+  public ParseExceptionHandler(
+      RowIngestionMeters rowIngestionMeters,
+      boolean logParseExceptions,
+      int maxAllowedParseExceptions,
+      int maxSavedParseExceptions
+  )
+  {
+    this(
+        rowIngestionMeters,
+        logParseExceptions,
+        maxAllowedParseExceptions,
+        maxSavedParseExceptions,
+        new EmittingLogger(ParseExceptionHandler.class).noStackTrace()
+    );
   }
 
   public void handle(@Nullable ParseException e)
@@ -89,6 +112,11 @@ public class ParseExceptionHandler
           : ImmutableList.of(e.getMessage()),
           e.getTimeOfExceptionMillis()
       );
+      if (savedParseExceptionReports.size() < maxSavedParseExceptions) {
+        ServiceLogEvent.Builder serviceLogEvent = new ServiceLogEvent.Builder();
+        serviceLogEvent.setDimensions(parseExceptionReport.getData());
+        emittingLogger.emit(serviceLogEvent.build(DateTimes.utc(e.getTimeOfExceptionMillis())));
+      }
       savedParseExceptionReports.add(parseExceptionReport);
     }
 
