@@ -43,7 +43,8 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"useNativeQueryExplain\":\"true\",\"vectorize\":\"false\","
                                     + "\"vectorizeVirtualColumns\":\"false\"},\"granularity\":{\"type\":\"all\"}},"
                                     + "\"signature\":[{\"name\":\"x\",\"type\":\"STRING\"},"
-                                    + "{\"name\":\"y\",\"type\":\"STRING\"},{\"name\":\"z\",\"type\":\"LONG\"}]}]";
+                                    + "{\"name\":\"y\",\"type\":\"STRING\"},{\"name\":\"z\",\"type\":\"LONG\"}],"
+                                    + "\"columnMappings\":[{\"queryColumn\":\"x\",\"outputColumn\":\"x\"},{\"queryColumn\":\"y\",\"outputColumn\":\"y\"},{\"queryColumn\":\"z\",\"outputColumn\":\"z\"}]}]";
     String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
@@ -78,7 +79,8 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"useNativeQueryExplain\":\"true\",\"vectorize\":\"false\","
                                     + "\"vectorizeVirtualColumns\":\"false\"},\"granularity\":{\"type\":\"all\"}},"
                                     + "\"signature\":[{\"name\":\"v0\",\"type\":\"STRING\"},{\"name\":\"y\","
-                                    + "\"type\":\"STRING\"},{\"name\":\"v1\",\"type\":\"LONG\"}]}]";
+                                    + "\"type\":\"STRING\"},{\"name\":\"v1\",\"type\":\"LONG\"}],"
+                                    + "\"columnMappings\":[{\"queryColumn\":\"v0\",\"outputColumn\":\"EXPR$0\"},{\"queryColumn\":\"y\",\"outputColumn\":\"y\"},{\"queryColumn\":\"v1\",\"outputColumn\":\"EXPR$2\"}]}]";
     String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
