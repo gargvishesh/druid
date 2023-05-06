@@ -11,6 +11,7 @@ package io.imply.druid.inet.sql;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressDimensionSchema;
@@ -29,10 +30,12 @@ import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.ExpressionLambdaAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
@@ -627,6 +630,140 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
         ImmutableList.of(
             new Object[]{
                 NullHandling.replaceWithDefault() ? 6L : 5L
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testArrayAgg()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT ARRAY_AGG(ipv4) FROM druid.iptest",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .aggregators(
+                      new ExpressionLambdaAggregatorFactory(
+                          "a0",
+                          ImmutableSet.of("ipv4"),
+                          "__acc",
+                          "ARRAY<COMPLEX<ipAddress>>[]",
+                          "ARRAY<COMPLEX<ipAddress>>[]",
+                          true,
+                          true,
+                          false,
+                          "array_append(\"__acc\", \"ipv4\")",
+                          "array_concat(\"__acc\", \"a0\")",
+                          null,
+                          null,
+                          ExpressionLambdaAggregatorFactory.DEFAULT_MAX_SIZE_BYTES,
+                          TestExprMacroTable.INSTANCE
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            // arrays are json serialized by default
+            new Object[]{
+                "[\"AAAAAAAAAAAAAP//rA6e6g==\",\"AAAAAAAAAAAAAP//rA6kyA==\",\"AAAAAAAAAAAAAP//1+tpOA==\",\"AAAAAAAAAAAAAP//rA6e7w==\",\"AAAAAAAAAAAAAP//bQgKwA==\",\"AAAAAAAAAAAAAP//rA6e6g==\",\"AAAAAAAAAAAAAP//rA6kyA==\",\"AAAAAAAAAAAAAP//1+tpOA==\",\"AAAAAAAAAAAAAP//rA6e7w==\",\"AAAAAAAAAAAAAP//bQgKwA==\",null]"
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testArrayAggGrouping()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT string, ARRAY_AGG(ipv4), COUNT(*) FROM druid.iptest GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setDimensions(
+                            dimensions(
+                                new DefaultDimensionSpec("string", "d0")
+                            )
+                        )
+                        .setAggregatorSpecs(
+                            aggregators(
+                                new ExpressionLambdaAggregatorFactory(
+                                    "a0",
+                                    ImmutableSet.of("ipv4"),
+                                    "__acc",
+                                    "ARRAY<COMPLEX<ipAddress>>[]",
+                                    "ARRAY<COMPLEX<ipAddress>>[]",
+                                    true,
+                                    true,
+                                    false,
+                                    "array_append(\"__acc\", \"ipv4\")",
+                                    "array_concat(\"__acc\", \"a0\")",
+                                    null,
+                                    null,
+                                    ExpressionLambdaAggregatorFactory.DEFAULT_MAX_SIZE_BYTES,
+                                    TestExprMacroTable.INSTANCE
+                                ),
+                                new CountAggregatorFactory("a1")
+                            )
+                        )
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            // arrays are json serialized by default
+            new Object[]{"aaa", "[\"AAAAAAAAAAAAAP//rA6e6g==\",\"AAAAAAAAAAAAAP//rA6e6g==\"]", 2L},
+            new Object[]{"bbb", "[\"AAAAAAAAAAAAAP//rA6kyA==\",\"AAAAAAAAAAAAAP//rA6kyA==\"]", 2L},
+            new Object[]{"ccc", "[\"AAAAAAAAAAAAAP//1+tpOA==\",\"AAAAAAAAAAAAAP//1+tpOA==\"]", 2L},
+            new Object[]{"ddd", "[\"AAAAAAAAAAAAAP//rA6e7w==\",\"AAAAAAAAAAAAAP//rA6e7w==\"]", 2L},
+            new Object[]{"eee", "[\"AAAAAAAAAAAAAP//bQgKwA==\",\"AAAAAAAAAAAAAP//bQgKwA==\"]", 2L},
+            new Object[]{"fff", "[null]", 1L}
+        )
+    );
+  }
+
+  @Test
+  public void testArrayAggDistinct()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT ARRAY_AGG(DISTINCT ipv4) FROM druid.iptest",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(DATA_SOURCE)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .aggregators(
+                      new ExpressionLambdaAggregatorFactory(
+                          "a0",
+                          ImmutableSet.of("ipv4"),
+                          "__acc",
+                          "ARRAY<COMPLEX<ipAddress>>[]",
+                          "ARRAY<COMPLEX<ipAddress>>[]",
+                          true,
+                          true,
+                          false,
+                          "array_set_add(\"__acc\", \"ipv4\")",
+                          "array_set_add_all(\"__acc\", \"a0\")",
+                          null,
+                          null,
+                          ExpressionLambdaAggregatorFactory.DEFAULT_MAX_SIZE_BYTES,
+                          TestExprMacroTable.INSTANCE
+                      )
+                  )
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            // arrays are json serialized by default
+            new Object[]{
+                "[null,\"AAAAAAAAAAAAAP//rA6e6g==\",\"AAAAAAAAAAAAAP//rA6e7w==\",\"AAAAAAAAAAAAAP//rA6kyA==\",\"AAAAAAAAAAAAAP//1+tpOA==\",\"AAAAAAAAAAAAAP//bQgKwA==\"]"
             }
         )
     );

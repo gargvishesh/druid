@@ -15,12 +15,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import io.imply.druid.inet.IpAddressModule;
-import io.imply.druid.license.ImplyLicenseManager;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.collections.bitmap.MutableBitmap;
 import org.apache.druid.data.input.impl.StringInputRowParser;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
@@ -31,6 +31,7 @@ import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.segment.column.TypeSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.BitmapSerdeFactory;
 import org.apache.druid.segment.data.GenericIndexed;
@@ -42,7 +43,6 @@ import org.apache.druid.segment.writeout.OnHeapMemorySegmentWriteOutMedium;
 import org.apache.druid.timeline.SegmentId;
 import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 import org.roaringbitmap.IntIterator;
 
 import java.io.File;
@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -311,11 +312,23 @@ public class IpAddressTestUtils
     for (int i = 0; i < expected.size(); i++) {
       final Object[] resultRow = results.get(i).getArray();
       Assert.assertEquals(expected.get(i).length, resultRow.length);
+      System.out.println(Arrays.deepToString(resultRow));
       for (int j = 0; j < resultRow.length; j++) {
-        if (rowSignature.getColumnType(j).map(t -> t.anyOf(ValueType.DOUBLE, ValueType.FLOAT)).orElse(false)) {
-          Assert.assertEquals((Double) resultRow[j], (Double) expected.get(i)[j], 0.01);
+        if (rowSignature.getColumnType(j).map(TypeSignature::isArray).orElse(false)) {
+          if (resultRow[j] instanceof List) {
+            // small buffer makes stuff round trip through serde, which borks types
+            Object[] o = ((List) resultRow[j]).stream().map(x -> x == null ? null : IpAddressBlob.ofByteBuffer(ByteBuffer.wrap(StringUtils.decodeBase64String(
+                (String) x)))).toArray();
+            Assert.assertArrayEquals("row " + i, (Object[]) expected.get(i)[j], o);
+          } else {
+            Assert.assertArrayEquals("row " + i, (Object[]) expected.get(i)[j], (Object[]) resultRow[j]);
+          }
+        } else if (rowSignature.getColumnType(j).map(t -> t.is(ValueType.DOUBLE)).orElse(false)) {
+          Assert.assertEquals("row " + i, (Double) expected.get(i)[j], (Double) resultRow[j], 0.01);
+        } else if (rowSignature.getColumnType(j).map(t -> t.is(ValueType.FLOAT)).orElse(false)) {
+          Assert.assertEquals("row " + i, (Float) expected.get(i)[j], (Float) resultRow[j], 0.01);
         } else {
-          Assert.assertEquals(resultRow[j], expected.get(i)[j]);
+          Assert.assertEquals("row " + i, expected.get(i)[j], resultRow[j]);
         }
       }
     }

@@ -18,11 +18,13 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.column.ColumnConfig;
+import org.apache.druid.segment.column.TypeStrategy;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.CompressedVSizeColumnarIntsSupplier;
 import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.data.ObjectStrategy;
+import org.apache.druid.segment.data.VSizeColumnarInts;
 import org.apache.druid.segment.data.WritableSupplier;
 import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
@@ -166,6 +168,49 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
   }
 
   @Override
+  public TypeStrategy<IpAddressBlob> getTypeStrategy()
+  {
+    return new TypeStrategy<IpAddressBlob>()
+    {
+      @Override
+      public int estimateSizeBytes(IpAddressBlob value)
+      {
+        return IpAddressBlob.SIZE;
+      }
+
+      @Override
+      public IpAddressBlob read(ByteBuffer buffer)
+      {
+        final IpAddressBlob blob = IpAddressBlob.ofByteBuffer(buffer);
+        buffer.position(buffer.position() + IpAddressBlob.SIZE);
+        return blob;
+      }
+
+      @Override
+      public boolean readRetainsBufferReference()
+      {
+        return false;
+      }
+
+      @Override
+      public int write(ByteBuffer buffer, IpAddressBlob value, int maxSizeBytes)
+      {
+        if (maxSizeBytes < IpAddressBlob.SIZE) {
+          return maxSizeBytes - IpAddressBlob.SIZE;
+        }
+        buffer.put(value.getBytes());
+        return IpAddressBlob.SIZE;
+      }
+
+      @Override
+      public int compare(Object o1, Object o2)
+      {
+        return getObjectStrategy().compare(o1, o2);
+      }
+    };
+  }
+
+  @Override
   public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
     throw new UnsupportedOperationException("Not Supported");
@@ -192,10 +237,11 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
           builder.getFileMapper()
       );
 
-      final WritableSupplier<ColumnarInts> column = CompressedVSizeColumnarIntsSupplier.fromByteBuffer(
-          buffer,
-          ByteOrder.nativeOrder()
-      );
+      // ip address will never be multi-valued, so its either compressed or not
+      final WritableSupplier<ColumnarInts> column =
+          buffer.get(buffer.position()) == VSizeColumnarInts.VERSION
+          ? VSizeColumnarInts.readFromByteBuffer(buffer)
+          : CompressedVSizeColumnarIntsSupplier.fromByteBuffer(buffer, ByteOrder.nativeOrder());
 
       GenericIndexed<ImmutableBitmap> bitmaps = GenericIndexed.read(
           buffer,
