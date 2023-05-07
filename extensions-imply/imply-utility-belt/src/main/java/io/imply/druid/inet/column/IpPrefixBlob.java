@@ -27,7 +27,7 @@ import java.util.List;
 
 public class IpPrefixBlob implements Comparable<IpPrefixBlob>
 {
-  public static int SIZE = 17;
+  public static final int SIZE = 17;
   public static final Comparator<IpPrefixBlob> COMPARATOR = Comparators.naturalNullsFirst();
 
   public static final Strategy STRATEGY = new Strategy();
