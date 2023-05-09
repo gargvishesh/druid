@@ -791,7 +791,7 @@ pipeline {
                                             -Dspotbugs.skip=true \
                                             -DskipTests \
                                             -Dtar \
-                                            -P${BUILD_PROFILE}
+                                            -P${BUILD_PROFILE} \
                                             -P${HADOOP_PROFILE}
 
                                         echo "Built Druid, version: $DRUID_VERSION"
