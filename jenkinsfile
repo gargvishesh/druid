@@ -760,8 +760,10 @@ pipeline {
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
                                         if [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
                                             HADOOP_VERSION="2.8.5"
+                                            HADOOP_PROFILE="hadoop2"
                                         else
                                             HADOOP_VERSION="3.3.5"
+                                            HADOOP_PROFILE="hadoop3"
                                         fi
 
                                         MARIADB_CONNECTOR_VERSION="2.7.3"
@@ -789,6 +791,7 @@ pipeline {
                                             -DskipTests \
                                             -Dtar \
                                             -P${BUILD_PROFILE}
+                                            -P${HADOOP_PROFILE}
 
                                         echo "Built Druid, version: $DRUID_VERSION"
 
