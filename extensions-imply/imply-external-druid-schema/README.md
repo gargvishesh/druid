@@ -9,7 +9,7 @@
 
 # Imply External Druid Schemas
 
-This extension provides an implementation of `DruidSchemaManager`, which polls an external HTTP endpoint for the 
+This extension provides an implementation of `DruidSchemaManager`, which polls an external HTTP endpoint for the
 table schemas that should be used in the broker's SQL planner.
 
 Add `imply-external-druid-schema` to the extensions load list, and set `druid.sql.schemamanager.type` to `imply`
@@ -33,11 +33,12 @@ This map of schemas is used as the set of Druid datasource schemas in `DruidSche
 
 Druid Brokers periodically refresh a snapshot of the current table schema state from the coordinators, and also listen for updates pushed from the Coordinator. This transfer is done using JSON in both cases. The `DruidSchema` uses these table schemas instead of polling for segment metadata across the cluster, making these tables available for querying.
 
-The HTTP client used to communicate with the HTTP endpoint is the same as the Escalated client used for internal Druid->Druid communications. 
+The HTTP client used to communicate with the HTTP endpoint is the same as the Escalated client used for internal Druid->Druid communications.
 
 This extension is intended for use in the Imply SaaS environment, where the SaaS tables service provides the table schema endpoint, and all services use Keycloak-based authentication.
 
 ### Configuration
+
 | property | description | default |
 | --- | --- | ----------- |
 | `druid.sql.schemamanager.imply.pollingPeriod` | How frequently in milliseconds that Brokers will poll Coordinators to refresh schema state | 60000 |
