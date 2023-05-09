@@ -1119,25 +1119,37 @@ public class FunctionTest extends InitializedNullHandlingTest
   @Test
   public void testDateExpandNoArgs()
   {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] requires 3 arguments");
-    assertArrayExpr("date_expand()", null);
+    Throwable t = Assert.assertThrows(
+        ExpressionValidationException.class,
+        () -> assertArrayExpr("date_expand()", null)
+    );
+    Assert.assertEquals("Function[date_expand] requires 3 arguments", t.getMessage());
   }
 
   @Test
   public void testDateExpandIncorrectDateTime()
   {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] first param should be a LONG but got [STRING] instead");
-    assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", null);
+    Throwable t = Assert.assertThrows(
+        ExpressionValidationException.class,
+        () -> assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", null)
+    );
+    Assert.assertEquals(
+        "Function[date_expand] first param should be a LONG but got [STRING] instead",
+        t.getMessage()
+    );
   }
 
   @Test
   public void testDateExpandStartGreaterThanEnd()
   {
-    expectedException.expect(ExpressionValidationException.class);
-    expectedException.expectMessage("Function[date_expand] first argument should be less than equals to the second argument");
-    assertArrayExpr("date_expand(1674202858800, 1674202858500, 'PT1M')", null);
+    Throwable t = Assert.assertThrows(
+        ExpressionValidationException.class,
+        () -> assertArrayExpr("date_expand(1674202858800, 1674202858500, 'PT1M')", null)
+    );
+    Assert.assertEquals(
+        "Function[date_expand] first argument should be less than equals to the second argument",
+        t.getMessage()
+    );
   }
 
   private void assertExpr(final String expression, @Nullable final Object expectedResult)
