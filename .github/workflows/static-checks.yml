@@ -57,7 +57,8 @@ jobs:
           echo "java_version=${jdk:3}" >> $GITHUB_ENV
 
       - name: setup ${{ matrix.java }}
-        run: export JAVA_HOME=$JAVA_HOME_${{ env.java_version }}_X64
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_${{ env.java_version }}_X64" >> $GITHUB_ENV
 
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
@@ -152,12 +153,9 @@ jobs:
       - name: checkout branch
         uses: actions/checkout@v3
 
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-          cache: maven
+      - name: setup JDK11
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_11_X64" >> $GITHUB_ENV
 
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
