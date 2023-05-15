@@ -28,7 +28,9 @@ import org.apache.druid.java.util.emitter.core.EventMap;
 import org.apache.druid.java.util.emitter.service.ServiceEventBuilder;
 import org.apache.druid.testing.junit.LoggerCaptureRule;
 import org.apache.logging.log4j.core.LogEvent;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -55,6 +57,25 @@ public class ParseExceptionHandlerTest
 
   @Rule
   public LoggerCaptureRule logger = new LoggerCaptureRule(ParseExceptionHandler.class);
+
+  private static final String POLARIS_SYSTEM_PROPERTY_KEY = "IS_POLARIS";
+
+  @Before
+  public void cleanUpBefore()
+  {
+    clearSystemProperty();
+  }
+
+  @After
+  public void cleanUpAfter()
+  {
+    clearSystemProperty();
+  }
+
+  public static void clearSystemProperty()
+  {
+    System.clearProperty("POLARIS_SYSTEM_PROPERTY_KEY");
+  }
 
   @Test
   public void testMetricWhenAllConfigurationsAreTurnedOff()
@@ -174,6 +195,8 @@ public class ParseExceptionHandlerTest
   @Test
   public void testEmittingParseExceptionsEmitsAsManyExpected()
   {
+    System.setProperty("POLARIS_SYSTEM_PROPERTY_KEY", "true");
+
     ArgumentCaptor<ServiceEventBuilder> captor = ArgumentCaptor.forClass(ServiceEventBuilder.class);
     final int maxSavedParseExceptions = 1;
     final RowIngestionMeters rowIngestionMeters = new SimpleRowIngestionMeters();
@@ -193,6 +216,25 @@ public class ParseExceptionHandlerTest
     Map<String, Object> data = (Map<String, Object>) eventMap.get("data");
     List<String> details = (List<String>) data.get("details");
     Assert.assertEquals(details.get(0), "test 0");
+  }
+
+  @Test
+  public void testEmittingParseExceptionsNotPolarisDoesntEmitEvent()
+  {
+    ArgumentCaptor<ServiceEventBuilder> captor = ArgumentCaptor.forClass(ServiceEventBuilder.class);
+    final int maxSavedParseExceptions = 1;
+    final RowIngestionMeters rowIngestionMeters = new SimpleRowIngestionMeters();
+    final ParseExceptionHandler parseExceptionHandler = new ParseExceptionHandler(
+        rowIngestionMeters,
+        false,
+        Integer.MAX_VALUE,
+        maxSavedParseExceptions,
+        emittingLogger
+    );
+    for (int ii = 0; ii < 3; ii++) {
+      parseExceptionHandler.handle(new ParseException("input", StringUtils.format("test %d", ii)));
+    }
+    verify(emittingLogger, times(0)).emit(captor.capture());
   }
 
   @Test
