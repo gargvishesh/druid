@@ -73,7 +73,7 @@ public class ClarityMetricsModule implements DruidModule
       binder.bind(TimeseriesQueryMetricsFactory.class).to(ClarityTimeseriesQueryMetricsFactory.class);
     }
 
-    if (Boolean.parseBoolean(props.getProperty(PROPERTY_THREAD_DUMP_MONITOR, "false"))) {
+    if (Boolean.parseBoolean(props.getProperty(PROPERTY_THREAD_DUMP_MONITOR, "true"))) {
       DruidBinders.metricMonitorBinder(binder).addBinding().toInstance(ThreadDumpMonitor.class);
       binder.bind(ThreadDumpMonitor.class).in(LazySingleton.class);
     }
