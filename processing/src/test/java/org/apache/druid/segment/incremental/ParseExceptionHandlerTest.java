@@ -74,7 +74,7 @@ public class ParseExceptionHandlerTest
 
   public static void clearSystemProperty()
   {
-    System.clearProperty("POLARIS_SYSTEM_PROPERTY_KEY");
+    System.clearProperty(POLARIS_SYSTEM_PROPERTY_KEY);
   }
 
   @Test
@@ -195,7 +195,7 @@ public class ParseExceptionHandlerTest
   @Test
   public void testEmittingParseExceptionsEmitsAsManyExpected()
   {
-    System.setProperty("POLARIS_SYSTEM_PROPERTY_KEY", "true");
+    System.setProperty(POLARIS_SYSTEM_PROPERTY_KEY, "true");
 
     ArgumentCaptor<ServiceEventBuilder> captor = ArgumentCaptor.forClass(ServiceEventBuilder.class);
     final int maxSavedParseExceptions = 1;

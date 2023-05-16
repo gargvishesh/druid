@@ -28,7 +28,6 @@ import org.apache.druid.java.util.emitter.core.Event;
 import org.apache.druid.java.util.emitter.core.EventMap;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -42,19 +41,16 @@ public class ServiceLogEvent implements Event
   private final DateTime createdTime;
   private final ImmutableMap<String, String> serviceDims;
   private final Map<String, Object> data;
-  private final String feed;
 
   private ServiceLogEvent(
       DateTime createdTime,
       ImmutableMap<String, String> serviceDimensions,
-      Map<String, Object> data,
-      String feed
+      Map<String, Object> data
   )
   {
     this.createdTime = createdTime;
     this.serviceDims = serviceDimensions;
     this.data = Maps.filterEntries(data, map -> map.getKey() != null);
-    this.feed = feed;
   }
 
   @Override
@@ -76,61 +72,14 @@ public class ServiceLogEvent implements Event
     return FEED;
   }
 
-  public String getService()
-  {
-    return serviceDims.get("service");
-  }
-
-  public String getHost()
-  {
-    return serviceDims.get("host");
-  }
-
-  public Map<String, Object> getData()
-  {
-    return ImmutableMap.copyOf(data);
-  }
-
   public static class Builder
   {
     private final Map<String, Object> userDims = new TreeMap<>();
-    private String feed = FEED;
-
-    public ServiceLogEvent.Builder setFeed(String feed)
-    {
-      this.feed = feed;
-      return this;
-    }
 
     public ServiceLogEvent.Builder setDimensions(Map<String, Object> dimensions)
     {
       userDims.putAll(dimensions);
       return this;
-    }
-
-    public ServiceLogEvent.Builder setDimension(String dim, String[] values)
-    {
-      userDims.put(dim, Arrays.asList(values));
-      return this;
-    }
-
-    public ServiceLogEvent.Builder setDimensionIfNotNull(String dim, Object value)
-    {
-      if (value != null) {
-        userDims.put(dim, value);
-      }
-      return this;
-    }
-
-    public ServiceLogEvent.Builder setDimension(String dim, Object value)
-    {
-      userDims.put(dim, value);
-      return this;
-    }
-
-    public Object getDimension(String dim)
-    {
-      return userDims.get(dim);
     }
 
     public ServiceEventBuilder<ServiceLogEvent> build(
@@ -146,8 +95,7 @@ public class ServiceLogEvent implements Event
           return new ServiceLogEvent(
               createdTime,
               serviceDimensions,
-              userDims,
-              feed
+              userDims
           );
         }
       };
