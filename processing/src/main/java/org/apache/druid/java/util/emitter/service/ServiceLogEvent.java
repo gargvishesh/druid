@@ -32,7 +32,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Event that is meant to be structured and be emitted elsewhere.
+ * Event that is meant to be structured and used to note something that is worthy to be logged
+ * and emitted. AlertEvents were considered but those look to be used for critical events, whereas this
+ * is used for more of a warning or pointing to smoke for now.
  */
 @PublicApi
 public class ServiceLogEvent implements Event
@@ -74,11 +76,11 @@ public class ServiceLogEvent implements Event
 
   public static class Builder
   {
-    private final Map<String, Object> userDims = new TreeMap<>();
+    private final Map<String, Object> data = new TreeMap<>();
 
-    public ServiceLogEvent.Builder setDimensions(Map<String, Object> dimensions)
+    public ServiceLogEvent.Builder setData(Map<String, Object> dimensions)
     {
-      userDims.putAll(dimensions);
+      data.putAll(dimensions);
       return this;
     }
 
@@ -95,7 +97,7 @@ public class ServiceLogEvent implements Event
           return new ServiceLogEvent(
               createdTime,
               serviceDimensions,
-              userDims
+              data
           );
         }
       };

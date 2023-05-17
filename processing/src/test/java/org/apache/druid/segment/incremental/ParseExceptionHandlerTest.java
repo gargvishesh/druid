@@ -58,7 +58,7 @@ public class ParseExceptionHandlerTest
   @Rule
   public LoggerCaptureRule logger = new LoggerCaptureRule(ParseExceptionHandler.class);
 
-  private static final String POLARIS_SYSTEM_PROPERTY_KEY = "IS_POLARIS";
+  private static final String POLARIS_SYSTEM_PROPERTY_KEY = "druid.imply.deployment";
 
   @Before
   public void cleanUpBefore()
@@ -195,7 +195,7 @@ public class ParseExceptionHandlerTest
   @Test
   public void testEmittingParseExceptionsEmitsAsManyExpected()
   {
-    System.setProperty(POLARIS_SYSTEM_PROPERTY_KEY, "true");
+    System.setProperty(POLARIS_SYSTEM_PROPERTY_KEY, "polaris");
 
     ArgumentCaptor<ServiceEventBuilder> captor = ArgumentCaptor.forClass(ServiceEventBuilder.class);
     final int maxSavedParseExceptions = 1;

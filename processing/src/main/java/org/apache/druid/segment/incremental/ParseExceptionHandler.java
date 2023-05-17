@@ -113,9 +113,9 @@ public class ParseExceptionHandler
           e.getTimeOfExceptionMillis()
       );
       // polaris only hacky change that will be change this is to unblock critical polaris functionality
-      if (Boolean.parseBoolean(System.getProperty("IS_POLARIS", "false")) && savedParseExceptionReports.size() < maxSavedParseExceptions) {
+      if ("polaris".equals(System.getProperty("druid.imply.deployment")) && savedParseExceptionReports.size() < maxSavedParseExceptions) {
         ServiceLogEvent.Builder serviceLogEvent = new ServiceLogEvent.Builder();
-        serviceLogEvent.setDimensions(parseExceptionReport.getData());
+        serviceLogEvent.setData(parseExceptionReport.getData());
         emittingLogger.emit(serviceLogEvent.build(DateTimes.utc(e.getTimeOfExceptionMillis())));
       }
       savedParseExceptionReports.add(parseExceptionReport);

@@ -69,6 +69,9 @@ public class EmittingLogger extends Logger
     return new EmittingLogger(getSlf4jLogger(), false);
   }
 
+  /** imply only code used for service log events
+   * @param builder
+   */
   public void emit(ServiceEventBuilder builder)
   {
     emitter.emit(builder);

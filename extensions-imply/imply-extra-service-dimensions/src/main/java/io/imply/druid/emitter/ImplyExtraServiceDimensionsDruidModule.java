@@ -51,38 +51,36 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
       extraDims.addBinding("task_id").toProvider(new Provider<String>()
       {
         @Inject
-        private Injector injector;
-
+        private Task task;
 
         @Override
         public String get()
         {
-          return injector.getInstance(Task.class).getId();
+          return task.getId();
         }
       });
 
       extraDims.addBinding("group_id").toProvider(new Provider<String>()
       {
         @Inject
-        private Injector injector;
-
+        private Task task;
 
         @Override
         public String get()
         {
-          return injector.getInstance(Task.class).getGroupId();
+          return task.getGroupId();
         }
       });
 
       extraDims.addBinding("data_source").toProvider(new Provider<String>()
       {
         @Inject
-        private Injector injector;
+        private Task task;
 
         @Override
         public String get()
         {
-          return injector.getInstance(Task.class).getDataSource();
+          return task.getDataSource();
         }
       });
     }
