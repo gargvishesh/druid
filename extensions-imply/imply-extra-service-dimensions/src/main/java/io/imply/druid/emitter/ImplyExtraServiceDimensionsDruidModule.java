@@ -82,6 +82,50 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
           return task.getDataSource();
         }
       });
+
+      extraDims.addBinding("polaris_org_id").toProvider(new Provider<String>()
+      {
+        @Override
+        public String get()
+        {
+          return System.getProperty("druid.imply.polaris.dimension.org.id");
+        }
+      });
+
+      extraDims.addBinding("polaris_org_name").toProvider(new Provider<String>()
+      {
+        @Override
+        public String get()
+        {
+          return System.getProperty("druid.imply.polaris.dimension.org.name");
+        }
+      });
+
+      extraDims.addBinding("polaris_project_id").toProvider(new Provider<String>()
+      {
+        @Override
+        public String get()
+        {
+          return System.getProperty("druid.imply.polaris.dimension.project.id");
+        }
+      });
+
+      extraDims.addBinding("polaris_project_name").toProvider(new Provider<String>()
+      {
+        @Override
+        public String get()
+        {
+          return System.getProperty("druid.imply.polaris.dimension.project.name");
+        }
+      });
+      extraDims.addBinding("polaris_env").toProvider(new Provider<String>()
+      {
+        @Override
+        public String get()
+        {
+          return System.getProperty("druid.imply.polaris.dimension.env");
+        }
+      });
     }
   }
 }
