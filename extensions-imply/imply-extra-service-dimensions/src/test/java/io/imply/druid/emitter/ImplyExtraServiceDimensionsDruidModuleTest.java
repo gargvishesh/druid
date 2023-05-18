@@ -63,9 +63,9 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
         {
         }, ExtraServiceDimensions.class));
     Assert.assertEquals(4, extraServiceDims.size());
-    Assert.assertEquals(TASK_ID, extraServiceDims.get("task_id"));
-    Assert.assertEquals(GROUP_ID, extraServiceDims.get("group_id"));
-    Assert.assertEquals(DATA_SOURCE, extraServiceDims.get("data_source"));
+    Assert.assertEquals(TASK_ID, extraServiceDims.get("polaris_task_id"));
+    Assert.assertEquals(GROUP_ID, extraServiceDims.get("polaris_group_id"));
+    Assert.assertEquals(DATA_SOURCE, extraServiceDims.get("polaris_data_source"));
     Assert.assertEquals(SERVICE_DIM, extraServiceDims.get("extra_dim"));
   }
 
@@ -79,9 +79,9 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
         {
         }, ExtraServiceDimensions.class));
     Assert.assertEquals(4, extraServiceDims.size());
-    Assert.assertEquals(TASK_ID, extraServiceDims.get("task_id"));
-    Assert.assertEquals(GROUP_ID, extraServiceDims.get("group_id"));
-    Assert.assertEquals(DATA_SOURCE, extraServiceDims.get("data_source"));
+    Assert.assertEquals(TASK_ID, extraServiceDims.get("polaris_task_id"));
+    Assert.assertEquals(GROUP_ID, extraServiceDims.get("polaris_group_id"));
+    Assert.assertEquals(DATA_SOURCE, extraServiceDims.get("polaris_data_source"));
     Assert.assertEquals(SERVICE_DIM, extraServiceDims.get("extra_dim"));
   }
 
@@ -95,9 +95,9 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
         {
         }, ExtraServiceDimensions.class));
     Assert.assertEquals(1, extraServiceDims.size());
-    Assert.assertNull(extraServiceDims.get("task_id"));
-    Assert.assertNull(extraServiceDims.get("group_id"));
-    Assert.assertNull(extraServiceDims.get("data_source"));
+    Assert.assertNull(extraServiceDims.get("polaris_task_id"));
+    Assert.assertNull(extraServiceDims.get("polaris_group_id"));
+    Assert.assertNull(extraServiceDims.get("polaris_data_source"));
     Assert.assertEquals(SERVICE_DIM, extraServiceDims.get("extra_dim"));
   }
 

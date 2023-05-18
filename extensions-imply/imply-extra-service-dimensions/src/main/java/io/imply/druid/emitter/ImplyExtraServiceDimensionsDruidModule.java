@@ -47,7 +47,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
 
     // add information related to tasks for peons
     if (nodeRoles.contains(NodeRole.PEON)) {
-      extraDims.addBinding("task_id").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_task_id").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
@@ -59,7 +59,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         }
       });
 
-      extraDims.addBinding("group_id").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_group_id").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
@@ -71,7 +71,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         }
       });
 
-      extraDims.addBinding("data_source").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_data_source").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
