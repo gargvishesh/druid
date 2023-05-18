@@ -21,8 +21,10 @@ package org.apache.druid.segment.incremental;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class ParseExceptionReport
@@ -70,6 +72,16 @@ public class ParseExceptionReport
     return timeOfExceptionMillis;
   }
 
+  public Map<String, Object> getData()
+  {
+    // input is nullable in the exception. this is punt on the best way to handle this.
+    return ImmutableMap.of(
+        "input", (input != null) ? input : "null",
+        "errorType", errorType,
+        "details", details
+    );
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -81,9 +93,9 @@ public class ParseExceptionReport
     }
     ParseExceptionReport that = (ParseExceptionReport) o;
     return timeOfExceptionMillis == that.timeOfExceptionMillis
-           && input.equals(that.input)
-           && errorType.equals(that.errorType)
-           && details.equals(that.details);
+           && Objects.equals(input, that.input)
+           && Objects.equals(errorType, that.errorType)
+           && Objects.equals(details, that.details);
   }
 
   @Override
