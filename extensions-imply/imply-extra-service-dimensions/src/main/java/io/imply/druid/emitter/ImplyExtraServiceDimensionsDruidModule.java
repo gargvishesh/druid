@@ -92,6 +92,10 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         }
       });
 
+      // these extra dimensions aren't easily addable to the http emitter like they are added
+      // to clarity emitter or statsd emitter. so we are adding them as system properties unfortunately.
+      // ideally we add the ability to add dimensions to the emitter for parse exceptions/log but that would
+      // take too long
       extraDims.addBinding("polaris_org_name").toProvider(new Provider<String>()
       {
         @Override
