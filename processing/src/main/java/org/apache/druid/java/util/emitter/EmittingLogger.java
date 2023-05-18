@@ -27,6 +27,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.service.AlertBuilder;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.apache.druid.java.util.emitter.service.ServiceEventBuilder;
 
 import javax.annotation.Nullable;
 import java.io.PrintWriter;
@@ -66,6 +67,14 @@ public class EmittingLogger extends Logger
   public EmittingLogger noStackTrace()
   {
     return new EmittingLogger(getSlf4jLogger(), false);
+  }
+
+  /** imply only code used for service log events
+   * @param builder
+   */
+  public void emit(ServiceEventBuilder builder)
+  {
+    emitter.emit(builder);
   }
 
   public AlertBuilder makeAlert(String message, Object... objects)

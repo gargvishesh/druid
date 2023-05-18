@@ -209,6 +209,7 @@
         <module>extensions-imply/imply-sql-async</module>
         <module>extensions-imply/imply-nested-data</module>
         <module>extensions-imply/imply-polaris-secrets-provider</module>
+        <module>extensions-imply/imply-extra-service-dimensions</module>
       <!-- distribution packaging -->
         <module>distribution</module>
         <!-- Revised integration tests -->
