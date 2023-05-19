@@ -101,6 +101,29 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
   }
 
   @Test
+  public void testPeonInjectsTaskDimensionsButMissingProjectIdAndName()
+  {
+    System.clearProperty(PROJECT_ID_SYSTEM_PROPERTY_KEY);
+    System.clearProperty(PROJECT_NAME_SYSTEM_PROPERTY_KEY);
+    target.setNodeRoles(ImmutableSet.of(NodeRole.PEON));
+    injector = createInjector(ImmutableSet.of(NodeRole.PEON));
+    Map<String, String> extraServiceDims =
+        injector.getInstance(Key.get(new TypeLiteral<Map<String, String>>()
+        {
+        }, ExtraServiceDimensions.class));
+    Assert.assertEquals(7, extraServiceDims.size());
+    Assert.assertEquals(TASK_ID, extraServiceDims.get("polaris_task_id"));
+    Assert.assertEquals(GROUP_ID, extraServiceDims.get("polaris_group_id"));
+    Assert.assertEquals(DATA_SOURCE, extraServiceDims.get("polaris_data_source"));
+    Assert.assertEquals(SERVICE_DIM, extraServiceDims.get("extra_dim"));
+    Assert.assertEquals(ORG_ID, extraServiceDims.get("polaris_org_id"));
+    Assert.assertEquals(ORG_NAME, extraServiceDims.get("polaris_org_name"));
+    Assert.assertEquals(ENV, extraServiceDims.get("polaris_env"));
+    Assert.assertNull(extraServiceDims.get("polaris_project_name"));
+    Assert.assertNull(extraServiceDims.get("polaris_project_id"));
+  }
+
+  @Test
   public void testMultipleNodeRolesWithPeonInjectsTaskDimensions()
   {
     target.setNodeRoles(ImmutableSet.of(NodeRole.PEON, NodeRole.MIDDLE_MANAGER));
