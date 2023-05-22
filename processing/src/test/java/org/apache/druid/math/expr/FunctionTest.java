@@ -1167,7 +1167,7 @@ public class FunctionTest extends InitializedNullHandlingTest
   {
     Throwable t = Assert.assertThrows(
         ExpressionValidationException.class,
-        () -> assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", null)
+        () -> assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", new Long[] {})
     );
     Assert.assertEquals(
         "Function[date_expand] first param should be a LONG but got [STRING] instead",
@@ -1178,14 +1178,7 @@ public class FunctionTest extends InitializedNullHandlingTest
   @Test
   public void testDateExpandStartGreaterThanEnd()
   {
-    Throwable t = Assert.assertThrows(
-        ExpressionValidationException.class,
-        () -> assertArrayExpr("date_expand(1674202858800, 1674202858500, 'PT1M')", null)
-    );
-    Assert.assertEquals(
-        "Function[date_expand] first argument should be less than equals to the second argument",
-        t.getMessage()
-    );
+    assertArrayExpr("date_expand(1674202858800, 1674202858500, 'PT1M')", new Long[]{});
   }
 
   private void assertExpr(final String expression, @Nullable final Object expectedResult)

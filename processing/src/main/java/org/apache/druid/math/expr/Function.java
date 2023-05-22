@@ -3746,6 +3746,7 @@ public interface Function extends NamedFunction
   class DateExpandFunction implements Function
   {
     public static final String OPERATOR_NAME = "date_expand";
+    private static final Long[] EMPTY_ARRAY = new Long[0];
 
     @Override
     public String name()
@@ -3789,9 +3790,9 @@ public interface Function extends NamedFunction
       long startTime = startTimeArg.asLong();
       long endTime = endTimeArg.asLong();
       if (startTime > endTime) {
-        throw validationFailed(
-            "first argument should be less than equals to the second argument"
-        );
+        // We return an empty array instead of throwing an exception that will fail the whole query. DATE_EXPAND will
+        // often be used in conjuction with UNNEST that right now cannot push down all kinds of filters.
+        return ExprEval.ofLongArray(EMPTY_ARRAY);
       }
 
       final ExprEval granularityArg = args.get(2).eval(bindings);
