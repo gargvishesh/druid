@@ -39,11 +39,11 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
   private static final String GROUP_ID = "GROUP_ID";
   private static final String DATA_SOURCE = "DATA_SOURCE";
   private static final String SERVICE_DIM = "SERVICE_DIM";
-  private static final String ORG_ID_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.dimension.org.id";
-  private static final String ORG_NAME_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.dimension.org.name";
-  private static final String PROJECT_ID_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.dimension.project.id";
-  private static final String PROJECT_NAME_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.dimension.project.name";
-  private static final String ENV_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.dimension.env";
+  private static final String ORG_ID_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.org.id";
+  private static final String ORG_NAME_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.org.name";
+  private static final String PROJECT_ID_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.project.id";
+  private static final String PROJECT_NAME_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.project.name";
+  private static final String ENV_SYSTEM_PROPERTY_KEY = "druid.imply.polaris.env";
   private static final String ORG_ID = "org_id";
   private static final String ORG_NAME = "org_name";
   private static final String PROJECT_ID = "project_id";
