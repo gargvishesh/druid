@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Revised Unit Tests shared workflow
+name: "Unit Tests shared workflow"
 on:
   workflow_call:
     inputs:
@@ -34,6 +34,10 @@ on:
         required: true
         type: string
         description: 'Name of group of tests running (to display)'
+    outputs:
+      coverage_failure:
+        description: 'Indicates if test failed by coverage issues'
+        value: ${{ jobs.unit-tests.outputs.coverage_failure }}
     secrets:
       MVN_SETTINGS_XML:
         required: true
@@ -50,6 +54,8 @@ jobs:
   unit-tests:
     name: ${{ inputs.module }} modules test
     runs-on: imply-ubuntu-latest
+    outputs:
+      coverage_failure: ${{ steps.set_outputs.outputs.coverage_failure }}
     steps:
       - name: checkout branch
         uses: actions/checkout@v3
@@ -57,8 +63,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup jdk${{ inputs.jdk }}
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_${{ inputs.jdk }}_X64" >> $GITHUB_ENV
+        run: echo "JAVA_HOME=$JAVA_HOME_${{ inputs.jdk }}_X64" >> $GITHUB_ENV
 
       - name: Restore Maven repository
         id: maven-restore
@@ -70,7 +75,7 @@ jobs:
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
           MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
-        run: | 
+        run: |
           mkdir ~/.m2 || true
           echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 
@@ -103,11 +108,15 @@ jobs:
 
       - name: Maven build
         if: steps.maven-restore.outputs.cache-hit != 'true'
-        run: |
-          ./it.sh ci
+        run: ./it.sh ci
 
       - name: test & coverage
+        id: test_and_coverage
         env:
           MAVEN_PROJECTS: ${{ inputs.maven_projects }}
-        run: |
-          ./.github/scripts/unit_tests_script.sh
+        run: ./.github/scripts/unit_tests_script.sh
+
+      - name: set outputs on failure
+        id: set_outputs
+        if: ${{ failure() }}
+        run: echo "coverage_failure=${{ env.coverage_failure }}" >> "$GITHUB_OUTPUT"
