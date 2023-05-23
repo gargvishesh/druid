@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Unit & Integration tests CI
+name: "Unit & Integration tests CI"
 on:
   push:
     paths-ignore:
@@ -56,7 +56,7 @@ env:
 
 jobs:
   build:
-    name: build (jdk${{ matrix.jdk }})
+    name: "build (jdk${{ matrix.jdk }})"
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +123,7 @@ jobs:
       fail-fast: false
       matrix:
         jdk: [ 11, 17 ]
-    name: unit tests (jdk${{ matrix.jdk }}, sql-compat=true)
+    name: "unit tests (jdk${{ matrix.jdk }}, sql-compat=true)"
     uses: ./.github/workflows/unit-tests.yml
     needs: unit-tests
     with:
@@ -137,7 +137,7 @@ jobs:
       fail-fast: false
       matrix:
         sql_compatibility: [ false, true ]
-    name: unit tests (jdk8, sql-compat=${{ matrix.sql_compatibility }})
+    name: "unit tests (jdk8, sql-compat=${{ matrix.sql_compatibility }})"
     uses: ./.github/workflows/unit-tests.yml
     needs: build
     with:
@@ -148,12 +148,14 @@ jobs:
 
   standard-its:
     needs: unit-tests
+    if: ${{ always() && (needs.unit-tests.result == 'success' || needs.unit-tests.outputs.continue_tests) }}
     uses: ./.github/workflows/standard-its.yml
     secrets:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   revised-its:
     needs: unit-tests
+    if: ${{ always() && (needs.unit-tests.result == 'success' || needs.unit-tests.outputs.continue_tests) }}
     uses: ./.github/workflows/revised-its.yml
     secrets:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
