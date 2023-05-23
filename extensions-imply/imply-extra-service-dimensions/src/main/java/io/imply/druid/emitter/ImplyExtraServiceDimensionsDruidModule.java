@@ -47,7 +47,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
 
     // add information related to tasks for peons
     if (nodeRoles.contains(NodeRole.PEON)) {
-      extraDims.addBinding("task_id").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_task_id").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
@@ -59,7 +59,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         }
       });
 
-      extraDims.addBinding("group_id").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_group_id").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
@@ -71,7 +71,7 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         }
       });
 
-      extraDims.addBinding("data_source").toProvider(new Provider<String>()
+      extraDims.addBinding("polaris_data_source").toProvider(new Provider<String>()
       {
         @Inject
         private Task task;
@@ -82,6 +82,22 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
           return task.getDataSource();
         }
       });
+
+      // these extra dimensions aren't easily addable to the http emitter like they are added
+      // to clarity emitter or statsd emitter. so we are adding them as system properties unfortunately.
+      // ideally we add the ability to add dimensions to the emitter for parse exceptions/log but that would
+      // take too long
+      extraDims.addBinding("polaris_org_id").toInstance(System.getProperty("druid.imply.polaris.org.id"));
+      extraDims.addBinding("polaris_org_name").toInstance(System.getProperty("druid.imply.polaris.org.name"));
+      extraDims.addBinding("polaris_env").toInstance(System.getProperty("druid.imply.polaris.env"));
+      if (!"empty".equals(System.getProperty("druid.imply.polaris.project.name", "empty"))) {
+        extraDims.addBinding("polaris_project_name")
+                 .toInstance(System.getProperty("druid.imply.polaris.project.name"));
+      }
+      if (!"empty".equals(System.getProperty("druid.imply.polaris.project.id", "empty"))) {
+        extraDims.addBinding("polaris_project_id")
+                 .toInstance(System.getProperty("druid.imply.polaris.project.id"));
+      }
     }
   }
 }
