@@ -10,9 +10,9 @@
 package io.imply.druid.query.samplinggroupby.engine.onepass;
 
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +27,7 @@ public class SamplingByteBufferHashTableTest
     int insertionCount = 12;
     RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(
         16,
-        Util.DEFAULT_UPDATE_SEED
+        ThetaUtil.DEFAULT_UPDATE_SEED
     );
     SamplingByteBufferHashTable samplingByteBufferHashTable = new SamplingByteBufferHashTable(
         1.0F,
@@ -62,7 +62,7 @@ public class SamplingByteBufferHashTableTest
     AtomicInteger resizeTriggerCount = new AtomicInteger(0);
     RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(
         16, // sketch can accommodate 16 elements so filtering will happen for 15 insertions
-        Util.DEFAULT_UPDATE_SEED
+        ThetaUtil.DEFAULT_UPDATE_SEED
     );
     SamplingByteBufferHashTable samplingByteBufferHashTable = new SamplingByteBufferHashTable(
         1.0F,
@@ -96,7 +96,7 @@ public class SamplingByteBufferHashTableTest
     Int2LongOpenHashMap map = new Int2LongOpenHashMap(insertionCount);
     RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(
         16,
-        Util.DEFAULT_UPDATE_SEED
+        ThetaUtil.DEFAULT_UPDATE_SEED
     );
     AtomicInteger resizeTriggerCount = new AtomicInteger(0);
     SamplingByteBufferHashTable samplingByteBufferHashTable = new SamplingByteBufferHashTable(
@@ -127,7 +127,7 @@ public class SamplingByteBufferHashTableTest
 
   public static long getRawHash(int i)
   {
-    return (MurmurHash3.hash(i, Util.DEFAULT_UPDATE_SEED)[0] >>> 1);
+    return (MurmurHash3.hash(i, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1);
   }
 
   public static int getAggregateHash(int i)

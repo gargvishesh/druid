@@ -9,8 +9,8 @@
 
 package io.imply.druid.query.samplinggroupby.hashing;
 
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.vector.SingleValueDimensionVectorSelector;
 
@@ -23,7 +23,7 @@ import java.util.Map;
 public class HashingVectorColumnProcessors
 {
   // hashing -1 as a proxy for hashing nulls and empty strings
-  public static final long NULL_EMPTY_HASH = MurmurHash3.hash(-1, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+  public static final long NULL_EMPTY_HASH = MurmurHash3.hash(-1, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
 
   /**
    * Vector hasher for string column with known cardinality. Provides supplier for a long vector which works on the
@@ -66,7 +66,7 @@ public class HashingVectorColumnProcessors
             value.mark();
             value.get(bytes);
             value.reset();
-            hashVal = MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+            hashVal = MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
           } else {
             hashVal = NULL_EMPTY_HASH;
           }
@@ -82,7 +82,7 @@ public class HashingVectorColumnProcessors
           }
           String value = selector.lookupName(vector[vRowId]);
           if (value != null && !value.isEmpty()) {
-            hashVal = MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+            hashVal = MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
           } else {
             hashVal = NULL_EMPTY_HASH;
           }
@@ -123,7 +123,7 @@ public class HashingVectorColumnProcessors
             value.mark();
             value.get(bytes);
             value.reset();
-            resultHashes[vRowId - startOffet] = MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+            resultHashes[vRowId - startOffet] = MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
           } else {
             resultHashes[vRowId - startOffet] = NULL_EMPTY_HASH;
           }
@@ -134,7 +134,7 @@ public class HashingVectorColumnProcessors
           if (value != null && !value.isEmpty()) {
             resultHashes[vRowId - startOffet] = MurmurHash3.hash(
                 value.getBytes(StandardCharsets.UTF_8),
-                Util.DEFAULT_UPDATE_SEED
+                ThetaUtil.DEFAULT_UPDATE_SEED
             )[0] >>> 1;
           } else {
             resultHashes[vRowId - startOffet] = NULL_EMPTY_HASH;
@@ -189,7 +189,7 @@ public class HashingVectorColumnProcessors
               value.mark();
               value.get(bytes);
               value.reset();
-              return MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+              return MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
             } else {
               return NULL_EMPTY_HASH;
             }
@@ -200,7 +200,7 @@ public class HashingVectorColumnProcessors
           resultHashes[vRowId - startOffet] = dictIdToHashCache.computeIfAbsent(vector[vRowId], dictId -> {
             String value = selector.lookupName(dictId);
             if (value != null && !value.isEmpty()) {
-              return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+              return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
             } else {
               return NULL_EMPTY_HASH;
             }
