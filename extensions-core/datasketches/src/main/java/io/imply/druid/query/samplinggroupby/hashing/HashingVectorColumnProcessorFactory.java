@@ -11,8 +11,8 @@ package io.imply.druid.query.samplinggroupby.hashing;
 
 import com.google.common.base.Preconditions;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.VectorColumnProcessorFactory;
@@ -96,7 +96,7 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
       int vSize = selector.getCurrentVectorSize();
       long[] resultHashes = new long[vSize];
       for (int i = startOffset; i < endOffset; i++) {
-        resultHashes[i - startOffset] = MurmurHash3.hash(Float.floatToIntBits(vector[i]), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+        resultHashes[i - startOffset] = MurmurHash3.hash(Float.floatToIntBits(vector[i]), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
       }
       return resultHashes;
     };
@@ -113,7 +113,7 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
       int vSize = selector.getCurrentVectorSize();
       long[] resultHashes = new long[vSize];
       for (int i = startOffset; i < endOffset; i++) {
-        resultHashes[i - startOffset] = MurmurHash3.hash(Double.doubleToLongBits(vector[i]), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+        resultHashes[i - startOffset] = MurmurHash3.hash(Double.doubleToLongBits(vector[i]), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
       }
       return resultHashes;
     };
@@ -130,7 +130,7 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
       int vSize = selector.getCurrentVectorSize();
       long[] resultHashes = new long[vSize];
       for (int i = startOffset; i < endOffset; i++) {
-        resultHashes[i - startOffset] = MurmurHash3.hash(vector[i], Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+        resultHashes[i - startOffset] = MurmurHash3.hash(vector[i], ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
       }
       return resultHashes;
     };
@@ -156,7 +156,7 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
           resultHashes[i] = HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         } else {
           resultHashes[i - startOffset] = MurmurHash3.hash(
-              vector[i].toString().getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED
+              vector[i].toString().getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED
           )[0] >>> 1;
         }
       }

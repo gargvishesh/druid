@@ -9,8 +9,8 @@
 
 package io.imply.druid.query.samplinggroupby.hashing;
 
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseFloatColumnValueSelector;
@@ -69,19 +69,19 @@ public class HashingColumnProcessorFactory implements ColumnProcessorFactory<Has
   @Override
   public HashSupplier makeFloatProcessor(BaseFloatColumnValueSelector selector)
   {
-    return () -> MurmurHash3.hash(Float.floatToIntBits(selector.getFloat()), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+    return () -> MurmurHash3.hash(Float.floatToIntBits(selector.getFloat()), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
   }
 
   @Override
   public HashSupplier makeDoubleProcessor(BaseDoubleColumnValueSelector selector)
   {
-    return () -> MurmurHash3.hash(Double.doubleToLongBits(selector.getDouble()), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+    return () -> MurmurHash3.hash(Double.doubleToLongBits(selector.getDouble()), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
   }
 
   @Override
   public HashSupplier makeLongProcessor(BaseLongColumnValueSelector selector)
   {
-    return () -> MurmurHash3.hash(selector.getLong(), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+    return () -> MurmurHash3.hash(selector.getLong(), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
   }
 
   @Override

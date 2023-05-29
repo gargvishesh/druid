@@ -19,8 +19,8 @@
 
 package org.apache.datasketches.theta;
 
-import org.apache.datasketches.Family;
-import org.apache.datasketches.ResizeFactor;
+import org.apache.datasketches.common.Family;
+import org.apache.datasketches.common.ResizeFactor;
 import org.apache.datasketches.memory.WritableMemory;
 
 /**

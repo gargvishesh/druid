@@ -16,9 +16,9 @@ import io.imply.druid.query.samplinggroupby.SamplingGroupByUtils;
 import io.imply.druid.query.samplinggroupby.hashing.HashSupplier;
 import io.imply.druid.query.samplinggroupby.hashing.HashingColumnProcessorFactory;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
@@ -67,7 +67,7 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
         allSingleValueDims
     );
     this.maxGroups = maxGroups;
-    this.rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(Math.max(maxGroups, 16), Util.DEFAULT_UPDATE_SEED);
+    this.rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(Math.max(maxGroups, 16), ThetaUtil.DEFAULT_UPDATE_SEED);
     this.currTheta = rawHashHeapQuickSelectSketch.compact().getThetaLong();
 
     ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
@@ -83,12 +83,12 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
     long[] rowHashes = new long[hashSelectors.size() + 1];
     rowHashes[hashSelectors.size()] =
         query.isIntermediateResultRowWithTimestamp() ?
-        MurmurHash3.hash(cursor.getTime().getMillis(), Util.DEFAULT_UPDATE_SEED)[0] >>> 1 : 0;
+        MurmurHash3.hash(cursor.getTime().getMillis(), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1 : 0;
     this.hashSupplier = () -> {
       for (int i = 0; i < hashSelectors.size(); i++) {
         rowHashes[i] = hashSelectors.get(i).getHash();
       }
-      return MurmurHash3.hash(rowHashes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+      return MurmurHash3.hash(rowHashes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
     };
   }
 

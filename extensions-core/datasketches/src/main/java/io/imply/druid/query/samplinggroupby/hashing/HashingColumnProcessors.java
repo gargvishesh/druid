@@ -10,8 +10,8 @@
 package io.imply.druid.query.samplinggroupby.hashing;
 
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.data.IndexedInts;
@@ -71,14 +71,14 @@ public class HashingColumnProcessors
           value.mark();
           value.get(bytes);
           value.reset();
-          hashVal = MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+          hashVal = MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
         } else {
           hashVal = HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         }
       } else {
         String value = selector.lookupName(dictId);
         if (value != null && !value.isEmpty()) {
-          hashVal = MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+          hashVal = MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
         } else {
           hashVal = HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         }
@@ -124,14 +124,14 @@ public class HashingColumnProcessors
           value.mark();
           value.get(bytes);
           value.reset();
-          return MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+          return MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
         } else {
           return HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         }
       } else {
         String value = selector.lookupName(dictId);
         if (value != null && !value.isEmpty()) {
-          return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+          return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
         } else {
           return HashingVectorColumnProcessors.NULL_EMPTY_HASH;
         }
@@ -189,7 +189,7 @@ public class HashingColumnProcessors
             value.mark();
             value.get(bytes);
             value.reset();
-            return MurmurHash3.hash(bytes, Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+            return MurmurHash3.hash(bytes, ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
           } else {
             return HashingVectorColumnProcessors.NULL_EMPTY_HASH;
           }
@@ -198,7 +198,7 @@ public class HashingColumnProcessors
         return dictIdToHashCache.computeIfAbsent(dictId, id -> {
           String value = selector.lookupName(id);
           if (value != null && !value.isEmpty()) {
-            return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+            return MurmurHash3.hash(value.getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
           } else {
             return HashingVectorColumnProcessors.NULL_EMPTY_HASH;
           }
