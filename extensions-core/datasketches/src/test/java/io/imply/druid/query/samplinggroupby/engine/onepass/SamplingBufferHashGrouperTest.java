@@ -12,9 +12,9 @@ package io.imply.druid.query.samplinggroupby.engine.onepass;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.samplinggroupby.SamplingGroupByQuery;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.theta.HashIterator;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
@@ -51,11 +51,11 @@ public class SamplingBufferHashGrouperTest
     int keySize = 24 + (NullHandling.replaceWithDefault() ? 0 : 3);
     RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(
         maxGroups,
-        Util.DEFAULT_UPDATE_SEED
+        ThetaUtil.DEFAULT_UPDATE_SEED
     );
     RawHashHeapQuickSelectSketch expectedRawHashHeapQuickSelectSketch = RawHashHeapQuickSelectSketch.create(
         maxGroups,
-        Util.DEFAULT_UPDATE_SEED
+        ThetaUtil.DEFAULT_UPDATE_SEED
     );
 
     ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] selectorPlus = DimensionHandlerUtils

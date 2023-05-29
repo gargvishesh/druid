@@ -17,10 +17,10 @@ import io.imply.druid.query.samplinggroupby.hashing.HashingVectorColumnProcessor
 import io.imply.druid.query.samplinggroupby.metrics.SamplingGroupByQueryMetrics;
 import io.imply.druid.query.samplinggroupby.virtualcolumns.DimensionHashVirtualColumn;
 import io.imply.druid.query.samplinggroupby.virtualcolumns.OffsetFetchingVirtualColumn;
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.ConcatSequence;
@@ -137,9 +137,9 @@ public class SamplingGroupByTwoPassQueryEngine
           long[][] rowHashes = new long[maxVectorSize][hashSelectors.size() + 1];
           long[] finalHashes = new long[maxVectorSize];
           RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch =
-              RawHashHeapQuickSelectSketch.create(Math.max(query.getMaxGroups(), 16), Util.DEFAULT_UPDATE_SEED);
+              RawHashHeapQuickSelectSketch.create(Math.max(query.getMaxGroups(), 16), ThetaUtil.DEFAULT_UPDATE_SEED);
           long tsHash = query.isIntermediateResultRowWithTimestamp() ?
-                        MurmurHash3.hash(currentInterval.getStartMillis(), Util.DEFAULT_UPDATE_SEED)[0] >>> 1 : 0;
+                        MurmurHash3.hash(currentInterval.getStartMillis(), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1 : 0;
           memory.fill((byte) -1);
           SingleValueDimensionVectorSelector offsetFetcher = columnSelectorFactory.makeSingleValueDimensionSelector(
               DefaultDimensionSpec.of(OFFSET_FETCHER_VIRTUAL_COLUMN_NAME)
@@ -162,7 +162,7 @@ public class SamplingGroupByTwoPassQueryEngine
                 }
               }
               for (int vRowId = startOffset; vRowId < endOffset; vRowId++) {
-                finalHashes[vRowId - startOffset] = MurmurHash3.hash(rowHashes[vRowId - startOffset], Util.DEFAULT_UPDATE_SEED)[0] >>> 1;
+                finalHashes[vRowId - startOffset] = MurmurHash3.hash(rowHashes[vRowId - startOffset], ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
               }
               for (int i = 0; i < endOffset - startOffset; i++) {
                 if (offsetsLeft == 0) { // if we have offets left from previous time grain processing

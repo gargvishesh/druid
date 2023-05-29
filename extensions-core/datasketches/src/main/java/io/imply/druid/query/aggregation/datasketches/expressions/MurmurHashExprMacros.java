@@ -9,8 +9,8 @@
 
 package io.imply.druid.query.aggregation.datasketches.expressions;
 
-import org.apache.datasketches.Util;
 import org.apache.datasketches.hash.MurmurHash3;
+import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
@@ -58,7 +58,7 @@ public class MurmurHashExprMacros
             return ExprEval.of(null);
           }
 
-          long[] hash = MurmurHash3.hash(eval.asString().getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED);
+          long[] hash = MurmurHash3.hash(eval.asString().getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED);
           byte[] byteHash = new byte[hash.length * Long.BYTES];
           int byteCounter = 0;
           for (long l : hash) { // does this and the nested loop get vectorized? only 2 longs. or should we inline?
@@ -119,7 +119,7 @@ public class MurmurHashExprMacros
           ExprEval eval = arg.eval(bindings);
           return ExprEval.ofLong(eval.asString() == null ?
                              null :
-                             MurmurHash3.hash(eval.asString().getBytes(StandardCharsets.UTF_8), Util.DEFAULT_UPDATE_SEED)[0] >>> 1);
+                                 MurmurHash3.hash(eval.asString().getBytes(StandardCharsets.UTF_8), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1);
         }
 
         @Override
