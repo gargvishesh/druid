@@ -11,7 +11,7 @@
 
 This extension provides implementations for various interfaces that are used to provide config properties with secret values.
 
-* Adds a KafkaConfigOverrides implementation, `ImplyPolarisSecretsConfluentConfigOverrides` that reads from AWS Secrets Manager, used to retrieve secret connection properties for ingestion from Confluent Cloud streams.
+- Adds a KafkaConfigOverrides implementation, `ImplyPolarisSecretsConfluentConfigOverrides` that reads from AWS Secrets Manager, used to retrieve secret connection properties for ingestion from Confluent Cloud streams.
 
 ## To load the extension
 
@@ -27,6 +27,7 @@ druid.extensions.loadList=["druid-lookups-cached-global","druid-datasketches","i
 ### ImplyPolarisSecretsConfluentConfigOverrides
 
 In the IOConfig of a Kafka Supervisor spec, set the `configOverrides` property to the following:
+
 ```json
 {
   "type": "polarisSecretsConfluent",
@@ -34,6 +35,7 @@ In the IOConfig of a Kafka Supervisor spec, set the `configOverrides` property t
   "secretKey": "polaris-connection-secret-<customerId>-<connectionName"
 }
 ```
+
 - `secretType`: Should always be `confluent` for now, used to determine how to deserialize the secret value object (these do not have a `type` field).
 - `secretKey`: The ID of the secret in the AWS Secrets Manager that will be used for secret lookup.
 
@@ -45,7 +47,8 @@ The secrets provider has some optional configuration properties useful for testi
 
 In a production environment, these configuration properties should not be set, in which case the secrets provider will use the default AWS region provider and credential provider chains.
 
-#### In common.runtime.properties:
+#### In common.runtime.properties
+
 | property | description | required? | default |
 | --- | --- | --- | --- |
 | `imply.polaris.secrets.region` | AWS region to use  | no | None. |
