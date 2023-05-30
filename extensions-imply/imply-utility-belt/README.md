@@ -18,7 +18,7 @@ The CloudWatch parser will add three bonus fields to your messages:
 - logGroup
 - logStream
 
-See https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html for details on the meanings
+See <https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html> for details on the meanings
 of these fields. If the underlying events already have fields with these names, they will be overwritten.
 
 An example for VPC Flow Logs:
@@ -78,7 +78,7 @@ An example for VPC Flow Logs:
 Performs IP to location lookups using a MaxMind City database provided by you, the user. For this extension to work,
 specify this property in your common.runtime.properties:
 
-```
+```properties
 imply.utility.belt.geoDatabase=/path/to/db.mmdb
 ```
 
@@ -86,7 +86,7 @@ This functions is available through either Druid expressions (useful for ingest-
 
 |Function|Description|
 |--------|-----------|
-|ft_geoip(addr, type)|Look up the "type" attribute of "addr". Type can be one of the types listed below.|
+|`ft_geoip(addr, type)`|Look up the `type` attribute of `addr`. `type` can be one of the types listed below.|
 
 Lookup types supported:
 
@@ -116,7 +116,7 @@ Operations on spatial data.
 
 |Function|Description|
 |--------|-----------|
-|st_geohash(lon, lat, maxchars)|Create a [geohash](https://en.wikipedia.org/wiki/Geohash) for the provided longitude and latitude, with length up to maxchars. The maxchars parameter must be a literal between 1 and 12 (inclusive).<br /><br />If longitude is outside of the range -180 (exclusive) to 180 (inclusive), or latitude is outside of the range -90 (exclusive) to 90 (inclusive), returns null. If any inputs are null, returns null.|
+|`st_geohash(lon, lat, maxchars)`|Create a [geohash](https://en.wikipedia.org/wiki/Geohash) for the provided longitude (`lon`) and latitude (`lat`), with length up to `maxchars`. The `maxchars` parameter must be a literal between 1 and 12 (inclusive).<br /><br />If longitude is outside of the range -180 (exclusive) to 180 (inclusive), or latitude is outside of the range -90 (exclusive) to 90 (inclusive), returns null. If any inputs are null, returns null.|
 
 ## Currency conversion aggregator
 
@@ -129,7 +129,7 @@ and provide a USD to EUR conversion table, the aggregator's behavior is equivale
 
 Example usage in a query, converting USD to EUR for the month of July 2016:
 
-```
+```json
 {
   "queryType": "timeseries",
   "dataSource": "sample_datasource",
@@ -188,7 +188,6 @@ The conversion table is applied with the following rules:
 4. All other rows use the rate corresponding to the latest conversion table timestamp which is equal
    to or less than the row's timestamp. (i.e. the most recent conversion as of the timestamp in that row)
 
-
 ## IP Address Columns
 
 ### IP Address Column
@@ -214,15 +213,16 @@ IPv4 and IPv6 prefixes can be ingested into specialized column type that stores 
 ```
 
 ### SQL Functions for IP Address and IP Prefix
+
 |Function|Description|
 |--------|-----------|
-| `IP_PARSE(expr)` | Parses the string into an IP address complex type. Raises `ParseException` if the input string is not a valid IP address | 
+| `IP_PARSE(expr)` | Parses the string into an IP address complex type. Raises `ParseException` if the input string is not a valid IP address |
 | `IP_TRY_PARSE(expr)` | Parses the string into an IP address complex type. Returns null if the input string is not a valid IP address |
-| `IP_PREFIX_PARSE(expr)` | Parses the string into an IP prefix complex type. Raises `ParseException` if the input string is not a valid IP address prefix| 
+| `IP_PREFIX_PARSE(expr)` | Parses the string into an IP prefix complex type. Raises `ParseException` if the input string is not a valid IP address prefix|
 | `IP_PREFIX_TRY_PARSE(expr)` | Parses the string into an IP prefix complex type. Returns null if the input string is not a valid IP address prefix|
-| `IP_PREFIX(expr, prefixLengthValue)` | Convert an IP Address complex type `expr` into a prefix block with the length given by `prefixLengthValue`. This returns IP Prefix complex data type. | 
-| `IP_HOST(expr)` | Convert an IP Prefix complex type `expr` into host IP address. This returns IP Address complex data type. | 
-| `IP_STRINGIFY(expr)` | Stringifies an IP address or an IP prefix column into "compacted" format. IPv4 addresses will print in IPv4 format, not IPv6 | 
+| `IP_PREFIX(expr, prefixLengthValue)` | Convert an IP Address complex type `expr` into a prefix block with the length given by `prefixLengthValue`. This returns IP Prefix complex data type. |
+| `IP_HOST(expr)` | Convert an IP Prefix complex type `expr` into host IP address. This returns IP Address complex data type. |
+| `IP_STRINGIFY(expr)` | Stringifies an IP address or an IP prefix column into "compacted" format. IPv4 addresses will print in IPv4 format, not IPv6 |
 | `IP_STRINGIFY(expr, compact)`| Stringifies an IP address or an IP prefix column, into "compacted" format if the `compact` argument is 1, else in "full" format if not. IPv4 addresses will print in IPv4 format. |
-| `IP_MATCH(expr1, expr2)` | Check if `expr2` contains or is equal to the address of `expr1`. `expr1` must be an IP address string or an IP address complex type, `expr2` must be a CIDR range string, specific IP address string or IP prefix complex type. Note that exactly one of the two arguments must be a Complex IP type: either a `[COMPLEX<ipAddress>]` for the first argument, or a `[COMPLEX<ipPrefix>]` for the second argument.| 
-| `IP_SEARCH(expr1, expr2)` | Check if `expr2` contains or is equal to the address of `expr1`. `expr1` can be an incomplete IP address string or an IP address complex type, `expr2` can be an incomplete IP address string or IP prefix complex type. If either `expr1` or `expr2` is an incomplete ip address, it will be expanded into all possible ipv4 or ipv6 ranges that starts with the incomplete string. (Note that if the incomplete ip address contains `.`, it will only be expanded into ipv4 ranges, if it contains `:`, it will only be expanded into ipv6 ranges, and if it does not contains both `.` and `:`, then it will be expanded into both ipv4 and ipv6 ranges if possible. Note that exactly one of the two arguments must be a Complex IP type: either a `[COMPLEX<ipAddress>]` for the first argument, or a `[COMPLEX<ipPrefix>]` for the second argument.| 
+| `IP_MATCH(expr1, expr2)` | Check if `expr2` contains or is equal to the address of `expr1`. `expr1` must be an IP address string or an IP address complex type, `expr2` must be a CIDR range string, specific IP address string or IP prefix complex type. Note that exactly one of the two arguments must be a Complex IP type: either a `[COMPLEX<ipAddress>]` for the first argument, or a `[COMPLEX<ipPrefix>]` for the second argument.|
+| `IP_SEARCH(expr1, expr2)` | Check if `expr2` contains or is equal to the address of `expr1`. `expr1` can be an incomplete IP address string or an IP address complex type, `expr2` can be an incomplete IP address string or IP prefix complex type. If either `expr1` or `expr2` is an incomplete ip address, it will be expanded into all possible ipv4 or ipv6 ranges that starts with the incomplete string. (Note that if the incomplete ip address contains `.`, it will only be expanded into ipv4 ranges, if it contains `:`, it will only be expanded into ipv6 ranges, and if it does not contains both `.` and `:`, then it will be expanded into both ipv4 and ipv6 ranges if possible. Note that exactly one of the two arguments must be a Complex IP type: either a `[COMPLEX<ipAddress>]` for the first argument, or a `[COMPLEX<ipPrefix>]` for the second argument.|
