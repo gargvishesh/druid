@@ -249,6 +249,8 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-basic-security</argument>
                                         <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-pac4j</argument>
+                                        <argument>-c</argument>
                                         <argument>io.imply:imply-utility-belt</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:indexed-table-loader</argument>
@@ -443,6 +445,8 @@
                                         <argument>org.apache.druid.extensions:simple-client-sslcontext</argument>
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions:druid-basic-security</argument>
+                                        <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions:druid-pac4j</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-utility-belt</argument>
                                         <argument>-c</argument>
