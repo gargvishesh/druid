@@ -27,6 +27,7 @@ import java.util.List;
 
 public class IpAddressBlob implements Comparable<IpAddressBlob>
 {
+  public static final int SIZE = 16;
   public static final Comparator<IpAddressBlob> COMPARATOR = Comparators.naturalNullsFirst();
 
   public static final Strategy STRATEGY = new Strategy();
@@ -74,9 +75,9 @@ public class IpAddressBlob implements Comparable<IpAddressBlob>
   public static IpAddressBlob ofByteBuffer(final ByteBuffer blob)
   {
     if (blob != null) {
-      byte[] bytes = new byte[16];
+      byte[] bytes = new byte[SIZE];
       final int oldPosition = blob.position();
-      blob.get(bytes, 0, 16);
+      blob.get(bytes, 0, SIZE);
       blob.position(oldPosition);
       return new IpAddressBlob(bytes);
     }

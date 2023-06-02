@@ -11,6 +11,7 @@ package io.imply.druid.inet.column;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.expression.IpAddressExpressions;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
@@ -22,7 +23,9 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.ExpressionLambdaAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.filter.BoundDimFilter;
 import org.apache.druid.query.filter.OrDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
@@ -430,6 +433,73 @@ public class IpAddressGroupByQueryTest
             new Object[]{"::ffff:506:708", 1L},
             new Object[]{"::ffff:64c8:7b0c", 2L},
             new Object[]{"::ffff:a0a:a0b", 2L}
+        )
+    );
+  }
+
+  @Test
+  public void testGroupByArrayAgg()
+  {
+    if (vectorize == QueryContexts.Vectorize.FORCE && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectMessage(
+          "Cannot vectorize!"
+      );
+    }
+
+    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+      return;
+    }
+
+    GroupByQuery groupQuery = GroupByQuery.builder()
+                                          .setDataSource("test_datasource")
+                                          .setGranularity(Granularities.ALL)
+                                          .setInterval(Intervals.ETERNITY)
+                                          .setDimensions(DefaultDimensionSpec.of("v0"))
+                                          .setVirtualColumns(
+                                              new IpAddressFormatVirtualColumn(
+                                                  "v0",
+                                                  "ipv4",
+                                                  true,
+                                                  false
+                                              )
+                                          )
+                                          .setAggregatorSpecs(
+                                              new CountAggregatorFactory("count"),
+                                              new ExpressionLambdaAggregatorFactory(
+                                                  "a0",
+                                                  ImmutableSet.of("ipv6"),
+                                                  "__acc",
+                                                  "ARRAY<COMPLEX<ipAddress>>[]",
+                                                  "ARRAY<COMPLEX<ipAddress>>[]",
+                                                  true,
+                                                  true,
+                                                  false,
+                                                  "array_set_add(\"__acc\", \"ipv6\")",
+                                                  "array_set_add_all(\"__acc\", \"a0\")",
+                                                  null,
+                                                  null,
+                                                  ExpressionLambdaAggregatorFactory.DEFAULT_MAX_SIZE_BYTES,
+                                                  TestExprMacroTable.INSTANCE
+                                              )
+                                          )
+                                          .setContext(getContext())
+                                          .build();
+
+    Sequence<ResultRow> seq = helper.runQueryOnSegmentsObjs(segments, groupQuery);
+
+    List<ResultRow> results = seq.toList();
+
+    IpAddressTestUtils.verifyResults(
+        groupQuery.getResultRowSignature(),
+        results,
+        ImmutableList.of(
+            new Object[]{null, 2L, new Object[]{null, IpAddressBlob.ofString("11:22:33:44:55:66:77:88")}},
+            new Object[]{"1.2.3.4", 2L, new Object[]{IpAddressBlob.ofString("1:2:3:4:5:6:7:8")}},
+            new Object[]{"10.10.10.11", 2L, new Object[]{IpAddressBlob.ofString("10:20:30:40:50:60:70:80")}},
+            new Object[]{"100.200.123.12",2L, new Object[]{IpAddressBlob.ofString("8:7:6:5:5:6:7:8")}},
+            new Object[]{"22.22.23.24", 2L, new Object[]{null, IpAddressBlob.ofString("8:7:6:5:4:3:2:1")}},
+            new Object[]{"5.6.7.8", 1L, new Object[]{IpAddressBlob.ofString("11:22:33:44:55:66:77:88")}}
         )
     );
   }

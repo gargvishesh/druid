@@ -14,27 +14,38 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.segment.virtual.IpAddressFormatVirtualColumn;
+import org.apache.druid.data.input.impl.DelimitedInputFormat;
+import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.java.util.common.guava.Sequence;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.NestedDataTestUtils;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
+import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.filter.BoundDimFilter;
 import org.apache.druid.query.filter.SearchQueryDimFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.scan.ScanResultValue;
 import org.apache.druid.query.search.ContainsSearchQuerySpec;
-import org.apache.druid.query.search.SearchQuerySpec;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
+import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.Segment;
+import org.apache.druid.segment.data.CompressionStrategy;
 import org.apache.druid.testing.InitializedNullHandlingTest;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -44,6 +55,21 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
 
   @Rule
   public final TemporaryFolder tempFolder = new TemporaryFolder();
+
+  Closer closer;
+
+  @Before
+  public void setup()
+  {
+    closer = Closer.create();
+  }
+
+  @After
+  public void teardown() throws IOException
+  {
+    closer.close();
+  }
+
 
   public IpAddressIngestionTest()
   {
@@ -128,6 +154,58 @@ public class IpAddressIngestionTest extends InitializedNullHandlingTest
         true,
         5
     );
+    final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
+
+    List<ScanResultValue> results = seq.toList();
+    Assert.assertEquals(1, results.size());
+    Assert.assertEquals(11, ((List) results.get(0).getEvents()).size());
+  }
+
+  @Test
+  public void testIngestIpWithMergesAndScanSegmentsUncompressed() throws Exception
+  {
+    // sanity check test to make sure uncompressed works (in case some intermediary config is set to write
+    // out uncompressed dimensions (such as MSQ at the time of this test being written)
+    List<Segment> segs = NestedDataTestUtils.createSegments(
+        tempFolder,
+        closer,
+        "simple_ip_test_data.tsv",
+        new DelimitedInputFormat(
+            Arrays.asList("timestamp", "ipv4", "ipv6", "ipmix"),
+            null,
+            null,
+            false,
+            false,
+            0
+        ),
+        new TimestampSpec("timestamp", null, null),
+        DimensionsSpec.builder()
+                      .setDimensions(
+                          Arrays.asList(
+                              new IpAddressDimensionSchema("ipv4", true),
+                              new IpAddressDimensionSchema("ipv6", true),
+                              new IpAddressDimensionSchema("ipmix", true)
+                          )
+                      )
+                      .build(),
+        null,
+        new AggregatorFactory[0],
+        Granularities.NONE,
+        false,
+        IndexSpec.builder().withDimensionCompression(CompressionStrategy.UNCOMPRESSED).build()
+    );
+
+    Query<ScanResultValue> scanQuery = Druids.newScanQueryBuilder()
+                                             .dataSource("test_datasource")
+                                             .intervals(
+                                                 new MultipleIntervalSegmentSpec(
+                                                     Collections.singletonList(Intervals.ETERNITY)
+                                                 )
+                                             )
+                                             .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                                             .limit(100)
+                                             .context(ImmutableMap.of())
+                                             .build();
     final Sequence<ScanResultValue> seq = helper.runQueryOnSegmentsObjs(segs, scanQuery);
 
     List<ScanResultValue> results = seq.toList();
