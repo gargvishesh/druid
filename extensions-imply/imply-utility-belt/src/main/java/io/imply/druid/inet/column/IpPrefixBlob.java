@@ -27,6 +27,7 @@ import java.util.List;
 
 public class IpPrefixBlob implements Comparable<IpPrefixBlob>
 {
+  public static final int SIZE = 17;
   public static final Comparator<IpPrefixBlob> COMPARATOR = Comparators.naturalNullsFirst();
 
   public static final Strategy STRATEGY = new Strategy();
@@ -74,7 +75,7 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
     if (prefix == null) {
       prefix = 128;
     }
-    byte[] addressAndPrefixByte = new byte[17];
+    byte[] addressAndPrefixByte = new byte[SIZE];
     System.arraycopy(iPv6Address.getBytes(), 0, addressAndPrefixByte, 0, iPv6Address.getBytes().length);
     addressAndPrefixByte[addressAndPrefixByte.length - 1] = prefix.byteValue();
     return new IpPrefixBlob(addressAndPrefixByte);
@@ -84,9 +85,9 @@ public class IpPrefixBlob implements Comparable<IpPrefixBlob>
   public static IpPrefixBlob ofByteBuffer(final ByteBuffer blob)
   {
     if (blob != null) {
-      byte[] bytes = new byte[17];
+      byte[] bytes = new byte[SIZE];
       final int oldPosition = blob.position();
-      blob.get(bytes, 0, 17);
+      blob.get(bytes, 0, SIZE);
       blob.position(oldPosition);
       return new IpPrefixBlob(bytes);
     }

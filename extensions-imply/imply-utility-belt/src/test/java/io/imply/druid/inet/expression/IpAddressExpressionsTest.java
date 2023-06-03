@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddressString;
+import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressBlob;
 import io.imply.druid.inet.column.IpPrefixBlob;
 import org.apache.druid.java.util.common.IAE;
@@ -21,6 +22,7 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExpressionType;
+import org.apache.druid.math.expr.ExpressionTypeFactory;
 import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.testing.InitializedNullHandlingTest;
@@ -28,6 +30,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
+import java.nio.ByteBuffer;
 
 public class IpAddressExpressionsTest extends InitializedNullHandlingTest
 {
@@ -52,6 +56,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   private static final String CIDR_v4_STRING = "1.2.0.0/16";
 
   static {
+    IpAddressModule.registerHandlersAndSerde();
     try {
       V6_COMPACT = new IPAddressString(V6_STRING).toAddress().toIPv6().toCompressedString();
       CIDR_V6_COMPACT = new IPAddressString(CIDR_V6_STRING).toAddress().toIPv6().toCompressedString();
@@ -877,5 +882,75 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
     expr = Parser.parse("ip_prefix_try_parse(null)", MACRO_TABLE);
     eval = expr.eval(inputBindings);
     Assert.assertEquals(null, eval.value());
+  }
+
+  @Test
+  public void testByteSerde()
+  {
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+    ExprEval eval = ExprEval.ofType(IpAddressExpressions.IP_ADDRESS_TYPE, IpAddressBlob.ofString(V4_STRING));
+    Assert.assertEquals(IpAddressBlob.SIZE, IpAddressExpressions.IP_ADDRESS_TYPE.getStrategy().estimateSizeBytes(eval.value()));
+    ExprEval.serialize(buffer, 10, IpAddressExpressions.IP_ADDRESS_TYPE, eval, 1014);
+    ExprEval deserialized = ExprEval.deserialize(
+        buffer,
+        10,
+        1014,
+        IpAddressExpressions.IP_ADDRESS_TYPE,
+        false
+    );
+    Assert.assertEquals(eval.value(), deserialized.value());
+    Assert.assertEquals(0, IpAddressExpressions.IP_ADDRESS_TYPE.getStrategy().compare(eval.value(), deserialized.value()));
+
+
+    ExpressionType arrayType = ExpressionTypeFactory.getInstance().ofArray(IpAddressExpressions.IP_ADDRESS_TYPE);
+    eval = ExprEval.ofType(
+        arrayType,
+        new Object[]{IpAddressBlob.ofString(V4_STRING), IpAddressBlob.ofString(V6_STRING)}
+    );
+    // size (4) + not null (1) + blob (16) + not null (1) + blob (16)
+    Assert.assertEquals(38, arrayType.getStrategy().estimateSizeBytes(eval.value()));
+    ExprEval.serialize(buffer, 10, arrayType, eval, 1014);
+    deserialized = ExprEval.deserialize(
+        buffer,
+        10,
+        1014,
+        arrayType,
+        false
+    );
+    Assert.assertArrayEquals(eval.asArray(), deserialized.asArray());
+    Assert.assertEquals(0, arrayType.getStrategy().compare(eval.value(), deserialized.value()));
+
+
+    eval = ExprEval.ofType(IpAddressExpressions.IP_PREFIX_TYPE, IpPrefixBlob.ofString(CIDR_v4_STRING));
+    Assert.assertEquals(IpPrefixBlob.SIZE, IpAddressExpressions.IP_PREFIX_TYPE.getStrategy().estimateSizeBytes(eval.value()));
+    ExprEval.serialize(buffer, 10, IpAddressExpressions.IP_PREFIX_TYPE, eval, 1014);
+    deserialized = ExprEval.deserialize(
+        buffer,
+        10,
+        1014,
+        IpAddressExpressions.IP_PREFIX_TYPE,
+        false
+    );
+    Assert.assertEquals(eval.value(), deserialized.value());
+    Assert.assertEquals(0, IpAddressExpressions.IP_PREFIX_TYPE.getStrategy().compare(eval.value(), deserialized.value()));
+
+    ExpressionType prefixArrayType = ExpressionTypeFactory.getInstance().ofArray(IpAddressExpressions.IP_PREFIX_TYPE);
+    eval = ExprEval.ofType(
+        prefixArrayType,
+        new Object[]{IpPrefixBlob.ofString(CIDR_v4_STRING), IpPrefixBlob.ofString(CIDR_V6_STRING)}
+    );
+    // size (4) + not null (1) + blob (17) + not null (1) + blob (17)
+    Assert.assertEquals(40, prefixArrayType.getStrategy().estimateSizeBytes(eval.value()));
+    ExprEval.serialize(buffer, 10, prefixArrayType, eval, 1014);
+    deserialized = ExprEval.deserialize(
+        buffer,
+        10,
+        1014,
+        prefixArrayType,
+        false
+    );
+    Assert.assertArrayEquals(eval.asArray(), deserialized.asArray());
+    Assert.assertEquals(0, prefixArrayType.getStrategy().compare(eval.value(), deserialized.value()));
   }
 }
