@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.sql;
 
 import com.google.common.collect.ImmutableList;
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -21,9 +22,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Optionality;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -38,6 +37,7 @@ import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.VirtualColumnRegistry;
+import org.apache.druid.sql.calcite.table.RowSignatures;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
@@ -241,7 +241,11 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
           aggregatorType.name(),
           null,
           SqlKind.OTHER_FUNCTION,
-          ReturnTypes.explicit(SqlTypeName.OTHER),
+          opBinding -> RowSignatures.makeComplexType(
+              opBinding.getTypeFactory(),
+              BaseTimeSeriesAggregatorFactory.TYPE,
+              true
+          ),
           null,
           OperandTypes.or(
               OperandTypes.and(

@@ -8,12 +8,13 @@
     },
     "dimensionsSpec": {
       "dimensions": [],
-      "dimensionExclusions": ["timestamps", "datapoints"],
+      "dimensionExclusions": ["timestamp", "datapoints", "zeroCol"],
       "spatialDimensions": []
     },
     "columns": [
       "timestamp",
-      "dataPoints"
+      "dataPoints",
+      "zeroCol"
     ]
   }
 }

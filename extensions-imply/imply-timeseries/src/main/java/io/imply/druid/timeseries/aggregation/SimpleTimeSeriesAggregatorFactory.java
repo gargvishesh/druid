@@ -30,17 +30,12 @@ import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Base64;
 import java.util.List;
 
 
 public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
 {
   public static final Integer DEFAULT_MAX_ENTRIES = 7200; // 2 hours with per second granularity
-
-  private static final Base64.Decoder DECODER = Base64.getDecoder();
 
   private SimpleTimeSeriesAggregatorFactory(
       String name,
@@ -175,21 +170,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   @Override
   public Object deserialize(Object object)
   {
-    if (object instanceof SimpleTimeSeries) {
-      return object;
-    }
-
-    byte[] bytes;
-
-    if (object instanceof String) {
-      bytes = DECODER.decode((String) object);
-    } else {
-      bytes = (byte[]) object;
-    }
-
-    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
-
-    return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, getWindow(), getMaxEntries());
+    return SimpleTimeSeriesContainer.createFromObject(object, getWindow(), getMaxEntries());
   }
 
   @Nullable
@@ -207,7 +188,11 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
     } else {
       SimpleTimeSeriesContainer finalContainer = (SimpleTimeSeriesContainer) object;
 
-      finalResult = finalContainer.computeSimple();
+      if (finalContainer.isNull()) {
+        finalResult = new SimpleTimeSeries(getWindow(), getMaxEntries());
+      } else {
+        finalResult = finalContainer.computeSimple();
+      }
     }
 
     SimpleTimeSeries finalSimpleTimeSeries = (SimpleTimeSeries) super.finalizeComputation(finalResult);

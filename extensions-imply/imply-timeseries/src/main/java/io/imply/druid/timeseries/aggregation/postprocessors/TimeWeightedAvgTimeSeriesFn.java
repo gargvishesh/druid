@@ -60,7 +60,7 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
     DurationGranularity durationGranularity = new DurationGranularity(timeBucketMillis, 0);
     SimpleTimeSeries computedSeries = new SimpleTimeSeries(new ImplyLongArrayList(maxEntries),
                                                            new ImplyDoubleArrayList(maxEntries),
-                                                           input.getwindow(),
+                                                           input.getWindow(),
                                                            input.getStart(),
                                                            input.getEnd(),
                                                            maxEntries);

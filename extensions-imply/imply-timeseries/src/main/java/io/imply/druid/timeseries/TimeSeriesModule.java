@@ -19,12 +19,17 @@ import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetr
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
 import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
 import io.imply.druid.timeseries.sql.InterpolationOperatorConversion;
+import io.imply.druid.timeseries.sql.MaxOverTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.MeanDeltaTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.SimpleTimeSeriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.SumTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.TimeWeightedAverageOperatorConversion;
+import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.serde.ComplexMetrics;
@@ -38,6 +43,8 @@ public class TimeSeriesModule implements DruidModule
   private static final String SIMPLE_TIMESERIES = "timeseries";
   private static final String AVG_TIMESERIES = "avgTimeseries";
   private static final String DELTA_TIMESERIES = "deltaTimeseries";
+
+  public static final String SUM_TIMESERIES = "sumTimeseries";
   private static final String INTERPOLATION_POST_AGG = "interpolation_timeseries";
   private static final String TIME_WEIGHTED_AVERAGE_POST_AGG = "time_weighted_average_timeseries";
   private final Logger log = new Logger(TimeSeriesModule.class);
@@ -61,6 +68,10 @@ public class TimeSeriesModule implements DruidModule
                 DELTA_TIMESERIES
             ),
             new NamedType(
+                SumTimeSeriesAggregatorFactory.class,
+                SUM_TIMESERIES
+            ),
+            new NamedType(
                 InterpolationPostAggregator.class,
                 INTERPOLATION_POST_AGG
             ),
@@ -78,6 +89,7 @@ public class TimeSeriesModule implements DruidModule
 
     // add aggregators
     SqlBindings.addAggregator(binder, SimpleTimeSeriesObjectSqlAggregator.class);
+    SqlBindings.addAggregator(binder, SumTimeSeriesObjectSqlAggregator.class);
     Multibinder.newSetBinder(binder, SqlAggregator.class)
                .addBinding()
                .toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.MEAN_TIMESERIES);
@@ -98,7 +110,23 @@ public class TimeSeriesModule implements DruidModule
         binder,
         InterpolationOperatorConversion.BackfillInterpolationOperatorConversion.class
     );
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.LinearInterpolationWithOnlyBoundariesOperatorConversion.class
+    );
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.PaddingInterpolationWithOnlyBoundariesOperatorConversion.class
+    );
+    SqlBindings.addOperatorConversion(
+        binder,
+        InterpolationOperatorConversion.BackfillInterpolationWithOnlyBoundariesOperatorConversion.class
+    );
     SqlBindings.addOperatorConversion(binder, TimeWeightedAverageOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, MaxOverTimeseriesOperatorConversion.class);
+
+    // add expressions
+    ExpressionModule.addExprMacro(binder, MaxOverTimeseriesExprMacro.class);
   }
 
   public static void registerSerde()

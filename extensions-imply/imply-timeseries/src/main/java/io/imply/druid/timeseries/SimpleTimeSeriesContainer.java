@@ -21,6 +21,7 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Base64;
 
 public class SimpleTimeSeriesContainer
 {
@@ -30,6 +31,7 @@ public class SimpleTimeSeriesContainer
   private final boolean isBuffered;
   private final SimpleTimeSeriesBuffer simpleTimeSeriesBuffer;
   private final SimpleTimeSeries simpleTimeSeries;
+  private static final Base64.Decoder DECODER = Base64.getDecoder();
 
   private SimpleTimeSeriesContainer(SimpleTimeSeriesBuffer simpleTimeSeriesBuffer)
   {
@@ -43,6 +45,25 @@ public class SimpleTimeSeriesContainer
     this.simpleTimeSeries = simpleTimeSeries;
     simpleTimeSeriesBuffer = null;
     isBuffered = false;
+  }
+
+  public static SimpleTimeSeriesContainer createFromObject(Object object, Interval window, int maxEntries)
+  {
+    if (object instanceof SimpleTimeSeries) {
+      return SimpleTimeSeriesContainer.createFromInstance((SimpleTimeSeries) object);
+    }
+
+    byte[] bytes;
+
+    if (object instanceof String) {
+      bytes = DECODER.decode((String) object);
+    } else {
+      bytes = (byte[]) object;
+    }
+
+    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
+
+    return SimpleTimeSeriesContainer.createFromByteBuffer(byteBuffer, window, maxEntries);
   }
 
   public static SimpleTimeSeriesContainer createFromBuffer(SimpleTimeSeriesBuffer timeSeriesBuffer)
@@ -137,6 +158,9 @@ public class SimpleTimeSeriesContainer
 
   public SimpleTimeSeries computeSimple()
   {
+    if (isNull()) {
+      return null;
+    }
     return getSimpleTimeSeries().computeSimple();
   }
 
@@ -149,6 +173,16 @@ public class SimpleTimeSeriesContainer
 
       for (int i = 0; i < timestamps.size(); i++) {
         simpleTimeSeries.addDataPoint(timestamps.getLong(i), datapoints.getDouble(i));
+      }
+
+      final TimeSeries.EdgePoint startBoundary = thisSimpleTimeSeries.getStart();
+      if (startBoundary != null && startBoundary.getTimestampJson() != null) {
+        simpleTimeSeries.addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
+      }
+
+      final TimeSeries.EdgePoint endBoundary = thisSimpleTimeSeries.getEnd();
+      if (endBoundary != null && endBoundary.getTimestampJson() != null) {
+        simpleTimeSeries.addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
       }
     }
   }

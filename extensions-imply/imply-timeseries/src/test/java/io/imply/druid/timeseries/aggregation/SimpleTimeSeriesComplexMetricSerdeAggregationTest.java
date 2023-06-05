@@ -193,7 +193,8 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                 "baz",
                 new FieldAccessPostAggregator("baz", "timeseries-name"),
                 Interpolator.LINEAR,
-                30 * 60 * 1000L
+                30 * 60 * 1000L,
+                false
             )
         ),
         null,
@@ -229,7 +230,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
     };
     double[] expectedDataPointsPostAgg = new double[]{
         0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5,
-        25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0, 42.5, 45.0, 47.5
+        25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0, 42.5, 45.0, 45.0
     };
     SimpleTimeSeries expectedTimeSeriesPostAgg = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestampsPostAgg),

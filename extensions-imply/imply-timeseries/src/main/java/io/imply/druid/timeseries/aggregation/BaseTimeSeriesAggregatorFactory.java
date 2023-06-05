@@ -44,6 +44,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   protected final Long timeBucketMillis;
   protected final Interval window;
   protected final int maxEntries;
+  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-simple");
 
   protected BaseTimeSeriesAggregatorFactory(
       String name,
@@ -226,7 +227,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public ColumnType getResultType()
   {
-    return ColumnType.ofComplex("imply-ts-simple");
+    return TYPE;
   }
 
   @Override

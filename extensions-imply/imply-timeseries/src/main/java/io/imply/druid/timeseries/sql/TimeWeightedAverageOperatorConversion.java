@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries.sql;
 
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
 import org.apache.calcite.rex.RexCall;
@@ -16,8 +17,6 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
@@ -26,6 +25,7 @@ import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
+import org.apache.druid.sql.calcite.table.RowSignatures;
 import org.joda.time.Period;
 
 import javax.annotation.Nullable;
@@ -38,10 +38,14 @@ public class TimeWeightedAverageOperatorConversion implements SqlOperatorConvers
   private static final SqlOperator FUNCTION = OperatorConversions
       .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
       .operandTypeChecker(OperandTypes.sequence("'" + FUNCTION_NAME + "'(timeseries, interpolator, bucketPeriod)",
-                                                OperandTypes.ANY,
+                                                TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
                                                 OperandTypes.LITERAL,
                                                 OperandTypes.LITERAL))
-      .returnTypeInference(ReturnTypes.explicit(SqlTypeName.OTHER))
+      .returnTypeInference(opBinding -> RowSignatures.makeComplexType(
+          opBinding.getTypeFactory(),
+          BaseTimeSeriesAggregatorFactory.TYPE,
+          true
+      ))
       .build();
 
   @Override

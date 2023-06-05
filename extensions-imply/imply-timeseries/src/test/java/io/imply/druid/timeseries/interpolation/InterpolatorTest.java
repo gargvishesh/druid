@@ -22,183 +22,455 @@ import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
 public class InterpolatorTest
 {
+  private static final long[][] TIMESTAMPS_LIST = new long[][]{
+      {0, 1, 2, 3, 4, 5, 6, 7},
+      {2, 3, 4, 5, 6, 7},
+      {1, 2, 3, 4, 5, 6},
+      {2, 3, 4, 5, 6},
+      {2, 4, 6},
+      {1, 2, 5, 6, 7}
+  };
+  private static final double[][] DATA_POINTS_LIST = new double[][]{
+      {0, 1, 2, 3, 4, 5, 6, 7},
+      {2, 3, 4, 5, 6, 7},
+      {1, 2, 3, 4, 5, 6},
+      {2, 3, 4, 5, 6},
+      {2, 4, 6},
+      {1, 2, 5, 6, 7}
+  };
+
   @Test
   public void timeSeriesLinearInterpolatorTest()
   {
-    long[] timestamps = new long[]{0, 1, 4, 6, 7};
-    double[] dataPoints = new double[]{0, 1, 4, 6, 7};
-
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(0, 8),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesLinearInterpolator = Interpolator.LINEAR;
-
-    SimpleTimeSeries linearInterpolatedSeries = timeSeriesLinearInterpolator.interpolate(simpleTimeSeries,
-                                                                                         new DurationGranularity(1, 0),
-                                                                                         MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{0, 1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{0, 1, 2, 3, 4, 5, 6, 7};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(0, 8),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {2, 2, 2, 3, 4, 5, 6, 7},
+        {1, 1, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 3, 4, 5, 6, 6},
+        {1, 1, 2, 3, 4, 5, 6, 7}
+    };
+    runOverInputs(
+        Interpolator.LINEAR,
+        new DurationGranularity(1, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
-  public void timeSeriesLinearInterpolatorWithwindowTest()
+  public void timeSeriesLinearInterpolatorWithWindowTest()
   {
-    long[] timestamps = new long[]{2, 4, 6};
-    double[] dataPoints = new double[]{2, 4, 6};
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 5},
+        {3, 3, 4, 5, 6},
+        {3, 3, 4, 5, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.LINEAR,
+        new DurationGranularity(2, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
 
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(1, 8),
-                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesLinearInterpolator = Interpolator.LINEAR;
+  @Test
+  public void timeSeriesLinearInterpolator_OnlyBoundaries()
+  {
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 4, 6},
+        {2, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 4, 6}
+    };
+    runOverInputs(
+        Interpolator.LINEAR,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
 
-    SimpleTimeSeries linearInterpolatedSeries = timeSeriesLinearInterpolator.interpolate(simpleTimeSeries,
-                                                                                         new DurationGranularity(1, 0),
-                                                                                         MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{1, 2, 3, 4, 5, 6, 7};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(1, 8),
-                                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+  @Test
+  public void timeSeriesLinearInterpolatorWithWindowTest_OnlyBoundaries()
+  {
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {2, 4, 6},
+        {2, 4, 5},
+        {3, 4, 6},
+        {3, 4, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.LINEAR,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
   public void timeSeriesPaddingInterpolatorTest()
   {
-    long[] timestamps = new long[]{0, 1, 4, 6, 7};
-    double[] dataPoints = new double[]{0, 1, 4, 6, 7};
-
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(0, 8),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesLinearInterpolator = Interpolator.PADDING;
-
-    SimpleTimeSeries linearInterpolatedSeries = timeSeriesLinearInterpolator.interpolate(simpleTimeSeries,
-                                                                                         new DurationGranularity(1, 0),
-                                                                                         MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{0, 1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{0, 1, 1, 1, 4, 4, 6, 7};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(0, 8),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {2, 2, 2, 3, 4, 5, 6, 7},
+        {1, 1, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 2, 4, 4, 6, 6},
+        {1, 1, 2, 2, 2, 5, 6, 7}
+    };
+    runOverInputs(
+        Interpolator.PADDING,
+        new DurationGranularity(1, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
-  public void timeSeriesPaddingInterpolatorWithwindowTest()
+  public void timeSeriesPaddingInterpolatorWithWindowTest()
   {
-    long[] timestamps = new long[]{2, 4, 6};
-    double[] dataPoints = new double[]{2, 4, 6};
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {0, 3, 4, 5, 5},
+        {0, 3, 4, 5, 5},
+        {3, 3, 4, 5, 5},
+        {3, 3, 4, 5, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.PADDING,
+        new DurationGranularity(2, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
 
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(1, 8),
-                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesPaddingInterpolator = Interpolator.PADDING;
+  @Test
+  public void timeSeriesPaddingInterpolator_OnlyBoundaries()
+  {
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 4, 6},
+        {2, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 2, 6}
+    };
+    runOverInputs(
+        Interpolator.PADDING,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
 
-    SimpleTimeSeries paddingInterpolatedSeries = timeSeriesPaddingInterpolator.interpolate(simpleTimeSeries,
-                                                                                           new DurationGranularity(1, 0),
-                                                                                           MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{0, 2, 2, 4, 4, 6, 6};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(1, 8),
-                                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, paddingInterpolatedSeries);
+  @Test
+  public void timeSeriesPaddingInterpolatorWithWindowTest_OnlyBoundaries()
+  {
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {0, 4, 5},
+        {0, 4, 5},
+        {3, 4, 5},
+        {3, 4, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.PADDING,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
   public void timeSeriesBackfillInterpolatorTest()
   {
-    long[] timestamps = new long[]{0, 1, 4, 6, 7};
-    double[] dataPoints = new double[]{0, 1, 4, 6, 7};
-
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(0, 8),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesLinearInterpolator = Interpolator.BACKFILL;
-
-    SimpleTimeSeries linearInterpolatedSeries = timeSeriesLinearInterpolator.interpolate(simpleTimeSeries,
-                                                                                         new DurationGranularity(1, 0),
-                                                                                         MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{0, 1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{0, 1, 4, 4, 4, 6, 6, 7};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(0, 8),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {2, 2, 2, 3, 4, 5, 6, 7},
+        {1, 1, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 3, 4, 5, 6, 6},
+        {2, 2, 2, 4, 4, 6, 6, 6},
+        {1, 1, 2, 5, 5, 5, 6, 7}
+    };
+    runOverInputs(
+        Interpolator.BACKFILL,
+        new DurationGranularity(1, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
-  public void timeSeriesBackfillInterpolatorWithwindowTest()
+  public void timeSeriesBackfillInterpolatorWithWindowTest()
   {
-    long[] timestamps = new long[]{2, 4, 6};
-    double[] dataPoints = new double[]{2, 4, 6};
-
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(timestamps),
-                                                             new ImplyDoubleArrayList(dataPoints),
-                                                             Intervals.utc(1, 8),
-                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                             MAX_ENTRIES);
-    Interpolator timeSeriesBackfillInterpolator = Interpolator.BACKFILL;
-
-    SimpleTimeSeries backfillInterpolatedSeries = timeSeriesBackfillInterpolator.interpolate(simpleTimeSeries,
-                                                                                             new DurationGranularity(1, 0),
-                                                                                             MAX_ENTRIES);
-    long[] expectedTimestamps = new long[]{1, 2, 3, 4, 5, 6, 7};
-    double[] expectedDataPoints = new double[]{2, 2, 4, 4, 6, 6, 8};
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(1, 8),
-                                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                                             new TimeSeries.EdgePoint(8L, 8D),
-                                                                             MAX_ENTRIES);
-    Assert.assertEquals(expectedLinearInterpolatedSeries, backfillInterpolatedSeries);
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6},
+        {2, 3, 4, 5, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {3, 3, 4, 5, 8},
+        {3, 3, 4, 5, 5},
+        {3, 3, 4, 5, 8},
+        {3, 3, 4, 5, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.BACKFILL,
+        new DurationGranularity(2, 0),
+        false,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
   }
 
   @Test
-  public void testEmptySeriesWithwindow()
+  public void timeSeriesBackfillInterpolator_OnlyBoundaries()
   {
-    SimpleTimeSeries emptySeriesWithBounds = new SimpleTimeSeries(new ImplyLongArrayList(),
-                                                                  new ImplyDoubleArrayList(),
-                                                                  Intervals.utc(1, 4),
-                                                                  new TimeSeries.EdgePoint(0L, 0D),
-                                                                  new TimeSeries.EdgePoint(4L, 4D),
-                                                                  MAX_ENTRIES);
+    long[][] expectedTimestampsList = new long[][]{
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6},
+        {0, 2, 4, 6}
+    };
+    double[][] expectedDataPointsList = new double[][]{
+        {0, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 4, 6},
+        {2, 2, 4, 6},
+        {2, 2, 4, 6},
+        {1, 2, 5, 6}
+    };
+    runOverInputs(
+        Interpolator.BACKFILL,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
+
+  @Test
+  public void timeSeriesBackfillInterpolatorWithWindowTest_OnlyBoundaries()
+  {
+    long[][] expectedTimestampsList = new long[][] {
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6}
+    };
+    // input {3, 4, 5}
+    double[][] expectedDataPointsList = new double[][] {
+        {3, 4, 8},
+        {3, 4, 5},
+        {3, 4, 8},
+        {3, 4, 5}
+    };
+    runOverInputs_WithWindow(
+        Interpolator.BACKFILL,
+        new DurationGranularity(2, 0),
+        true,
+        expectedTimestampsList,
+        expectedDataPointsList
+    );
+  }
+
+  private void runOverInputs(
+      Interpolator interpolator,
+      DurationGranularity interpolationBucket,
+      boolean keepBoundaries,
+      long[][] expectedTimestampsList,
+      double[][] expectedDataPointsList
+  )
+  {
+    assert TIMESTAMPS_LIST.length == expectedTimestampsList.length;
+    for (int i = 0; i < TIMESTAMPS_LIST.length; i++) {
+      long[] timestamps = TIMESTAMPS_LIST[i];
+      double[] dataPoints = DATA_POINTS_LIST[i];
+
+      SimpleTimeSeries inputSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(timestamps),
+          new ImplyDoubleArrayList(dataPoints),
+          Intervals.utc(0, 8),
+          MAX_ENTRIES
+      );
+      SimpleTimeSeries interpolatedSeries = interpolator.interpolate(
+          inputSeries,
+          interpolationBucket,
+          MAX_ENTRIES,
+          keepBoundaries
+      );
+      SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(expectedTimestampsList[i]),
+          new ImplyDoubleArrayList(expectedDataPointsList[i]),
+          Intervals.utc(0, 8),
+          MAX_ENTRIES
+      );
+      Assert.assertEquals(interpolatedSeries, expectedSeries);
+    }
+  }
+
+  private void runOverInputs_WithWindow(
+      Interpolator interpolator,
+      DurationGranularity durationGranularity,
+      boolean keepBoundaries,
+      long[][] expectedTimestampsList,
+      double[][] expectedDataPointsList
+  )
+  {
+    long[] timestamps = new long[]{3, 4, 5};
+    double[] dataPoints = new double[]{3, 4, 5};
+    TimeSeries.EdgePoint[] starts = new TimeSeries.EdgePoint[] {
+        new TimeSeries.EdgePoint(0L, 0D),
+        new TimeSeries.EdgePoint(0L, 0D),
+        null,
+        null
+    };
+    TimeSeries.EdgePoint[] ends = new TimeSeries.EdgePoint[] {
+        new TimeSeries.EdgePoint(8L, 8D),
+        null,
+        new TimeSeries.EdgePoint(8L, 8D),
+        null
+    };
+
+    for (int i = 0; i < starts.length; i++) {
+      SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(timestamps),
+          new ImplyDoubleArrayList(dataPoints),
+          Intervals.utc(1, 8),
+          starts[i],
+          ends[i],
+          MAX_ENTRIES
+      );
+
+      SimpleTimeSeries linearInterpolatedSeries = interpolator.interpolate(
+          simpleTimeSeries,
+          durationGranularity,
+          MAX_ENTRIES,
+          keepBoundaries
+      );
+      SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(expectedTimestampsList[i]),
+          new ImplyDoubleArrayList(expectedDataPointsList[i]),
+          Intervals.utc(1, 8),
+          starts[i],
+          ends[i],
+          MAX_ENTRIES
+      );
+      Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+    }
+  }
+
+  @Test
+  public void testEmptySeriesWithWindow()
+  {
+    SimpleTimeSeries emptySeriesWithBounds = new SimpleTimeSeries(
+        new ImplyLongArrayList(),
+        new ImplyDoubleArrayList(),
+        Intervals.utc(1, 4),
+        new TimeSeries.EdgePoint(0L, 0D),
+        new TimeSeries.EdgePoint(4L, 4D),
+        MAX_ENTRIES
+    );
     Interpolator linearInterpolator = Interpolator.LINEAR;
     long[] expectedTimestamps = new long[]{1};
     double[] expectedDataPoints = new double[]{1};
-    SimpleTimeSeries timeSeries = linearInterpolator.interpolate(emptySeriesWithBounds,
-                                                                 new DurationGranularity(1, 0),
-                                                                 MAX_ENTRIES);
-    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(new ImplyLongArrayList(expectedTimestamps),
-                                                                             new ImplyDoubleArrayList(expectedDataPoints),
-                                                                             Intervals.utc(1, 4),
-                                                                             new TimeSeries.EdgePoint(0L, 0D),
-                                                                             new TimeSeries.EdgePoint(4L, 4D),
-                                                                             MAX_ENTRIES);
+    SimpleTimeSeries timeSeries = linearInterpolator.interpolate(
+        emptySeriesWithBounds,
+        new DurationGranularity(1, 0),
+        MAX_ENTRIES,
+        false
+    );
+    SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(expectedTimestamps),
+        new ImplyDoubleArrayList(expectedDataPoints),
+        Intervals.utc(1, 4),
+        new TimeSeries.EdgePoint(0L, 0D),
+        new TimeSeries.EdgePoint(4L, 4D),
+        MAX_ENTRIES
+    );
     Assert.assertEquals(expectedLinearInterpolatedSeries, timeSeries);
   }
 }

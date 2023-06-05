@@ -15,6 +15,7 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeries;
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.java.util.common.IAE;
@@ -38,18 +39,22 @@ public class InterpolationPostAggregator implements PostAggregator
   private final PostAggregator field;
   private final Interpolator interpolator;
   private final long timeBucketMillis;
+  private final boolean keepBoundariesOnly;
 
   @JsonCreator
   public InterpolationPostAggregator(
       @JsonProperty("name") final String name,
       @JsonProperty("field") final PostAggregator field,
       @JsonProperty("interpolator") final Interpolator interpolator,
-      @JsonProperty("timeBucketMillis") final Long timeBucketMillis)
+      @JsonProperty("timeBucketMillis") final Long timeBucketMillis,
+      @JsonProperty("keepBoundariesOnly") @Nullable final Boolean keepBoundariesOnly
+  )
   {
     this.name = Preconditions.checkNotNull(name, "name is null");
     this.field = Preconditions.checkNotNull(field, "field is null");
     this.interpolator = Preconditions.checkNotNull(interpolator, "interpolator is null");
     this.timeBucketMillis = Preconditions.checkNotNull(timeBucketMillis, "timeBucketMillis is null");
+    this.keepBoundariesOnly = keepBoundariesOnly != null && keepBoundariesOnly;
   }
 
   @JsonProperty
@@ -70,13 +75,20 @@ public class InterpolationPostAggregator implements PostAggregator
     return interpolator;
   }
 
+  @JsonProperty
+  public boolean isKeepBoundariesOnly()
+  {
+    return keepBoundariesOnly;
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     CacheKeyBuilder builder = new CacheKeyBuilder(ImplyAggregationUtil.INTERPOLATION_POST_AGG_CACHE_ID)
         .appendCacheable(getField())
         .appendString(getInterpolator().name())
-        .appendLong(getTimeBucketMillis());
+        .appendLong(getTimeBucketMillis())
+        .appendBoolean(isKeepBoundariesOnly());
     return builder.build();
   }
 
@@ -105,7 +117,12 @@ public class InterpolationPostAggregator implements PostAggregator
     timeSeries.computeSimple();
     SimpleTimeSeries simpleTimeSeries = timeSeries.computeSimple();
 
-    return interpolator.interpolate(simpleTimeSeries, new DurationGranularity(timeBucketMillis, 0), simpleTimeSeries.getMaxEntries());
+    return interpolator.interpolate(
+        simpleTimeSeries,
+        new DurationGranularity(timeBucketMillis, 0),
+        simpleTimeSeries.getMaxEntries(),
+        keepBoundariesOnly
+    );
   }
 
   @Override
@@ -119,7 +136,7 @@ public class InterpolationPostAggregator implements PostAggregator
   @Override
   public ColumnType getType(ColumnInspector signature)
   {
-    return ColumnType.ofComplex("imply-ts-simple");
+    return BaseTimeSeriesAggregatorFactory.TYPE;
   }
 
   @Override
@@ -136,6 +153,7 @@ public class InterpolationPostAggregator implements PostAggregator
            ", field=" + field +
            ", interpolator=" + interpolator +
            ", timeBucketMillis=" + timeBucketMillis +
+           ", keepBoundariesOnly=" + keepBoundariesOnly +
            "}";
   }
 
@@ -152,12 +170,13 @@ public class InterpolationPostAggregator implements PostAggregator
     return Objects.equals(name, that.getName()) &&
            Objects.equals(field, that.getField()) &&
            Objects.equals(interpolator, that.getInterpolator()) &&
-           Objects.equals(timeBucketMillis, that.getTimeBucketMillis());
+           Objects.equals(timeBucketMillis, that.getTimeBucketMillis()) &&
+           Objects.equals(keepBoundariesOnly, that.isKeepBoundariesOnly());
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, field, interpolator, timeBucketMillis);
+    return Objects.hash(name, field, interpolator, timeBucketMillis, keepBoundariesOnly);
   }
 }

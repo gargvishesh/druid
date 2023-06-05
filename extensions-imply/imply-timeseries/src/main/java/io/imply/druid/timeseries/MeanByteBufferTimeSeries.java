@@ -25,7 +25,7 @@ public class MeanByteBufferTimeSeries extends ByteBufferTimeSeries<MeanTimeSerie
   {
     super(window, maxEntries);
     this.timeBucketGranularity = timeBucketGranularity;
-    this.windowStartBucket = timeBucketGranularity.bucketStart(getwindow().getStartMillis());
+    this.windowStartBucket = timeBucketGranularity.bucketStart(getWindow().getStartMillis());
     this.countRelOffset = getMaxEntries() * Double.BYTES;
   }
 
@@ -103,7 +103,7 @@ public class MeanByteBufferTimeSeries extends ByteBufferTimeSeries<MeanTimeSerie
                               sumPoints,
                               countPoints,
                               getTimeBucketGranularity(),
-                              getwindow(),
+                              getWindow(),
                               getStartBuffered(mem, buffStartPosition),
                               getEndBuffered(mem, buffStartPosition),
                               getMaxEntries());

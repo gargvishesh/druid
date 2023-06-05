@@ -97,7 +97,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
     SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
     Assert.assertEquals(1, avg.size());
     Assert.assertEquals(0, avg.getTimestamps().getLong(0));
-    Assert.assertEquals(4.16666, avg.getDataPoints().getDouble(0), 1e-4);
+    Assert.assertEquals(4.25, avg.getDataPoints().getDouble(0), 1e-4);
   }
 
   @Test
@@ -115,7 +115,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
     SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
     Assert.assertEquals(1, avg.size());
     Assert.assertEquals(0, avg.getTimestamps().getLong(0));
-    Assert.assertEquals(5.41666, avg.getDataPoints().getDouble(0), 1e-4);
+    Assert.assertEquals(5.5833, avg.getDataPoints().getDouble(0), 1e-4);
   }
 
   @Test
@@ -126,10 +126,10 @@ public class TimeWeightedAvgTimeSeriesFnTest
     double[] dataPoints = new double[]{4, 3.3, -3, 19, 1};
     // interpolated timeseries (approx data points wrt decimals)
     // 10000, 11000, 12000, 20000, 21000, 30000, 31000, 40000, 50000, 51000, 60000
-    //   4.7,     4,   3.3,  -2.3,    -3,  16.8,    19,  10.9,   1.9,     1,  -7.1
+    //   4,     4,   3.3,  -2.3,    -3,  16.8,    19,  10.9,   1.9,     1,   1
     // time weighted averages (approx data points wrt decimals)
     // 10000,                                 20000,                             30000,                                50000
-    // (4.35 * 1 + 3.65 * 1 + 0.5 * 8) / 10, (-2.65 * 1 + 6.9 * 9) / 10 - 5.945, (17.9 * 1 + 14.95 * 9) / 10 - 15.245, (1.45 * 1 + -3.05 * 9) / 10 - -2.6
+    // (4 * 1 + 3.65 * 1 + 0.5 * 8) / 10, (-2.65 * 1 + 6.9 * 9) / 10 - 5.945, (17.9 * 1 + 14.95 * 9) / 10 - 15.245, (1.45 * 1 + 1 * 9) / 10 - 1.0450
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(timestamps),
         new ImplyDoubleArrayList(dataPoints),
@@ -139,7 +139,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
     SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
-        new ImplyDoubleArrayList(new double[]{1.2, 5.945, 15.245, -2.5999999999999988}),
+        new ImplyDoubleArrayList(new double[]{1.165, 5.945, 15.245, 1.0450000000000002}),
         Intervals.utc(10000, 60000),
         MAX_ENTRIES
     );
@@ -161,9 +161,9 @@ public class TimeWeightedAvgTimeSeriesFnTest
     SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{2, 6}),
-        new ImplyDoubleArrayList(new double[]{3, 7}),
+        new ImplyDoubleArrayList(new double[]{3, 6}),
         Intervals.utc(1, 7),
-        new TimeSeries.EdgePoint(0, 1),
+        new TimeSeries.EdgePoint(0, 1.25),
         null,
         MAX_ENTRIES
     );

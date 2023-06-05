@@ -24,7 +24,7 @@ public class DeltaByteBufferTimeSeries extends ByteBufferTimeSeries<DeltaTimeSer
   {
     super(window, maxEntries);
     this.timeBucketGranularity = timeBucketGranularity;
-    this.windowStartBucket = timeBucketGranularity.bucketStart(getwindow().getStartMillis());
+    this.windowStartBucket = timeBucketGranularity.bucketStart(getWindow().getStartMillis());
   }
 
   @Override
@@ -124,12 +124,12 @@ public class DeltaByteBufferTimeSeries extends ByteBufferTimeSeries<DeltaTimeSer
       }
     }
     return new DeltaTimeSeries(timestamps,
-                              dataPoints,
-                              getTimeBucketGranularity(),
-                              getwindow(),
-                              getStartBuffered(mem, buffStartPosition),
-                              getEndBuffered(mem, buffStartPosition),
-                              getMaxEntries());
+                               dataPoints,
+                               getTimeBucketGranularity(),
+                               getWindow(),
+                               getStartBuffered(mem, buffStartPosition),
+                               getEndBuffered(mem, buffStartPosition),
+                               getMaxEntries());
   }
 
   @Override

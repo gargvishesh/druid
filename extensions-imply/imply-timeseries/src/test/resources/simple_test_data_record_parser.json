@@ -14,7 +14,8 @@
     },
     "columns": [
       "timestamp",
-      "dataPoints"
+      "dataPoints",
+      "zeroCol"
     ]
   }
 }
