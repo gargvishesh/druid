@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.io.Files;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -49,6 +50,7 @@ public class TimeSeriesGroupByAggregationTest
   public static void setup() throws Exception
   {
     TimeSeriesModule module = new TimeSeriesModule();
+    TimeSeriesModule.registerSerde();
     SimpleModule granularityModule = new GranularityModule();
     List<Module> jacksonModules = new ArrayList<>(module.getJacksonModules());
     jacksonModules.add(granularityModule);
@@ -63,7 +65,13 @@ public class TimeSeriesGroupByAggregationTest
     groupbyHelper.createIndex(
         fromCp("simple_test_data.tsv"),
         Files.asCharSource(fromCp("simple_test_data_record_parser.json"), StandardCharsets.UTF_8).read(),
-        "[]",
+        "["
+        + "{\"type\": \"timeseries\", "
+        + "\"name\": \"fuu\", "
+        + "\"timeColumn\": \"zeroCol\", "
+        + "\"dataColumn\": \"dataPoints\", "
+        + "\"postprocessing\": \"[]\", "
+        + "\"maxEntries\": \"100\"}]",
         outDir1,
         0,
         Granularities.NONE,
@@ -75,7 +83,13 @@ public class TimeSeriesGroupByAggregationTest
     groupbyHelper.createIndex(
         fromCp("simple_test_data_2.tsv"),
         Files.asCharSource(fromCp("simple_test_data_record_parser.json"), StandardCharsets.UTF_8).read(),
-        "[]",
+        "["
+        + "{\"type\": \"timeseries\", "
+        + "\"name\": \"fuu\", "
+        + "\"timeColumn\": \"zeroCol\", "
+        + "\"dataColumn\": \"dataPoints\", "
+        + "\"postprocessing\": \"[]\", "
+        + "\"maxEntries\": \"100\"}]",
         outDir2,
         0,
         Granularities.NONE,
@@ -99,7 +113,8 @@ public class TimeSeriesGroupByAggregationTest
         + "  {\"type\": \"avgTimeseries\", \"name\": \"avgTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
         + " \"timeBucketMillis\" : 7200000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
         + "  {\"type\": \"deltaTimeseries\", \"name\": \"deltaTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
-        + " \"timeBucketMillis\" : 10800000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"}"
+        + " \"timeBucketMillis\" : 10800000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
+        + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\"}"
         + "  ],"
         + "  \"intervals\": [\"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"]"
         + "  }",
@@ -142,9 +157,19 @@ public class TimeSeriesGroupByAggregationTest
         Intervals.of("2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z"),
         20456
     );
+
+    long[] expectedSumTimestamps = new long[]{0L};
+    double[] expectedSumDataPoints = new double[]{225D};
+    SimpleTimeSeries expectedSumTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(expectedSumTimestamps),
+        new ImplyDoubleArrayList(expectedSumDataPoints),
+        Intervals.ETERNITY,
+        DEFAULT_MAX_ENTRIES
+    );
     Assert.assertEquals(expectedTimeSeries, resultRow.get(0));
     Assert.assertEquals(expectedAvgTimeSeries, resultRow.get(1));
     Assert.assertEquals(expectedDeltaTimeSeries, resultRow.get(2));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedSumTimeSeries), resultRow.get(3));
   }
 
 

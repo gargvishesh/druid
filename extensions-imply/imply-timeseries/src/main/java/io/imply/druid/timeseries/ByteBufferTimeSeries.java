@@ -30,14 +30,14 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
 
   public void init(WritableMemory mem, int buffStartPosition)
   {
-    mem.putInt(buffStartPosition, 0);
+    mem.putInt(buffStartPosition, -1);
     mem.putLong(buffStartPosition + START_TS_OFFSET, -1);
     mem.putDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES, -1);
     mem.putLong(buffStartPosition + END_TS_OFFSET, -1);
     mem.putDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES, -1);
   }
 
-  public Interval getwindow()
+  public Interval getWindow()
   {
     return window;
   }
@@ -50,7 +50,10 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
 
   public void addDataPointBuffered(WritableMemory mem, int buffStartPosition, long timestamp, double data)
   {
-    Interval window = getwindow();
+    if (isNull(mem, buffStartPosition)) {
+      mem.putInt(buffStartPosition, 0);
+    }
+    Interval window = getWindow();
     // if the timestamp is in visible window (if any), then add it. Otherwise update the edges if needed
     if (window.contains(timestamp)) {
       internalAddDataPointBuffered(mem, buffStartPosition, timestamp, data);
@@ -76,10 +79,10 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   public void mergeSeriesBuffered(WritableMemory mem, int buffStartPosition, T mergeSeries)
   {
     // can't merge series with different visible windows as of now
-    boolean compatibleMerge = (mergeSeries.getwindow() == null && getwindow() == null) ||
-                              mergeSeries.getwindow().equals(getwindow());
+    boolean compatibleMerge = (mergeSeries.getWindow() == null && getWindow() == null) ||
+                              mergeSeries.getWindow().equals(getWindow());
     if (!compatibleMerge) {
-      throw new UOE("The time series to merge have different visible windows : (%s, %s)", getwindow(), mergeSeries.getwindow());
+      throw new UOE("The time series to merge have different visible windows : (%s, %s)", getWindow(), mergeSeries.getWindow());
     }
 
     // update the edges
@@ -104,6 +107,9 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
     }
 
     // merge the visible window
+    if (isNull(mem, buffStartPosition)) {
+      mem.putInt(buffStartPosition, 0);
+    }
     internalMergeSeriesBuffered(mem, buffStartPosition, mergeSeries);
   }
 
@@ -133,6 +139,11 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   {
     mem.putLong(buffStartPosition + END_TS_OFFSET, newEnd.getTimestamp());
     mem.putDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES, newEnd.getData());
+  }
+
+  public boolean isNull(WritableMemory mem, int buffStartPosition)
+  {
+    return size(mem, buffStartPosition) < 0;
   }
 
   public int size(WritableMemory mem, int buffStartPosition)

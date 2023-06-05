@@ -48,9 +48,12 @@ public class InterpolatorTimeSeriesFn implements TimeSeriesFn
   @Override
   public SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries)
   {
-    return interpolator.interpolate(input,
-                                    new DurationGranularity(timeBucketMillis, 0),
-                                    maxEntries);
+    return interpolator.interpolate(
+        input,
+        new DurationGranularity(timeBucketMillis, 0),
+        maxEntries,
+        false
+    );
   }
 
   @Override

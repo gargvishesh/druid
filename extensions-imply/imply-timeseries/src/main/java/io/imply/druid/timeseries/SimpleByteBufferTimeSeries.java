@@ -12,6 +12,7 @@ package io.imply.druid.timeseries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.RE;
 import org.joda.time.Interval;
 
@@ -77,7 +78,7 @@ public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeS
     ImplyDoubleArrayList dp = new ImplyDoubleArrayList(indices.length);
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(ts,
                                                              dp,
-                                                             getwindow(),
+                                                             getWindow(),
                                                              getStartBuffered(mem, buffStartPosition),
                                                              getEndBuffered(mem, buffStartPosition),
                                                              getMaxEntries());
@@ -86,5 +87,58 @@ public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeS
                                     mem.getDouble(buffStartPosition + DATA_OFFSET + (getMaxEntries() * Long.BYTES) + idx * Double.BYTES));
     }
     return simpleTimeSeries.computeSimple();
+  }
+
+  public void getDataPoints(WritableMemory mem, int pos, double[] dataPoints)
+  {
+    if (dataPoints.length != size(mem, pos)) {
+      throw new IAE("Expected length of array to be [%d], found length : [%d]", size(mem, pos), dataPoints.length);
+    }
+    mem.getDoubleArray(
+        pos + DATA_OFFSET + (getMaxEntries() * Long.BYTES),
+        dataPoints,
+        0,
+        dataPoints.length
+    );
+  }
+
+
+  public void setDataPoints(WritableMemory mem, int pos, double[] newDataPoints)
+  {
+    if (newDataPoints.length != size(mem, pos)) {
+      throw new IAE("Expected length of array to be [%d], found length : [%d]", size(mem, pos), newDataPoints.length);
+    }
+    mem.putDoubleArray(
+        pos + DATA_OFFSET + (getMaxEntries() * Long.BYTES),
+        newDataPoints,
+        0,
+        newDataPoints.length
+    );
+  }
+
+  public void getTimestamps(WritableMemory mem, int pos, long[] timestamps)
+  {
+    if (timestamps.length != size(mem, pos)) {
+      throw new IAE("Expected length of array to be [%d], found length : [%d]", size(mem, pos), timestamps.length);
+    }
+    mem.getLongArray(
+        pos + DATA_OFFSET,
+        timestamps,
+        0,
+        timestamps.length
+    );
+  }
+
+  public void setTimestamps(WritableMemory mem, int pos, long[] newTimestamps)
+  {
+    if (newTimestamps.length != size(mem, pos)) {
+      throw new IAE("Expected length of array to be [%d], found length : [%d]", size(mem, pos), newTimestamps.length);
+    }
+    mem.putLongArray(
+        pos + DATA_OFFSET,
+        newTimestamps,
+        0,
+        newTimestamps.length
+    );
   }
 }

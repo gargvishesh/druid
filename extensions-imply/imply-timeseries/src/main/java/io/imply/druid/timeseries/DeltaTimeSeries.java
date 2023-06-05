@@ -183,7 +183,7 @@ public class DeltaTimeSeries extends TimeSeries<DeltaTimeSeries>
     DeltaTimeSeries mergedSeries = new DeltaTimeSeries(mergedTimestamps,
                                                        mergedDataPoints,
                                                        getTimeBucketGranularity(),
-                                                       getwindow(),
+                                                       getWindow(),
                                                        getStart(),
                                                        getEnd(),
                                                        getMaxEntries());
@@ -221,7 +221,7 @@ public class DeltaTimeSeries extends TimeSeries<DeltaTimeSeries>
     int simpleSeriesSize = timestamps.size() / 2;
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(simpleSeriesSize),
                                                              new ImplyDoubleArrayList(simpleSeriesSize),
-                                                             getwindow(),
+                                                             getWindow(),
                                                              getStart(),
                                                              getEnd(),
                                                              getMaxEntries());

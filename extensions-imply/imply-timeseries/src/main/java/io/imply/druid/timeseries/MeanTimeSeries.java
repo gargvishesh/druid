@@ -165,7 +165,7 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
                                                      mergedSumPoints,
                                                      mergedCountPoints,
                                                      getTimeBucketGranularity(),
-                                                     getwindow(),
+                                                     getWindow(),
                                                      getStart(),
                                                      getEnd(),
                                                      getMaxEntries());
@@ -203,7 +203,7 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     int simpleSeriesSize = bucketStarts.size();
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(simpleSeriesSize),
                                                              new ImplyDoubleArrayList(simpleSeriesSize),
-                                                             getwindow(),
+                                                             getWindow(),
                                                              getStart(),
                                                              getEnd(),
                                                              getMaxEntries());

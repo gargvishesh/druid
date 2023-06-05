@@ -62,12 +62,12 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
       internalAddDataPoint(timestamp, data);
     } else {
       if (timestamp < window.getStartMillis()) {
-        if (start.timestamp < timestamp) {
+        if (start.timestamp < timestamp || start.timestamp == -1) {
           start.setTimestamp(timestamp);
           start.setData(data);
         }
       } else if (timestamp >= window.getEndMillis()) {
-        if (end.timestamp > timestamp) {
+        if (end.timestamp > timestamp || end.timestamp == -1) {
           end.setTimestamp(timestamp);
           end.setData(data);
         }
@@ -83,12 +83,12 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   public void mergeSeries(List<T> mergeSeries)
   {
     // can't merge series with different visible windows as of now
-    boolean incompatibleMerge = mergeSeries.stream().map(TimeSeries::getwindow).distinct().count() > 1;
+    boolean incompatibleMerge = mergeSeries.stream().map(TimeSeries::getWindow).distinct().count() > 1;
     if (incompatibleMerge) {
       throw new UOE("The time series to merge have different visible windows : (%s, %s)",
-                    getwindow(),
+                    getWindow(),
                     mergeSeries.stream()
-                               .map(series -> GuavaUtils.firstNonNull(series.getwindow().toString(), "null"))
+                               .map(series -> GuavaUtils.firstNonNull(series.getWindow().toString(), "null"))
                                .collect(Collectors.joining(",")));
     }
 
@@ -119,7 +119,7 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   public void copy(T copySeries)
   {
     // copy the base
-    this.window = copySeries.getwindow();
+    this.window = copySeries.getWindow();
     this.start = copySeries.getStart();
     this.end = copySeries.getEnd();
 
@@ -134,7 +134,7 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   }
 
   @JsonProperty
-  public Interval getwindow()
+  public Interval getWindow()
   {
     return window;
   }
@@ -213,7 +213,7 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
       return false;
     }
     TimeSeries<?> that = (TimeSeries<?>) o;
-    return Objects.equals(window, that.getwindow()) &&
+    return Objects.equals(window, that.getWindow()) &&
            Objects.equals(start, that.getStart()) &&
            Objects.equals(end, that.getEnd()) &&
            Objects.equals(maxEntries, that.maxEntries) &&
@@ -286,6 +286,15 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
       EdgePoint that = (EdgePoint) o;
       return Objects.equals(timestamp, that.getTimestamp()) &&
              Objects.equals(data, that.getData());
+    }
+
+    @Override
+    public String toString()
+    {
+      return "EdgePoint{" +
+             "timestamp=" + timestamp +
+             ", data=" + data +
+             '}';
     }
   }
 }

@@ -11,17 +11,20 @@ package io.imply.druid.query.aggregation;
 
 public class ImplyAggregationUtil
 {
-  // Sessionization
-  public static final byte SESSION_AVG_SCORE_TO_HISTOGRAM_FILTERING_CACHE_ID = (byte) -9;
-  public static final byte SESSION_FILTERING_VIRTUAL_COLUMN_CACHE_ID = (byte) -10;
-  public static final byte SESSION_SAMPLE_RATE_CACHE_ID = (byte) -11;
-
   // Timeseries
   public static final byte SIMPLE_TIMESERIES_CACHE_ID = (byte) -4;
   public static final byte AVG_TIMESERIES_CACHE_ID = (byte) -5;
   public static final byte DELTA_TIMESERIES_CACHE_ID = (byte) -6;
   public static final byte INTERPOLATION_POST_AGG_CACHE_ID = (byte) -7;
   public static final byte TWA_POST_AGG_CACHE_ID = (byte) -8;
+
+  // Sessionization
+  public static final byte SESSION_AVG_SCORE_TO_HISTOGRAM_FILTERING_CACHE_ID = (byte) -9;
+  public static final byte SESSION_FILTERING_VIRTUAL_COLUMN_CACHE_ID = (byte) -10;
+  public static final byte SESSION_SAMPLE_RATE_CACHE_ID = (byte) -11;
+
+  // Timeseries
+  public static final byte SUM_TIMESERIES_CACHE_ID = (byte) -12;
 
   public static final byte STRING_BASED = Byte.MIN_VALUE;
 }

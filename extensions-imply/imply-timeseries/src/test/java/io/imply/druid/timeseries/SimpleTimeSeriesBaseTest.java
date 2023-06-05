@@ -91,5 +91,56 @@ public abstract class SimpleTimeSeriesBaseTest
     Assert.assertEquals(expectedSeries, timeSeries);
   }
 
+  @Test
+  public void testTSWithWindows()
+  {
+    Interval[] windowList = new Interval[]{
+        Intervals.utc(1, 6),
+        Intervals.utc(3, 6),
+        Intervals.utc(1, 4),
+        Intervals.utc(2, 5)
+    };
+    long[][] timestampsList = new long[][] {
+        {1, 2, 3, 4, 5},
+        {3, 4, 5},
+        {1, 2, 3},
+        {2, 3, 4},
+    };
+    double[][] dataPointsList = new double[][] {
+        {1, 2, 3, 4, 5},
+        {3, 4, 5},
+        {1, 2, 3},
+        {2, 3, 4},
+    };
+    TimeSeries.EdgePoint[] startsList = new TimeSeries.EdgePoint[] {
+        null,
+        new TimeSeries.EdgePoint(2L, 2D),
+        null,
+        new TimeSeries.EdgePoint(1L, 1D)
+    };
+    TimeSeries.EdgePoint[] endsList = new TimeSeries.EdgePoint[] {
+        null,
+        null,
+        new TimeSeries.EdgePoint(4L, 4D),
+        new TimeSeries.EdgePoint(5L, 5D)
+    };
+
+    for (int i = 0; i < windowList.length; i++) {
+      SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(windowList[i], 100);
+      for (int j = 1; j < 6; j++) {
+        simpleTimeSeries.addDataPoint(j, j);
+      }
+      SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(timestampsList[i]),
+          new ImplyDoubleArrayList(dataPointsList[i]),
+          windowList[i],
+          startsList[i],
+          endsList[i],
+          100
+      );
+      Assert.assertEquals(expectedSeries, simpleTimeSeries);
+    }
+  }
+
   public abstract SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window);
 }

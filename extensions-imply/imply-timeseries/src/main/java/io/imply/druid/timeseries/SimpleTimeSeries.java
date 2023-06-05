@@ -136,7 +136,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     SimpleTimeSeries mergedSeries = new SimpleTimeSeries(
         timestamps,
         dataPoints,
-        getwindow(),
+        getWindow(),
         getStart(),
         getEnd(),
         getMaxEntries()
@@ -255,11 +255,13 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
            "timestamps=" + timestamps +
            ", dataPoints=" + dataPoints +
            ", maxEntries=" + maxEntries +
+           ", start=" + getStart() +
+           ", end =" + getEnd() +
            '}';
   }
 
   public SimpleTimeSeriesData asSimpleTimeSeriesData()
   {
-    return new SimpleTimeSeriesData(timestamps, dataPoints, getwindow());
+    return new SimpleTimeSeriesData(timestamps, dataPoints, getWindow());
   }
 }

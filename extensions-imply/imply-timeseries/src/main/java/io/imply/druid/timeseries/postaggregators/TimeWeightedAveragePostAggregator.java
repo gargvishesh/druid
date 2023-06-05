@@ -36,7 +36,7 @@ public class TimeWeightedAveragePostAggregator extends InterpolationPostAggregat
       @JsonProperty("interpolator") final Interpolator interpolator,
       @JsonProperty("timeBucketMillis") final Long timeBucketMillis)
   {
-    super(name, field, interpolator, timeBucketMillis);
+    super(name, field, interpolator, timeBucketMillis, false);
   }
 
   @Override
