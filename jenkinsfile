@@ -666,7 +666,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'dist-hadoop2'
+                        values 'imply-saas', 'dist-hadoop2', 'dist'
                     }
                 }
                 stages {
