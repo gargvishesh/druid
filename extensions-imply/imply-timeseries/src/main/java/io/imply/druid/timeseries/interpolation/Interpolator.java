@@ -12,6 +12,7 @@ package io.imply.druid.timeseries.interpolation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
@@ -124,7 +125,7 @@ public enum Interpolator
     return name == null ? null : valueOf(StringUtils.toUpperCase(name));
   }
 
-  public SimpleTimeSeries interpolate(
+  public SimpleTimeSeriesContainer interpolate(
       SimpleTimeSeries inputSeries,
       DurationGranularity durationGranularity,
       int maxEntries,
@@ -147,9 +148,9 @@ public enum Interpolator
                                             inputSeries.getEnd().getData(),
                                             inputSeries.getWindow().getStartMillis()));
         timeSeries.build();
-        return timeSeries;
+        return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
       }
-      return inputSeries;
+      return SimpleTimeSeriesContainer.createFromInstance(inputSeries);
     }
 
     ImplyLongArrayList timestamps = inputSeries.getTimestamps();
@@ -253,7 +254,7 @@ public enum Interpolator
     }
 
     timeSeries.build();
-    return timeSeries;
+    return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
   }
 
   @Nullable

@@ -381,7 +381,7 @@ public class InterpolatorTest
           interpolationBucket,
           MAX_ENTRIES,
           keepBoundaries
-      );
+      ).computeSimple();
       SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
           new ImplyLongArrayList(expectedTimestampsList[i]),
           new ImplyDoubleArrayList(expectedDataPointsList[i]),
@@ -430,7 +430,7 @@ public class InterpolatorTest
           durationGranularity,
           MAX_ENTRIES,
           keepBoundaries
-      );
+      ).computeSimple();
       SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
           new ImplyLongArrayList(expectedTimestampsList[i]),
           new ImplyDoubleArrayList(expectedDataPointsList[i]),
@@ -462,7 +462,7 @@ public class InterpolatorTest
         new DurationGranularity(1, 0),
         MAX_ENTRIES,
         false
-    );
+    ).computeSimple();
     SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestamps),
         new ImplyDoubleArrayList(expectedDataPoints),

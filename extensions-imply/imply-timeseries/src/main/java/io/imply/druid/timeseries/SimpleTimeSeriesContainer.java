@@ -233,7 +233,7 @@ public class SimpleTimeSeriesContainer
       return false;
     }
     SimpleTimeSeriesContainer that = (SimpleTimeSeriesContainer) o;
-    return Objects.equal(getSimpleTimeSeries(), that.getSimpleTimeSeries());
+    return Objects.equal(computeSimple(), that.computeSimple());
   }
 
   @Override

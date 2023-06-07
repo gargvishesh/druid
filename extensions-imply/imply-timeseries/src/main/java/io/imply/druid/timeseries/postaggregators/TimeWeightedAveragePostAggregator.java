@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeries;
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeWeightedAvgTimeSeriesFn;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
@@ -70,7 +71,7 @@ public class TimeWeightedAveragePostAggregator extends InterpolationPostAggregat
   @Override
   public ColumnType getType(ColumnInspector signature)
   {
-    return ColumnType.ofComplex("imply-ts-simple");
+    return BaseTimeSeriesAggregatorFactory.TYPE;
   }
 
   @Override

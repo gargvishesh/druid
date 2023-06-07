@@ -21,7 +21,7 @@ public class PostAggregatorsUtil
   public static TimeSeries<?> asTimeSeries(Object computedField)
   {
     if (computedField instanceof SimpleTimeSeriesContainer) {
-      computedField = ((SimpleTimeSeriesContainer) computedField).getSimpleTimeSeries();
+      computedField = ((SimpleTimeSeriesContainer) computedField).computeSimple();
     }
 
     TimeSeries<?> timeSeries = ((TimeSeries<?>) computedField);

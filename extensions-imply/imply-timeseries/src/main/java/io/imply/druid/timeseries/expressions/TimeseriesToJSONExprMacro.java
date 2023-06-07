@@ -9,22 +9,21 @@
 
 package io.imply.druid.timeseries.expressions;
 
-import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
-import org.apache.druid.annotations.EverythingIsNonnullByDefault;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExpressionType;
+import org.apache.druid.segment.column.ColumnType;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Objects;
 
-@EverythingIsNonnullByDefault
-public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
+public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
 {
-  public static final String NAME = "max_over_timeseries";
+  public static final String NAME = "timeseries_to_json";
+  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-json");
 
   @Override
   public Expr apply(List<Expr> args)
@@ -33,10 +32,10 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 
     Expr arg = args.get(0);
 
-    class MaxValueExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+    class TimeseriesToJSONExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {
 
-      public MaxValueExpr(Expr arg)
+      public TimeseriesToJSONExpr(Expr arg)
       {
         super(NAME, arg);
       }
@@ -45,8 +44,12 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
+        ExpressionType outputType = Objects.requireNonNull(ExpressionType.fromColumnType(TYPE), "type is null");
         if (evalValue == null) {
-          return ExprEval.ofDouble(null);
+          return ExprEval.ofComplex(
+              outputType,
+              null
+          );
         }
         if (!(evalValue instanceof SimpleTimeSeriesContainer)) {
           throw new IAE(
@@ -57,9 +60,15 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 
         SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
         if (simpleTimeSeriesContainer.isNull()) {
-          return ExprEval.ofDouble(null);
+          return ExprEval.ofComplex(
+              outputType,
+              null
+          );
         }
-        return ExprEval.ofDouble(getMaxValue(simpleTimeSeriesContainer.computeSimple()));
+        return ExprEval.ofComplex(
+            outputType,
+            simpleTimeSeriesContainer.computeSimple()
+        );
       }
 
       @Override
@@ -71,28 +80,15 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.DOUBLE;
+        return ExpressionType.fromColumnType(TYPE);
       }
     }
-    return new MaxValueExpr(arg);
+    return new TimeseriesToJSONExpr(arg);
   }
 
   @Override
   public String name()
   {
     return NAME;
-  }
-
-  @Nullable
-  public static Double getMaxValue(SimpleTimeSeries simpleTimeSeries)
-  {
-    if (simpleTimeSeries.size() == 0) {
-      return null;
-    }
-    double maxValue = simpleTimeSeries.getDataPoints().getDouble(0);
-    for (double candidate : simpleTimeSeries.getDataPoints()) {
-      maxValue = Math.max(maxValue, candidate);
-    }
-    return maxValue;
   }
 }

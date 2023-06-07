@@ -15,6 +15,7 @@ import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
 import io.imply.druid.timeseries.MeanTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
@@ -195,7 +196,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
 
     MeanTimeSeries meanTimeSeries = (MeanTimeSeries) object;
     meanTimeSeries.build();
-    return super.finalizeComputation(meanTimeSeries.computeSimple());
+    return SimpleTimeSeriesContainer.createFromInstance(meanTimeSeries.computeSimple());
   }
 
   @Override

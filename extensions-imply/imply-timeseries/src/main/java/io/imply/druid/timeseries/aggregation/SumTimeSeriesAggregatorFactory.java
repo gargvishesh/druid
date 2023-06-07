@@ -40,7 +40,7 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   private final String timeseriesColumn;
   private final int maxEntries;
   private final Interval window = Intervals.ETERNITY;
-  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-simple");
+  public static final ColumnType TYPE = BaseTimeSeriesAggregatorFactory.TYPE;
 
   private SumTimeSeriesAggregatorFactory(String name, String timeseriesColumn, int maxEntries)
   {

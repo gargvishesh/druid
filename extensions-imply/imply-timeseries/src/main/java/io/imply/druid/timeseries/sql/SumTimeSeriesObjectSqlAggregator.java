@@ -11,7 +11,6 @@ package io.imply.druid.timeseries.sql;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
@@ -44,6 +43,7 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
 {
   private static final SqlAggFunction FUNCTION_INSTANCE = new SumTimeSeriesSqlAggFunction();
   private static final String NAME = "SUM_TIMESERIES";
+  public static final int SQL_DEFAULT_MAX_ENTRIES = 260_000;
 
   @Override
   public SqlAggFunction calciteFunction()
@@ -115,7 +115,9 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
         maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
       }
     } else {
-      maxEntries = SimpleTimeSeriesAggregatorFactory.DEFAULT_MAX_ENTRIES;
+      // keeping the default as a large number due to the above problem where sometimes the maxEntries parameters is
+      // unprocessable due to the current integration with Calcite
+      maxEntries = SQL_DEFAULT_MAX_ENTRIES;
     }
 
     // create the factory

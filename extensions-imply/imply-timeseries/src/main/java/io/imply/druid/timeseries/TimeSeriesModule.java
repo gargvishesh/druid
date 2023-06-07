@@ -20,7 +20,10 @@ import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expressions.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
 import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
 import io.imply.druid.timeseries.sql.InterpolationOperatorConversion;
@@ -29,6 +32,7 @@ import io.imply.druid.timeseries.sql.MeanDeltaTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.SumTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.TimeWeightedAverageOperatorConversion;
+import io.imply.druid.timeseries.sql.TimeseriesToJSONOperatorConversion;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
@@ -124,9 +128,15 @@ public class TimeSeriesModule implements DruidModule
     );
     SqlBindings.addOperatorConversion(binder, TimeWeightedAverageOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, MaxOverTimeseriesOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, TimeseriesToJSONOperatorConversion.class);
 
     // add expressions
     ExpressionModule.addExprMacro(binder, MaxOverTimeseriesExprMacro.class);
+    ExpressionModule.addExprMacro(binder, TimeseriesToJSONExprMacro.class);
+    for (InterpolationTimeseriesExprMacro interpolationTimeseriesExprMacro : InterpolationTimeseriesExprMacro.getMacros()) {
+      ExpressionModule.addExprMacro(binder, interpolationTimeseriesExprMacro.getClass());
+    }
+    ExpressionModule.addExprMacro(binder, TimeWeightedAverageTimeseriesExprMacro.class);
   }
 
   public static void registerSerde()

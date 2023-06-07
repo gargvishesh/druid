@@ -16,21 +16,24 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
-import io.imply.druid.timeseries.interpolation.Interpolator;
-import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
+import io.imply.druid.timeseries.Util;
+import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
+import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.jackson.GranularityModule;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.Result;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.aggregation.AggregationTestHelper;
-import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
+import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.ResultRow;
@@ -142,6 +145,14 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                 )
             )
         )
+        .postAggregators(
+            new ExpressionPostAggregator(
+                "timeseries-name-pa",
+                "timeseries_to_json(\"timeseries-name\")",
+                null,
+                Util.getMacroTable()
+            )
+        )
         .build();
 
     Iterable<Result<TimeseriesResultValue>> results =
@@ -161,7 +172,10 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
 
     Result<TimeseriesResultValue> expectedResult = new Result<>(
         DAY1,
-        new TimeseriesResultValue(ImmutableMap.of("timeseries-name", expectedTimeSeries))
+        new TimeseriesResultValue(ImmutableMap.of(
+            "timeseries-name-pa", expectedTimeSeries,
+            "timeseries-name", SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries)
+        ))
     );
     TestHelper.assertExpectedResults(ImmutableList.of(expectedResult), results);
   }
@@ -189,12 +203,20 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
             )
         ),
         ImmutableList.of(
-            new InterpolationPostAggregator(
+            new ExpressionPostAggregator(
+                "bar",
+                StringUtils.format("%s(\"timeseries-name\")", TimeseriesToJSONExprMacro.NAME),
+                null,
+                Util.getMacroTable()
+            ),
+            new ExpressionPostAggregator(
                 "baz",
-                new FieldAccessPostAggregator("baz", "timeseries-name"),
-                Interpolator.LINEAR,
-                30 * 60 * 1000L,
-                false
+                StringUtils.format(
+                    "%s(\"timeseries-name\",'PT30M')",
+                    new InterpolationTimeseriesExprMacro.LinearInterpolationTimeseriesExprMacro().name()
+                ),
+                null,
+                Util.getMacroTable()
             )
         ),
         null,
@@ -208,8 +230,8 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
     Assert.assertEquals(1, resultRows.size());
 
     ResultRow resultRow = resultRows.get(0); // base agg
-    SimpleTimeSeries result = (SimpleTimeSeries) resultRow.get(0);
-    SimpleTimeSeries resultPostAgg = (SimpleTimeSeries) resultRow.get(1); //post-agg
+    SimpleTimeSeries result = (SimpleTimeSeries) resultRow.get(1);
+    SimpleTimeSeries resultPostAgg = ((SimpleTimeSeriesContainer) resultRow.get(2)).computeSimple(); //post-agg
 
     long[] expectedTimestamps = new long[]{
         1413763200000L, 1413766800000L, 1413770400000L, 1413774000000L, 1413777600000L,

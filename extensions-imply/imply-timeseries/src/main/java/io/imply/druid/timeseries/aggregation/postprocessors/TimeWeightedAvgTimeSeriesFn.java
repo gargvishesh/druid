@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -49,10 +50,10 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
   }
 
   @Override
-  public SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries)
+  public SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries)
   {
     if (input.size() <= 1) {
-      return input;
+      return SimpleTimeSeriesContainer.createFromInstance(input);
     }
 
     ImplyLongArrayList timestamps = input.getTimestamps();
@@ -129,7 +130,7 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
       }
     }
     computedSeries.addDataPoint(prevBucketStart, currentBucketTimeWeightedCount > 0 ? currentBucketTimeWeightedSum / currentBucketTimeWeightedCount : 0);
-    return computedSeries;
+    return SimpleTimeSeriesContainer.createFromInstance(computedSeries);
   }
 
   @Override

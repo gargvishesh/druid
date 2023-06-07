@@ -15,15 +15,15 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import io.imply.druid.timeseries.TimeSeriesModule;
+import io.imply.druid.timeseries.Util;
 import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregationTest;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
-import io.imply.druid.timeseries.interpolation.Interpolator;
-import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
-import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
+import io.imply.druid.timeseries.expressions.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -35,7 +35,6 @@ import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
-import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.scan.ScanQuery;
@@ -141,17 +140,17 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
     cannotVectorize();
     testQuery(
         "SELECT\n"
-        + "  timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'),\n"
-        + "  mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D'),\n"
-        + "  delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D'),\n"
-        + "  linear_interpolation(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H'),\n"
-        + "  padding_interpolation(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H'),\n"
-        + "  time_weighted_average(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'linear', 'P1D'), \n"
-        + "  time_weighted_average(backfill_interpolation(delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H'), 'linear', 'P1D'), \n"
-        + "  linear_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H'), \n"
-        + "  padded_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H'), \n"
-        + "  backfill_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H'), \n"
-        + "  sum_timeseries(ts), \n"
+        + "  timeseries_to_json(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')),\n"
+        + "  timeseries_to_json(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
+        + "  timeseries_to_json(delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
+        + "  timeseries_to_json(linear_interpolation(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')),\n"
+        + "  timeseries_to_json(padding_interpolation(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H')),\n"
+        + "  timeseries_to_json(time_weighted_average(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'linear', 'P1D')), \n"
+        + "  timeseries_to_json(time_weighted_average(backfill_interpolation(delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H'), 'linear', 'P1D')), \n"
+        + "  timeseries_to_json(linear_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
+        + "  timeseries_to_json(padded_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
+        + "  timeseries_to_json(backfill_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
+        + "  timeseries_to_json(sum_timeseries(ts)), \n"
         + "  max_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'))"
         + "FROM foo",
         Collections.singletonList(
@@ -212,68 +211,113 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                           "a5:agg",
                           "ts",
-                          null
+                          260_000
                       )
                   ))
                   .postAggregators(
-                      new InterpolationPostAggregator(
-                          "p1",
-                          new FieldAccessPostAggregator("p0", "a0:agg"),
-                          Interpolator.LINEAR,
-                          12 * 60 * 60 * 1000L,
-                          false
-                      ),
-                      new InterpolationPostAggregator(
-                          "p3",
-                          new FieldAccessPostAggregator("p2", "a3:agg"),
-                          Interpolator.PADDING,
-                          12 * 60 * 60 * 1000L,
-                          false
-                      ),
-                      new TimeWeightedAveragePostAggregator(
-                          "p5",
-                          new FieldAccessPostAggregator("p4", "a0:agg"),
-                          Interpolator.LINEAR,
-                          86400000L
-                      ),
-                      new TimeWeightedAveragePostAggregator(
-                          "p8",
-                          new InterpolationPostAggregator(
-                              "p7",
-                              new FieldAccessPostAggregator("p6", "a4:agg"),
-                              Interpolator.BACKFILL,
-                              12 * 60 * 60 * 1000L,
-                              false
-                          ),
-                          Interpolator.LINEAR,
-                          86400000L
-                      ),
-                      new InterpolationPostAggregator(
-                          "p10",
-                          new FieldAccessPostAggregator("p9", "a0:agg"),
-                          Interpolator.LINEAR,
-                          12 * 60 * 60 * 1000L,
-                          true
-                      ),
-                      new InterpolationPostAggregator(
-                          "p12",
-                          new FieldAccessPostAggregator("p11", "a0:agg"),
-                          Interpolator.PADDING,
-                          12 * 60 * 60 * 1000L,
-                          true
-                      ),
-                      new InterpolationPostAggregator(
-                          "p14",
-                          new FieldAccessPostAggregator("p13", "a0:agg"),
-                          Interpolator.BACKFILL,
-                          12 * 60 * 60 * 1000L,
-                          true
+                      new ExpressionPostAggregator(
+                          "p0",
+                          StringUtils.format("%s(\"a0:agg\")", TimeseriesToJSONExprMacro.NAME),
+                          null,
+                          Util.getMacroTable()
                       ),
                       new ExpressionPostAggregator(
-                          "p15",
+                          "p1",
+                          StringUtils.format("%s(\"a1:agg\")", TimeseriesToJSONExprMacro.NAME),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p2",
+                          StringUtils.format("%s(\"a2:agg\")", TimeseriesToJSONExprMacro.NAME),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p3",
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'PT12H'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.LinearInterpolationTimeseriesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p4",
+                          StringUtils.format(
+                              "%s(%s(\"a3:agg\",'PT12H'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.PaddingInterpolationTimeseriesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p5",
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'linear','P1D'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              TimeWeightedAverageTimeseriesExprMacro.NAME
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p6",
+                          StringUtils.format(
+                              "%s(%s(%s(\"a4:agg\",'PT12H'),'linear','P1D'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              TimeWeightedAverageTimeseriesExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.BackfillInterpolationTimeseriesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p7",
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'PT12H'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.LinearInterpolationTimeseriesWithBoundariesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p8",
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'PT12H'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.PaddingInterpolationTimeseriesWithBoundariesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p9",
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'PT12H'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              new InterpolationTimeseriesExprMacro.BackfillInterpolationTimeseriesWithBoundariesExprMacro().name()
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p10",
+                          StringUtils.format(
+                              "%s(\"a5:agg\")",
+                              TimeseriesToJSONExprMacro.NAME
+                          ),
+                          null,
+                          Util.getMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p11",
                           StringUtils.format("%s(\"a0:agg\")", MaxOverTimeseriesExprMacro.NAME),
                           null,
-                          SumTimeSeriesAggregationTest.MAX_OVER_MACRO_TABLE
+                          Util.getMacroTable()
                       )
                   )
                   .context(QUERY_CONTEXT_DEFAULT)
@@ -330,7 +374,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // sum_timeseries
-                "\"AAEAAAAAAAAAAf//////////AAAAAAAA8L///////////wAAAAAAAPC/AQAAAAAAAAAAAAAAAAA1QA==\"",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[21.0],\"timestamps\":[1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
                 // max_over_timeseries
                 3D
             })
@@ -384,7 +430,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                           "_a0:agg",
                           "a0:agg",
-                          null
+                          SumTimeSeriesObjectSqlAggregator.SQL_DEFAULT_MAX_ENTRIES
                       )
                   ))
                   .setPostAggregatorSpecs(
@@ -393,7 +439,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "p0",
                               "max_over_timeseries(\"_a0:agg\")",
                               null,
-                              SumTimeSeriesAggregationTest.MAX_OVER_MACRO_TABLE
+                              Util.getMacroTable()
                           )
                       )
                   )
@@ -438,7 +484,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "v0",
                           StringUtils.format("%s(\"ts\")", MaxOverTimeseriesExprMacro.NAME),
                           ColumnType.DOUBLE,
-                          SumTimeSeriesAggregationTest.MAX_OVER_MACRO_TABLE
+                          Util.getMacroTable()
                       )
                   )
                   .columns("v0")

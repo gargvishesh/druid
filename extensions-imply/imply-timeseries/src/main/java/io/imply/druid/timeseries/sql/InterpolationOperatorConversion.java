@@ -10,10 +10,6 @@
 package io.imply.druid.timeseries.sql;
 
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.interpolation.Interpolator;
-import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.OperandTypes;
@@ -26,23 +22,16 @@ import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.table.RowSignatures;
-import org.joda.time.Period;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Locale;
 
 public abstract class InterpolationOperatorConversion implements SqlOperatorConversion
 {
   private final String name;
-  private final String interpolator;
-  private final boolean keepBoundariesOnly;
 
-  public InterpolationOperatorConversion(String name, String interpolator, boolean keepBoundariesOnly)
+  public InterpolationOperatorConversion(String name)
   {
     this.name = name;
-    this.interpolator = interpolator;
-    this.keepBoundariesOnly = keepBoundariesOnly;
   }
 
   @Override
@@ -70,29 +59,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
       PostAggregatorVisitor postAggregatorVisitor
   )
   {
-    List<RexNode> operands = ((RexCall) rexNode).getOperands();
-    PostAggregator timeseries = OperatorConversions.toPostAggregator(
-        plannerContext,
-        rowSignature,
-        operands.get(0),
-        postAggregatorVisitor,
-        false
-    );
-
-    if (timeseries == null) {
-      return null;
-    }
-
-    // get the time bucket millis for intervals
-    Long timeBucketMillis = new Period(RexLiteral.stringValue(operands.get(1))).toStandardDuration().getMillis();
-
-    return new InterpolationPostAggregator(
-        postAggregatorVisitor.getOutputNamePrefix() + postAggregatorVisitor.getAndIncrementCounter(),
-        timeseries,
-        Interpolator.valueOf(interpolator.toUpperCase(Locale.ROOT)),
-        timeBucketMillis,
-        keepBoundariesOnly
-    );
+    return null;
   }
 
   @Nullable
@@ -103,14 +70,14 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
       RexNode rexNode
   )
   {
-    return null;
+    return OperatorConversions.convertDirectCall(plannerContext, rowSignature, rexNode, name);
   }
 
   public static class LinearInterpolationOperatorConversion extends InterpolationOperatorConversion
   {
     public LinearInterpolationOperatorConversion()
     {
-      super("linear_interpolation", "linear", false);
+      super("linear_interpolation");
     }
   }
 
@@ -118,7 +85,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
   {
     public LinearInterpolationWithOnlyBoundariesOperatorConversion()
     {
-      super("linear_boundary", "linear", true);
+      super("linear_boundary");
     }
   }
 
@@ -126,7 +93,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
   {
     public PaddingInterpolationOperatorConversion()
     {
-      super("padding_interpolation", "padding", false);
+      super("padding_interpolation");
     }
   }
 
@@ -134,7 +101,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
   {
     public PaddingInterpolationWithOnlyBoundariesOperatorConversion()
     {
-      super("padded_boundary", "padding", true);
+      super("padded_boundary");
     }
   }
 
@@ -142,7 +109,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
   {
     public BackfillInterpolationOperatorConversion()
     {
-      super("backfill_interpolation", "backfill", false);
+      super("backfill_interpolation");
     }
   }
 
@@ -150,7 +117,7 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
   {
     public BackfillInterpolationWithOnlyBoundariesOperatorConversion()
     {
-      super("backfill_boundary", "backfill", true);
+      super("backfill_boundary");
     }
   }
 }

@@ -12,6 +12,7 @@ package io.imply.druid.timeseries.aggregation.postprocessors;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
@@ -20,7 +21,7 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 })
 public interface TimeSeriesFn
 {
-  SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries);
+  SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries);
 
   String cacheString();
 }

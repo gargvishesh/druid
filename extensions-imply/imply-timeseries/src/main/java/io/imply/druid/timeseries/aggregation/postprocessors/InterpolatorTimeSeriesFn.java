@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 
@@ -46,7 +47,7 @@ public class InterpolatorTimeSeriesFn implements TimeSeriesFn
   }
 
   @Override
-  public SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries)
+  public SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries)
   {
     return interpolator.interpolate(
         input,

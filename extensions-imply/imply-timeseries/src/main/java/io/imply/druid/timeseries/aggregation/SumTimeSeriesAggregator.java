@@ -44,20 +44,14 @@ public class SumTimeSeriesAggregator implements Aggregator
     if (timeseriesObject == null) {
       return;
     }
+    if (!(timeseriesObject instanceof SimpleTimeSeriesContainer)) {
+      throw new ISE("Found illegal type for timeseries column : [%s]", timeseriesObject.getClass());
+    }
 
     SimpleTimeSeriesContainer simpleTimeSeriesContainer;
-    if (timeseriesObject instanceof SimpleTimeSeries) {
-      // if timeseries object, then merge it
-      SimpleTimeSeries simpleTimeSeries = (SimpleTimeSeries) timeseriesObject;
-      simpleTimeSeriesContainer = SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries.withWindow(window));
-    } else if (timeseriesObject instanceof SimpleTimeSeriesContainer) {
-      // or else it can be a container object
-      simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) timeseriesObject;
-      if (simpleTimeSeriesContainer.isNull()) {
-        return;
-      }
-    } else {
-      throw new ISE("Found illegal type for timeseries column : [%s]", timeseriesObject.getClass());
+    simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) timeseriesObject;
+    if (simpleTimeSeriesContainer.isNull()) {
+      return;
     }
     // do the aggregation
     if (timeSeries == null) {

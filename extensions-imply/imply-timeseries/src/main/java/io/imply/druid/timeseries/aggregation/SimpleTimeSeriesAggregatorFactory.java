@@ -14,7 +14,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
-import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import org.apache.druid.java.util.common.IAE;
@@ -177,33 +176,13 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   @Override
   public Object finalizeComputation(@Nullable Object object)
   {
-    if (object == null) {
-      return null;
-    }
-
-    SimpleTimeSeries finalResult;
-
-    if (object instanceof SimpleTimeSeries) {
-      finalResult = (SimpleTimeSeries) object;
-    } else {
-      SimpleTimeSeriesContainer finalContainer = (SimpleTimeSeriesContainer) object;
-
-      if (finalContainer.isNull()) {
-        finalResult = new SimpleTimeSeries(getWindow(), getMaxEntries());
-      } else {
-        finalResult = finalContainer.computeSimple();
-      }
-    }
-
-    SimpleTimeSeries finalSimpleTimeSeries = (SimpleTimeSeries) super.finalizeComputation(finalResult);
-
-    return finalSimpleTimeSeries;
+    return object;
   }
 
   @Override
   public ColumnType getIntermediateType()
   {
-    return ColumnType.ofComplex("imply-ts-simple");
+    return BaseTimeSeriesAggregatorFactory.TYPE;
   }
 
   @Override

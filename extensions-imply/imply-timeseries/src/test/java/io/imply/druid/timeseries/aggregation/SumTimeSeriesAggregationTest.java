@@ -18,6 +18,7 @@ import com.google.common.io.Files;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
+import io.imply.druid.timeseries.Util;
 import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -26,7 +27,6 @@ import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
-import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.Result;
@@ -48,14 +48,11 @@ import java.io.File;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
 {
   public static final DateTime DAY1 = DateTimes.of("1970-01-01T00:00:00.000Z");
-  public static final ExprMacroTable MAX_OVER_MACRO_TABLE =
-      new ExprMacroTable(Collections.singletonList(new MaxOverTimeseriesExprMacro()));
   private static AggregationTestHelper timeseriesHelper;
   @ClassRule
   public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -123,7 +120,7 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
                 "max_val_ts",
                 StringUtils.format("%s(fuu)", MaxOverTimeseriesExprMacro.NAME),
                 ColumnType.DOUBLE,
-                MAX_OVER_MACRO_TABLE
+                Util.getMacroTable()
             )
         )
         .aggregators(

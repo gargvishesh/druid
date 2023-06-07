@@ -166,9 +166,9 @@ public class TimeSeriesGroupByAggregationTest
         Intervals.ETERNITY,
         DEFAULT_MAX_ENTRIES
     );
-    Assert.assertEquals(expectedTimeSeries, resultRow.get(0));
-    Assert.assertEquals(expectedAvgTimeSeries, resultRow.get(1));
-    Assert.assertEquals(expectedDeltaTimeSeries, resultRow.get(2));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries), resultRow.get(0));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries), resultRow.get(1));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedDeltaTimeSeries), resultRow.get(2));
     Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedSumTimeSeries), resultRow.get(3));
   }
 

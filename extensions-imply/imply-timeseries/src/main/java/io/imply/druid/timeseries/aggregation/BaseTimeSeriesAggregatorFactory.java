@@ -11,9 +11,7 @@ package io.imply.druid.timeseries.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
-import org.apache.druid.java.util.common.RE;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
@@ -44,7 +42,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   protected final Long timeBucketMillis;
   protected final Interval window;
   protected final int maxEntries;
-  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-simple");
+  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts");
 
   protected BaseTimeSeriesAggregatorFactory(
       String name,
@@ -192,21 +190,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(@Nullable Object object)
   {
-    if (object == null) {
-      return null;
-    }
-
-    if (!(object instanceof SimpleTimeSeries)) {
-      throw new RE("Found object of type %s in finalize", object.getClass());
-    }
-
-    SimpleTimeSeries finalResult = (SimpleTimeSeries) object;
-    if (getPostProcessing() != null) {
-      for (TimeSeriesFn postprocessor : getPostProcessing()) {
-        finalResult = postprocessor.compute(finalResult, getMaxEntries());
-      }
-    }
-    return finalResult;
+    return object;
   }
 
   @Override

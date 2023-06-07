@@ -56,18 +56,13 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
     if (mergeSeriesObject == null) {
       return;
     }
-    SimpleTimeSeriesContainer simpleTimeSeriesContainer;
-    if (mergeSeriesObject instanceof SimpleTimeSeries) {
-      SimpleTimeSeries simpleTimeSeries = (SimpleTimeSeries) mergeSeriesObject;
-      simpleTimeSeries = simpleTimeSeries.withWindow(window);
-      simpleTimeSeriesContainer = SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
-    } else if (mergeSeriesObject instanceof SimpleTimeSeriesContainer) {
-      simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) mergeSeriesObject;
-      if (simpleTimeSeriesContainer.isNull()) {
-        return;
-      }
-    } else {
+    if (!(mergeSeriesObject instanceof SimpleTimeSeriesContainer)) {
       throw new IAE("Found illegal type for timeseries column : [%s]", mergeSeriesObject.getClass());
+    }
+
+    SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) mergeSeriesObject;
+    if (simpleTimeSeriesContainer.isNull()) {
+      return;
     }
     // do the aggregation
     WritableMemory memory = bufferToWritableMemoryCache.getMemory(buf);
