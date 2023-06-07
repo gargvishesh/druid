@@ -64,7 +64,7 @@ dimensionsSpec
 DimensionSpec
 DimensionSpecs
 Dockerfile
-DOCTYPE
+Docusaurus
 DogStatsD
 DOCTYPE
 Double.NEGATIVE_INFINITY
@@ -171,7 +171,6 @@ MiddleManagers
 Montréal
 MSQ
 Murmur3
-MSQE
 MVCC
 MV_TO_ARRAY
 NFS
@@ -496,6 +495,7 @@ substring
 subtask
 subtasks
 supervisorTaskId
+SVG
 symlink
 syntaxes
 tiering
@@ -586,6 +586,7 @@ NUMERIC_PRECISION
 NUMERIC_PRECISION_RADIX
 NUMERIC_SCALE
 ORDINAL_POSITION
+PNG
 POSIX
 P1M
 P1Y
