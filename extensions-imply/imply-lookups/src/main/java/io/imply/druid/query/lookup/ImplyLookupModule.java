@@ -33,22 +33,23 @@ import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * This class exists to be the place that contains forked changes to druid's {@link org.apache.druid.query.lookup.LookupModule}
- *
+ * <p>
  * It exists so that we can hopefully avoid merge conflicts in imports as well as other things by allowing for us to
  * replace singular lines with fully-qualified static calls into this code.
  */
 public class ImplyLookupModule implements DruidModule
 {
-  private static final HashSet<NodeRole> rolesToDoGuiceBinding = new HashSet<>(Arrays.asList(
-      NodeRole.BROKER, NodeRole.HISTORICAL, NodeRole.PEON, NodeRole.INDEXER
-  ));
+  private static final HashSet<NodeRole> ROLES_TO_DO_GUICE_BINDING = new HashSet<>(
+      Arrays.asList(NodeRole.BROKER, NodeRole.HISTORICAL, NodeRole.PEON, NodeRole.INDEXER)
+  );
 
   private Set<NodeRole> roles;
 
   @Inject
   public void injectMe(
       @Self Set<NodeRole> roles
-  ) {
+  )
+  {
     this.roles = roles;
   }
 
@@ -57,7 +58,7 @@ public class ImplyLookupModule implements DruidModule
   {
     boolean doGuiceBinding = false;
     for (NodeRole nodeRole : roles) {
-      if (rolesToDoGuiceBinding.contains(nodeRole)) {
+      if (ROLES_TO_DO_GUICE_BINDING.contains(nodeRole)) {
         doGuiceBinding = true;
         break;
       }

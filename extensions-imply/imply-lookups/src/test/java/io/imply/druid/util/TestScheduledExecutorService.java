@@ -22,24 +22,23 @@ import java.util.concurrent.TimeUnit;
 public class TestScheduledExecutorService implements ScheduledExecutorService
 {
   @Override
-  public ScheduledFuture<?> schedule(
-      @Nonnull Runnable command, long delay, @Nonnull TimeUnit unit
-  )
+  public ScheduledFuture<?> schedule(@Nonnull Runnable command, long delay, @Nonnull TimeUnit unit)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public <V> ScheduledFuture<V> schedule(
-      @Nonnull Callable<V> callable, long delay, @Nonnull TimeUnit unit
-  )
+  public <V> ScheduledFuture<V> schedule(@Nonnull Callable<V> callable, long delay, @Nonnull TimeUnit unit)
   {
     throw new UnsupportedOperationException();
   }
 
   @Override
   public ScheduledFuture<?> scheduleAtFixedRate(
-      @Nonnull Runnable command, long initialDelay, long period, @Nonnull TimeUnit unit
+      @Nonnull Runnable command,
+      long initialDelay,
+      long period,
+      @Nonnull TimeUnit unit
   )
   {
     throw new UnsupportedOperationException();
@@ -47,7 +46,10 @@ public class TestScheduledExecutorService implements ScheduledExecutorService
 
   @Override
   public ScheduledFuture<?> scheduleWithFixedDelay(
-      @Nonnull Runnable command, long initialDelay, long delay, @Nonnull TimeUnit unit
+      @Nonnull Runnable command,
+      long initialDelay,
+      long delay,
+      @Nonnull TimeUnit unit
   )
   {
     throw new UnsupportedOperationException();
@@ -109,7 +111,9 @@ public class TestScheduledExecutorService implements ScheduledExecutorService
 
   @Override
   public <T> List<Future<T>> invokeAll(
-      @Nonnull Collection<? extends Callable<T>> tasks, long timeout, @Nonnull TimeUnit unit
+      @Nonnull Collection<? extends Callable<T>> tasks,
+      long timeout,
+      @Nonnull TimeUnit unit
   )
   {
     throw new UnsupportedOperationException();
@@ -122,9 +126,7 @@ public class TestScheduledExecutorService implements ScheduledExecutorService
   }
 
   @Override
-  public <T> T invokeAny(
-      @Nonnull Collection<? extends Callable<T>> tasks, long timeout, @Nonnull TimeUnit unit
-  )
+  public <T> T invokeAny(@Nonnull Collection<? extends Callable<T>> tasks, long timeout, @Nonnull TimeUnit unit)
   {
     throw new UnsupportedOperationException();
   }

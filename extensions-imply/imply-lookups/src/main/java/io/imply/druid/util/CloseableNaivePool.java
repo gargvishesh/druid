@@ -9,7 +9,6 @@
 
 package io.imply.druid.util;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.java.util.common.ISE;
@@ -18,7 +17,6 @@ import org.apache.druid.java.util.common.logger.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,12 +24,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A CloseableNaivePool is a pool of closeable resources that are maintained in a pool.
- *
+ * <p>
  * It is closely related to a StupidPool, but is slightly different.  The primary difference is that, instead of using
  * cleaners and various other things deep in the weeds, it resorts back to using the finalize() method to catch leaks.
  * It mitigates the cost of finalization by reusing the object that overrides finalize, ensuring that finalize is only
  * ever overridden on an object that is either leaked or actively closed upon closing of the Pool.
- *
+ * <p>
  * The ObjectResourceHolder is the reused object, the ObjectResourceHolder itself is never exposed outside of this
  * class, instead a PooledResourceHolder is returned from the take() method.  The PooledResourceHolder contains a
  * version identifier of the ObjectResourceHolder that it carries a reference to.  This is used to ensure that the
@@ -199,7 +197,8 @@ public class CloseableNaivePool<T extends Closeable> implements Closeable
     private PooledResourceHolder(
         CloseableNaivePool<T>.ObjectResourceHolder actualResource,
         int version
-    )    {
+    )
+    {
       this.actualResource = actualResource;
       this.version = version;
     }

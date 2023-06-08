@@ -43,11 +43,10 @@ public class SegmentFilteredLookupExtractorFactoryTest
   public void setUp() throws Exception
   {
     scheduled = new AtomicBoolean(false);
-    final ScheduledExecutorService myExecutor = new TestScheduledExecutorService(){
+    final ScheduledExecutorService myExecutor = new TestScheduledExecutorService()
+    {
       @Override
-      public ScheduledFuture<?> schedule(
-          Runnable command, long delay, TimeUnit unit
-      )
+      public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit)
       {
         Assert.assertEquals(0, delay);
         Assert.assertEquals(TimeUnit.MILLISECONDS, unit);
@@ -118,7 +117,8 @@ public class SegmentFilteredLookupExtractorFactoryTest
           IAE.class,
           () -> factory.specialize(SpecializableLookup.LookupSpec.parseString("lookupName[colA][notExist]"))
       );
-    } finally {
+    }
+    finally {
       factory.close();
     }
   }
@@ -163,7 +163,8 @@ public class SegmentFilteredLookupExtractorFactoryTest
       Assert.assertEquals("the", yetAnotherLookup.apply("the"));
       Assert.assertEquals("seamstress", yetAnotherLookup.apply("kid"));
       Assert.assertNull(yetAnotherLookup.apply("notThere"));
-    } finally {
+    }
+    finally {
       factory.close();
     }
   }
@@ -208,7 +209,8 @@ public class SegmentFilteredLookupExtractorFactoryTest
       Assert.assertEquals("one", yetAnotherLookup.apply("c"));
       Assert.assertThrows(IAE.class, () -> yetAnotherLookup.apply("d"));
       Assert.assertNull(yetAnotherLookup.apply("notThere"));
-    } finally {
+    }
+    finally {
       factory.close();
     }
   }

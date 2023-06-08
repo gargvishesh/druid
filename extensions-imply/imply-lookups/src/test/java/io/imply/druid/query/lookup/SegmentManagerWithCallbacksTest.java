@@ -65,5 +65,4 @@ public class SegmentManagerWithCallbacksTest
     Assert.assertTrue(manager.loadSegment(withCallbackBob.version("127").build(), false, null));
     Assert.assertEquals(4, callCounter.get());
   }
-
 }

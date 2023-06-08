@@ -13,8 +13,6 @@ import com.google.inject.Inject;
 import org.apache.druid.query.lookup.LookupExtractorFactory;
 import org.apache.druid.query.lookup.LookupExtractorFactoryContainer;
 import org.apache.druid.query.lookup.LookupExtractorFactoryContainerProvider;
-import org.apache.druid.query.lookup.LookupReferencesManager;
-import org.apache.druid.server.SegmentManager;
 
 import java.util.Optional;
 import java.util.Set;

@@ -22,8 +22,10 @@ public class Cron
   private final Callable<Signal> callable;
 
   public Cron(
-      ScheduledExecutorService executor, Callable<Signal> callable
-  ) {
+      ScheduledExecutorService executor,
+      Callable<Signal> callable
+  )
+  {
     this.executor = executor;
     this.callable = callable;
   }
@@ -31,7 +33,8 @@ public class Cron
   public void scheduleWithFixedDelay(
       Duration startDelay,
       Duration runDelay
-  ) {
+  )
+  {
     ScheduledExecutors.scheduleWithFixedDelay(executor, startDelay, runDelay, callable);
   }
 

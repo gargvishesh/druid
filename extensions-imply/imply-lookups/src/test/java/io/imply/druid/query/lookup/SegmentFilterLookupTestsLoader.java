@@ -35,8 +35,8 @@ import java.util.concurrent.ExecutorService;
 @SuppressWarnings("ALL")
 class SegmentFilterLookupTestsLoader implements SegmentLoader
 {
-  private static final QueryableIndex nonFilteredIndex;
-  private static final QueryableIndex filterableIndex;
+  private static final QueryableIndex NON_FILTERED_INDEX;
+  private static final QueryableIndex FILTERABLE_INDEX;
 
   static {
     NullHandling.initializeForTests();
@@ -46,7 +46,7 @@ class SegmentFilterLookupTestsLoader implements SegmentLoader
     tmpDir.deleteOnExit();
 
     final List<String> dimensions = Arrays.asList("colA", "colB", "colC");
-    nonFilteredIndex = IndexBuilder
+    NON_FILTERED_INDEX = IndexBuilder
         .create()
         .tmpDir(tmpDir)
         .segmentWriteOutMediumFactory(OnHeapMemorySegmentWriteOutMediumFactory.instance())
@@ -66,7 +66,7 @@ class SegmentFilterLookupTestsLoader implements SegmentLoader
         )
         .buildMMappedIndex();
 
-    filterableIndex = IndexBuilder
+    FILTERABLE_INDEX = IndexBuilder
         .create()
         .tmpDir(tmpDir)
         .segmentWriteOutMediumFactory(OnHeapMemorySegmentWriteOutMediumFactory.instance())
@@ -97,20 +97,18 @@ class SegmentFilterLookupTestsLoader implements SegmentLoader
   }
 
   @Override
-  public ReferenceCountingSegment getSegment(
-      DataSegment segment, boolean lazy, SegmentLazyLoadFailCallback loadFailed
-  )
+  public ReferenceCountingSegment getSegment(DataSegment segment, boolean lazy, SegmentLazyLoadFailCallback loadFailed)
   {
     if ("nonFiltered".equals(segment.getDataSource())) {
       return ReferenceCountingSegment.wrapSegment(
-          new QueryableIndexSegment(nonFilteredIndex, segment.getId()),
+          new QueryableIndexSegment(NON_FILTERED_INDEX, segment.getId()),
           segment.getShardSpec()
       );
     } else if ("filterable".equals(segment.getDataSource())) {
-        return ReferenceCountingSegment.wrapSegment(
-            new QueryableIndexSegment(filterableIndex, segment.getId()),
-            segment.getShardSpec()
-        );
+      return ReferenceCountingSegment.wrapSegment(
+          new QueryableIndexSegment(FILTERABLE_INDEX, segment.getId()),
+          segment.getShardSpec()
+      );
     } else if ("withCallback".equals(segment.getDataSource())) {
       return ReferenceCountingSegment.wrapSegment(
           new QueryableIndexSegment(TestIndex.getNoRollupMMappedTestIndex(), segment.getId()),
@@ -128,9 +126,7 @@ class SegmentFilterLookupTestsLoader implements SegmentLoader
   }
 
   @Override
-  public void loadSegmentIntoPageCache(
-      DataSegment segment, ExecutorService exec
-  )
+  public void loadSegmentIntoPageCache(DataSegment segment, ExecutorService exec)
   {
 
   }

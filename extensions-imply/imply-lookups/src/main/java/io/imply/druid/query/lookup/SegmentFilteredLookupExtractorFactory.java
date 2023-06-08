@@ -203,37 +203,37 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     final String valueColumn = specParts[1];
     final ImmutableBitmap filterBitmap;
 
-      try (CloseableNaivePool.PooledResourceHolder<SegmentLookupHolder> holder = segRefHolder.getPool().take()) {
-        final SegmentLookupHolder lookupHolder = holder.get();
-        QueryableIndex index = lookupHolder.getIndex();
-        if (lookupHolder.getDictionaryColumn(keyColumn) == null) {
-          throw new IAE("lookup [%s] cannot use column [%s] for key.", spec.getLookupName(), keyColumn);
-        }
-        if (lookupHolder.getDictionaryColumn(valueColumn) == null) {
-          throw new IAE("lookup [%s] cannot use column [%s] for value.", spec.getLookupName(), valueColumn);
-        }
-
-
-        if (filterColumns.size() > 0) {
-          final DefaultBitmapResultFactory bitmapResultFactory = new DefaultBitmapResultFactory(index.getBitmapFactoryForDimensions());
-
-          ImmutableBitmap filterBitmapM = null;
-          for (int i = 0; i < filterColumns.size(); ++i) {
-            final StringValueSetIndex dictIndex = lookupHolder.getAsStringValueSetIndex(filterColumns.get(i));
-            final String specPartValue = specParts[2 + i];
-            if (filterBitmapM == null) {
-              filterBitmapM = dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory);
-            } else {
-              filterBitmapM = filterBitmapM.intersection(
-                  dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory)
-              );
-            }
-          }
-          filterBitmap = filterBitmapM;
-        } else {
-          filterBitmap = null;
-        }
+    try (CloseableNaivePool.PooledResourceHolder<SegmentLookupHolder> holder = segRefHolder.getPool().take()) {
+      final SegmentLookupHolder lookupHolder = holder.get();
+      QueryableIndex index = lookupHolder.getIndex();
+      if (lookupHolder.getDictionaryColumn(keyColumn) == null) {
+        throw new IAE("lookup [%s] cannot use column [%s] for key.", spec.getLookupName(), keyColumn);
       }
+      if (lookupHolder.getDictionaryColumn(valueColumn) == null) {
+        throw new IAE("lookup [%s] cannot use column [%s] for value.", spec.getLookupName(), valueColumn);
+      }
+
+
+      if (filterColumns.size() > 0) {
+        final DefaultBitmapResultFactory bitmapResultFactory = new DefaultBitmapResultFactory(index.getBitmapFactoryForDimensions());
+
+        ImmutableBitmap filterBitmapM = null;
+        for (int i = 0; i < filterColumns.size(); ++i) {
+          final StringValueSetIndex dictIndex = lookupHolder.getAsStringValueSetIndex(filterColumns.get(i));
+          final String specPartValue = specParts[2 + i];
+          if (filterBitmapM == null) {
+            filterBitmapM = dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory);
+          } else {
+            filterBitmapM = filterBitmapM.intersection(
+                dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory)
+            );
+          }
+        }
+        filterBitmap = filterBitmapM;
+      } else {
+        filterBitmap = null;
+      }
+    }
 
     return new LookupExtractorFactory()
     {
@@ -491,7 +491,10 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
   {
     private final LookupSpec spec;
 
-    public NullLookupExtractorFactory(LookupSpec spec) {this.spec = spec;}
+    public NullLookupExtractorFactory(LookupSpec spec)
+    {
+      this.spec = spec;
+    }
 
     @Override
     public boolean start()

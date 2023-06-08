@@ -33,13 +33,12 @@ public class CronFactoryTest
     AtomicLong expectedDelay = new AtomicLong(0);
 
     CronFactory factory = new CronFactory(
-        new TestScheduledExecutorService(){
+        new TestScheduledExecutorService()
+        {
           int callNum = 0;
 
           @Override
-          public ScheduledFuture<?> schedule(
-              Runnable command, long delay, TimeUnit unit
-          )
+          public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit)
           {
             ++callNum;
             if (callNum == 1) {
@@ -83,5 +82,4 @@ public class CronFactoryTest
     cron.submitNow();
     Assert.assertEquals(2, timesCalled.get());
   }
-
 }
