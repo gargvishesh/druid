@@ -1,13 +1,20 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.util;
 
-import com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
