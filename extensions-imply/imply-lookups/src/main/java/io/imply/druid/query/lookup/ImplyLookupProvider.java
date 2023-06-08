@@ -21,11 +21,11 @@ import java.util.Set;
 
 public class ImplyLookupProvider implements LookupExtractorFactoryContainerProvider
 {
-  private final LookupReferencesManager delegate;
+  private final LookupExtractorFactoryContainerProvider delegate;
 
   @Inject
   public ImplyLookupProvider(
-      LookupReferencesManager delegate
+      @ImplyLookup LookupExtractorFactoryContainerProvider delegate
   )
   {
     this.delegate = delegate;
@@ -40,19 +40,15 @@ public class ImplyLookupProvider implements LookupExtractorFactoryContainerProvi
   @Override
   public Optional<LookupExtractorFactoryContainer> get(String lookupName)
   {
-    if (lookupName.endsWith("]")) {
+    final SpecializableLookup.LookupSpec lookupSpec = SpecializableLookup.LookupSpec.parseString(lookupName);
+    if (lookupSpec == null) {
+      return delegate.get(lookupName);
+    } else {
       // We might have a lookup that we want to specialize, so let's look for the base lookup.
       // At various points, if we fail to get what we want with the complex name, we fall through to
       // logic that just passes it through un-tampered to the delegate.
 
-      int firstSquareBracket = lookupName.indexOf('[');
-      if (firstSquareBracket <= 0) {
-        return delegate.get(lookupName);
-      }
-
-      final String tableName = lookupName.substring(0, firstSquareBracket);
-
-      final LookupExtractorFactoryContainer container = delegate.get(tableName).orElse(null);
+      final LookupExtractorFactoryContainer container = delegate.get(lookupSpec.getLookupName()).orElse(null);
 
       if (container == null) {
         return delegate.get(lookupName);
@@ -60,14 +56,11 @@ public class ImplyLookupProvider implements LookupExtractorFactoryContainerProvi
 
       LookupExtractorFactory factory = container.getLookupExtractorFactory();
       if (factory instanceof SpecializableLookup) {
-        String val = lookupName.substring(firstSquareBracket + 1, lookupName.length() - 1);
-        final LookupExtractorFactory specializedFactory = ((SpecializableLookup) factory).specialize(val);
+        final LookupExtractorFactory specializedFactory = ((SpecializableLookup) factory).specialize(lookupSpec);
         return Optional.of(new LookupExtractorFactoryContainer(container.getVersion(), specializedFactory));
       }
 
       return delegate.get(lookupName);
     }
-
-    return delegate.get(lookupName);
   }
 }

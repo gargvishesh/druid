@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) Imply Data, Inc. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Imply Data, Inc. You shall not disclose such Confidential
+ * Information and shall use it only in accordance with the terms
+ * of the license agreement you entered into with Imply.
+ */
+
 package io.imply.druid.util;
 
 import com.google.common.base.Preconditions;
@@ -48,24 +57,6 @@ public class CloseableNaivePool<T extends Closeable> implements Closeable
    * pool and is not a limit on the number of objects created by the pool, which is infinite.
    */
   private final int objectsCacheMaxCount;
-
-  public static <T extends Closeable> CloseableNaivePool<T> make(String name, Supplier<T> generator, int initCount, int objectsCacheMaxCount)
-  {
-    Preconditions.checkArgument(
-        initCount <= objectsCacheMaxCount,
-        "initCount[%s] must be less/equal to objectsCacheMaxCount[%s]",
-        initCount,
-        objectsCacheMaxCount
-    );
-
-    List<T> objects = new ArrayList<>(initCount);
-    for (int i = 0; i < initCount; i++) {
-      objects.add(generator.get());
-    }
-
-    return new CloseableNaivePool<>(name, generator, objects, objectsCacheMaxCount);
-  }
-
 
   public CloseableNaivePool(String name, Supplier<T> generator)
   {
