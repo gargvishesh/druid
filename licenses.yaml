@@ -5443,7 +5443,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Microsoft Corporation.
-version: 16.14.35
+version: 18.2.8
 license_file_path: licenses/bin/@types-react.MIT
 
 ---
@@ -5463,7 +5463,7 @@ license_category: binary
 module: web-console
 license_name: BSD-3-Clause License
 copyright: Ajax.org B.V.
-version: 1.4.13
+version: 1.4.14
 license_file_path: licenses/bin/ace-builds.BSD3
 
 ---
@@ -6101,7 +6101,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Jordan Harband
-version: 1.0.4
+version: 1.1.1
 license_file_path: licenses/bin/is-arguments.MIT
 
 ---
@@ -6131,7 +6131,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Jordan Harband
-version: 1.0.1
+version: 1.0.5
 license_file_path: licenses/bin/is-date-object.MIT
 
 ---
@@ -6276,16 +6276,6 @@ license_file_path: licenses/bin/memoize-one.MIT
 
 ---
 
-name: "mini-create-react-context"
-license_category: binary
-module: web-console
-license_name: MIT License
-copyright: StringEpsilon
-version: 0.3.2
-license_file_path: licenses/bin/mini-create-react-context.MIT
-
----
-
 name: "no-case"
 license_category: binary
 module: web-console
@@ -6331,7 +6321,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Jordan Harband
-version: 1.0.1
+version: 1.1.5
 license_file_path: licenses/bin/object-is.MIT
 
 ---
@@ -6460,7 +6450,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: James Hrisho
-version: 9.5.0
+version: 10.1.0
 license_file_path: licenses/bin/react-ace.MIT
 
 ---
@@ -6490,7 +6480,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Facebook, Inc. and its affiliates.
-version: 16.14.0
+version: 18.2.0
 license_file_path: licenses/bin/react-dom.MIT
 
 ---
@@ -6500,7 +6490,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Chris Bolin
-version: 3.2.0
+version: 3.2.2
 license_file_path: licenses/bin/react-fast-compare.MIT
 
 ---
@@ -6529,8 +6519,8 @@ name: "react-router-dom"
 license_category: binary
 module: web-console
 license_name: MIT License
-copyright: React Training
-version: 5.1.2
+copyright: Remix Software
+version: 5.3.4
 license_file_path: licenses/bin/react-router-dom.MIT
 
 ---
@@ -6539,8 +6529,8 @@ name: "react-router"
 license_category: binary
 module: web-console
 license_name: MIT License
-copyright: React Training
-version: 5.1.2
+copyright: Remix Software
+version: 5.3.4
 license_file_path: licenses/bin/react-router.MIT
 
 ---
@@ -6580,7 +6570,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Facebook, Inc. and its affiliates.
-version: 16.14.0
+version: 18.2.0
 license_file_path: licenses/bin/react.MIT
 
 ---
@@ -6600,7 +6590,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Jordan Harband
-version: 1.4.3
+version: 1.5.0
 license_file_path: licenses/bin/regexp.prototype.flags.MIT
 
 ---
@@ -6650,7 +6640,7 @@ license_category: binary
 module: web-console
 license_name: MIT License
 copyright: Facebook, Inc. and its affiliates.
-version: 0.19.1
+version: 0.23.0
 license_file_path: licenses/bin/scheduler.MIT
 
 ---
