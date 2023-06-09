@@ -288,10 +288,10 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
 
   private static class AdTechInventorySqlAggFunction extends SqlAggFunction
   {
-    private static final String SIGNATURE1 = "'" + NAME + "'(userColumn, impressionColumn, frequencyCap, sampleSize)";
-    private static final String SIGNATURE2 = "'" + NAME + "'(userColumn, impressionColumn, frequencyCap)";
-    private static final String SIGNATURE3 = "'" + NAME + "'(userColumn, impressionColumn)";
-    private static final String SIGNATURE4 = "'" + NAME + "'(complexColumn, frequencyCap)";
+    private static final String SIGNATURE1 = "'" + NAME + "(userColumn, impressionColumn, frequencyCap, sampleSize)'";
+    private static final String SIGNATURE2 = "'" + NAME + "(userColumn, impressionColumn, frequencyCap)'";
+    private static final String SIGNATURE3 = "'" + NAME + "(userColumn, impressionColumn)'";
+    private static final String SIGNATURE4 = "'" + NAME + "(complexColumn, frequencyCap)'";
 
     AdTechInventorySqlAggFunction()
     {
