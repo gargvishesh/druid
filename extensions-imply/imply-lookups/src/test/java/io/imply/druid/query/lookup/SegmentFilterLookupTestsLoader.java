@@ -15,6 +15,7 @@ import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.TimestampSpec;
+import org.apache.druid.java.util.common.FileUtils;
 import org.apache.druid.math.expr.ExpressionProcessing;
 import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
@@ -42,7 +43,7 @@ class SegmentFilterLookupTestsLoader implements SegmentLoader
     NullHandling.initializeForTests();
     ExpressionProcessing.initializeForTests();
 
-    File tmpDir = Files.createTempDir();
+    File tmpDir = FileUtils.createTempDir();
     tmpDir.deleteOnExit();
 
     final List<String> dimensions = Arrays.asList("colA", "colB", "colC");
