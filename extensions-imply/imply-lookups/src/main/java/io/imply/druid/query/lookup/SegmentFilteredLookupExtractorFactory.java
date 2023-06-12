@@ -27,6 +27,7 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.DefaultBitmapResultFactory;
 import org.apache.druid.query.TableDataSource;
+import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.lookup.LookupExtractor;
 import org.apache.druid.query.lookup.LookupExtractorFactory;
 import org.apache.druid.query.lookup.LookupIntrospectHandler;
@@ -48,6 +49,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,6 +65,8 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
 {
   private static final Logger log = new Logger(SegmentFilteredLookupExtractorFactory.class);
 
+  private static final byte[] CLASS_CACHE_KEY = "impseglk".getBytes(StandardCharsets.UTF_8);
+
   private final String table;
   private final List<String> filterColumns;
   @Nullable
@@ -73,6 +78,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
   @Nullable
   private final Runnable tableCallback;
 
+  private final byte[] cacheKeyBase;
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final AtomicReference<SegRefHolder> segRef = new AtomicReference<>(null);
 
@@ -95,6 +101,12 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       this.cron = cronFactory.make(new SegmentReferenceUpdatingCallable());
       this.tableCallback = cron::submitNow;
     }
+
+    cacheKeyBase = new CacheKeyBuilder((byte) -1)
+        .appendByteArray(CLASS_CACHE_KEY)
+        .appendString(table)
+        .appendStrings(filterColumns)
+        .build();
   }
 
   @Override
@@ -170,6 +182,11 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       );
     }
 
+    final byte[] cacheKey = new CacheKeyBuilder((byte) 0)
+        .appendByteArray(cacheKeyBase)
+        .appendStrings(Arrays.asList(specParts))
+        .build();
+
     final SegRefHolder segRefHolder = segRef.get();
     // Technically, this null check could happen before the validation, but then we get into a world where someone
     // might think that their query is good just because the segment hasn't been loaded yet.  So, we do the input
@@ -196,7 +213,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       // a bit more reassurance that we have all of the necessary segments already loaded.  Once we had that in place
       // it would likely become safe to switch the treatment here to (1) as then the lack of loading of the segment is
       // indicative of something much more nefarious and unexpected.
-      return new NullLookupExtractorFactory(spec);
+      return new NullLookupExtractorFactory(cacheKey);
     }
 
     final String keyColumn = specParts[0];
@@ -259,13 +276,13 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       @Override
       public LookupIntrospectHandler getIntrospectHandler()
       {
-        throw new UnsupportedOperationException();
+        return null;
       }
 
       @Override
       public LookupExtractor get()
       {
-        return new SegmentFilteredLookupExtractor(segRefHolder, keyColumn, valueColumn, filterBitmap);
+        return new SegmentFilteredLookupExtractor(segRefHolder, keyColumn, valueColumn, filterBitmap, cacheKey);
       }
     };
   }
@@ -393,18 +410,21 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     private final String keyColumn;
     private final String valueColumn;
     private final ImmutableBitmap filterBitmap;
+    private final byte[] cacheKey;
 
     private SegmentFilteredLookupExtractor(
         SegRefHolder segRef,
         String keyColumn,
         String valueColumn,
-        ImmutableBitmap filterBitmap
+        ImmutableBitmap filterBitmap,
+        byte[] cacheKey
     )
     {
       this.segRef = segRef;
       this.keyColumn = keyColumn;
       this.valueColumn = valueColumn;
       this.filterBitmap = filterBitmap;
+      this.cacheKey = cacheKey;
     }
 
     @Nullable
@@ -459,13 +479,13 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     @Override
     public boolean canIterate()
     {
-      throw new UnsupportedOperationException();
+      return false;
     }
 
     @Override
     public boolean canGetKeySet()
     {
-      throw new UnsupportedOperationException();
+      return false;
     }
 
     @Override
@@ -483,17 +503,17 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     @Override
     public byte[] getCacheKey()
     {
-      throw new UnsupportedOperationException();
+      return cacheKey;
     }
   }
 
-  private class NullLookupExtractorFactory implements LookupExtractorFactory
+  private static class NullLookupExtractorFactory implements LookupExtractorFactory
   {
-    private final LookupSpec spec;
+    private final byte[] cacheKey;
 
-    public NullLookupExtractorFactory(LookupSpec spec)
+    public NullLookupExtractorFactory(byte[] cacheKey)
     {
-      this.spec = spec;
+      this.cacheKey = cacheKey;
     }
 
     @Override
@@ -554,24 +574,19 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         @Override
         public Iterable<Map.Entry<String, String>> iterable()
         {
-          // This is used by the introspection endpoint, so throwing an exception here that the table hasn't
-          // been loaded can actually be useful;
-          throw new ISE("Table [%s] not loaded for lookup [%s]", table, spec.getLookupName());
+          return Collections.emptyList();
         }
 
         @Override
         public Set<String> keySet()
         {
-          // This is used by the introspection endpoint, so throwing an exception here that the table hasn't
-          // been loaded can actually be useful;
-          throw new ISE("Table [%s] not loaded for lookup [%s]", table, spec.getLookupName());
+          return Collections.emptySet();
         }
 
         @Override
         public byte[] getCacheKey()
         {
-          // not called
-          throw new UnsupportedOperationException();
+          return cacheKey;
         }
       };
     }

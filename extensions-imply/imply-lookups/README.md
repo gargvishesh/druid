@@ -27,7 +27,7 @@ This extension should be added to all node types.  Once added, it will be possib
 }
 ```
 
-This defines a lookup over table (datasource) "lookup-data" and also enables the usage of extra columns for filters.
+This defines a lookup over table "lookup-data" and also enables the usage of extra columns for filters.
 Given that filterColumns is an array, it's possible to define multiple, but the example above defines only one: "colA"
 
 Once that lookup is defined and has been pushed out across the cluster, it can be accessed via SQL like
@@ -49,3 +49,12 @@ Or the equivalent native lookup would be
     "optimize": true
   }
 ```
+
+# Known Caveats to Usage
+
+1. Tables used for lookups must be single-segment tables.
+2. At the time of writing/merge, there is a race in loading of the broadcast segments which means that it is not 
+   possible to ensure that tasks receive a copy of their broadcast segment(s) before ingesting data.  This means
+   that this lookup is primarily only useful for query-only use cases.  This caveat can be relaxed in the future
+   when we add the ability for nodes to check in with the coordinator at startup to load up their broadcast
+   segments.

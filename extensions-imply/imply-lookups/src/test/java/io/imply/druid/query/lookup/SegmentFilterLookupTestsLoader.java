@@ -10,7 +10,6 @@
 package io.imply.druid.query.lookup;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
