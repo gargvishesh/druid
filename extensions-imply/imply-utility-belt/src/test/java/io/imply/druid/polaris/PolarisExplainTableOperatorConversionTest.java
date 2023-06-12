@@ -45,7 +45,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"signature\":[{\"name\":\"x\",\"type\":\"STRING\"},"
                                     + "{\"name\":\"y\",\"type\":\"STRING\"},{\"name\":\"z\",\"type\":\"LONG\"}],"
                                     + "\"columnMappings\":[{\"queryColumn\":\"x\",\"outputColumn\":\"x\"},{\"queryColumn\":\"y\",\"outputColumn\":\"y\"},{\"queryColumn\":\"z\",\"outputColumn\":\"z\"}]}]";
-    String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
+    String attributes = "{\"statementType\":\"SELECT\"}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
 
@@ -81,7 +81,7 @@ public class PolarisExplainTableOperatorConversionTest extends BaseCalciteQueryT
                                     + "\"signature\":[{\"name\":\"v0\",\"type\":\"STRING\"},{\"name\":\"y\","
                                     + "\"type\":\"STRING\"},{\"name\":\"v1\",\"type\":\"LONG\"}],"
                                     + "\"columnMappings\":[{\"queryColumn\":\"v0\",\"outputColumn\":\"EXPR$0\"},{\"queryColumn\":\"y\",\"outputColumn\":\"y\"},{\"queryColumn\":\"v1\",\"outputColumn\":\"EXPR$2\"}]}]";
-    String attributes = "{\"statementType\":\"SELECT\",\"targetDataSource\":null}";
+    String attributes = "{\"statementType\":\"SELECT\"}";
     Map<String, Object> contextWithNativeExplain = new HashMap<>(QUERY_CONTEXT_DEFAULT);
     contextWithNativeExplain.put(PlannerConfig.CTX_KEY_USE_NATIVE_QUERY_EXPLAIN, "true");
 
