@@ -29,7 +29,7 @@
   <parent>
     <groupId>org.apache.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>2023.06.0-iap-SNAPSHOT</version>
+    <version>2023.07.0-iap-SNAPSHOT</version>
   </parent>
 
   <dependencies>
