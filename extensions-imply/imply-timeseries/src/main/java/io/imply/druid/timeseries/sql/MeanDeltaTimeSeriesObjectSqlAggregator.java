@@ -67,7 +67,6 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
             dataColumnName,
             timeColumnName,
             null,
-            null,
             timeBucketMillis,
             window,
             maxEntries);
@@ -89,7 +88,6 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
             StringUtils.format("%s:agg", name),
             dataColumnName,
             timeColumnName,
-            null,
             null,
             timeBucketMillis,
             window,

@@ -23,7 +23,6 @@ public class TimeSeriesAggregationConfigTest
                                                                             "",
                                                                             "",
                                                                             null,
-                                                                            null,
                                                                             2L,
                                                                             Intervals.utc(3, 7),
                                                                             null);
@@ -37,7 +36,6 @@ public class TimeSeriesAggregationConfigTest
         DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory("",
                                                                               "",
                                                                               "",
-                                                                              null,
                                                                               null,
                                                                               2L,
                                                                               Intervals.utc(3, 7),

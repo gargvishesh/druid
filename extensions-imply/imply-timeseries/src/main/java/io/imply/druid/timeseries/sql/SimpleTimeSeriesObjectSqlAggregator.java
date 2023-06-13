@@ -151,7 +151,6 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
         dataColumnName,
         timeColumnName,
         null,
-        null,
         window,
         maxEntries);
 

@@ -139,7 +139,6 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                     null,
                     null,
                     "fuu",
-                    null,
                     FULL_ON_INTERVAL,
                     MAX_ENTRIES
                 )
@@ -197,7 +196,6 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                 null,
                 null,
                 "fuu",
-                null,
                 dataIntervalPlusOneHour,
                 32
             )

@@ -17,7 +17,6 @@ import io.imply.druid.timeseries.MeanTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
-import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
@@ -45,13 +44,12 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       @Nullable String dataColumn,
       @Nullable String timeColumn,
       @Nullable String timeseriesColumn,
-      @Nullable List<TimeSeriesFn> postProcessing,
       Long timeBucketMillis,
       Interval window,
       int maxEntries
   )
   {
-    super(name, dataColumn, timeColumn, timeseriesColumn, postProcessing, timeBucketMillis, window, maxEntries);
+    super(name, dataColumn, timeColumn, timeseriesColumn, timeBucketMillis, window, maxEntries);
   }
 
   @JsonCreator
@@ -60,7 +58,6 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       @JsonProperty("dataColumn") @Nullable final String dataColumn,
       @JsonProperty("timeColumn") @Nullable final String timeColumn,
       @JsonProperty("timeseriesColumn") @Nullable final String timeseriesColumn,
-      @JsonProperty("postProcessing") @Nullable final List<TimeSeriesFn> postProcessing,
       @JsonProperty("timeBucketMillis") final Long timeBucketMillis,
       @JsonProperty("window") Interval window,
       @JsonProperty("maxEntries") @Nullable final Integer maxEntries
@@ -88,7 +85,6 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
                                                dataColumn,
                                                timeColumn,
                                                timeseriesColumn,
-                                               postProcessing,
                                                timeBucketMillis,
                                                window,
                                                finalMaxEntries);
@@ -159,7 +155,6 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
                                                null,
                                                null,
                                                getName(),
-                                               getPostProcessing(),
                                                getTimeBucketMillis(),
                                                getWindow(),
                                                getMaxEntries());
@@ -219,7 +214,6 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
         getDataColumn(),
         getTimeColumn(),
         getTimeseriesColumn(),
-        getPostProcessing(),
         getTimeBucketMillis(),
         getWindow(),
         getMaxEntries()

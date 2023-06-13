@@ -103,7 +103,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                                                              "m1",
                                                              "v0",
                                                              null,
-                                                             null,
                                                              Intervals.ETERNITY,
                                                              null
                                                          )
@@ -164,7 +163,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "m1",
                           "__time",
                           null,
-                          null,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           null
                       ),
@@ -172,7 +170,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "a1:agg",
                           "m1",
                           "__time",
-                          null,
                           null,
                           86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
@@ -183,7 +180,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "m1",
                           "__time",
                           null,
-                          null,
                           86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           null
@@ -193,7 +189,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "m1",
                           "__time",
                           null,
-                          null,
                           86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           100
@@ -202,7 +197,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "a4:agg",
                           "m1",
                           "__time",
-                          null,
                           null,
                           86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
@@ -415,7 +409,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                                   "a0:agg",
                                   "m1",
                                   "v0",
-                                  null,
                                   null,
                                   Intervals.ETERNITY,
                                   null
