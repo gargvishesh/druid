@@ -13,9 +13,9 @@ import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.postprocessors.InterpolatorTimeSeriesFn;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -81,14 +81,14 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
           );
         }
         SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.computeSimple();
+        InterpolatorTimeSeriesFn interpolatorTimeSeriesFn = new InterpolatorTimeSeriesFn(
+            bucketMillis,
+            interpolator,
+            keepBoundariesOnly
+        );
         return ExprEval.ofComplex(
             outputType,
-            interpolator.interpolate(
-                simpleTimeSeries,
-                new DurationGranularity(bucketMillis, 0),
-                simpleTimeSeries.getMaxEntries(),
-                keepBoundariesOnly
-            )
+            interpolatorTimeSeriesFn.compute(simpleTimeSeries, simpleTimeSeries.getMaxEntries())
         );
       }
 

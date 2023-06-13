@@ -77,7 +77,9 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         }
         return ExprEval.ofComplex(
             outputType,
-            buildDeltaSeries(simpleTimeSeriesContainer.computeSimple(), finalBucketMillis)
+            SimpleTimeSeriesContainer.createFromInstance(
+                buildDeltaSeries(simpleTimeSeriesContainer.computeSimple(), finalBucketMillis)
+            )
         );
       }
 

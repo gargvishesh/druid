@@ -24,8 +24,6 @@ import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expressions.TimeWeightedAverageTimeseriesExprMacro;
 import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
-import io.imply.druid.timeseries.postaggregators.InterpolationPostAggregator;
-import io.imply.druid.timeseries.postaggregators.TimeWeightedAveragePostAggregator;
 import io.imply.druid.timeseries.sql.InterpolationOperatorConversion;
 import io.imply.druid.timeseries.sql.MaxOverTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.MeanDeltaTimeSeriesObjectSqlAggregator;
@@ -74,14 +72,6 @@ public class TimeSeriesModule implements DruidModule
             new NamedType(
                 SumTimeSeriesAggregatorFactory.class,
                 SUM_TIMESERIES
-            ),
-            new NamedType(
-                InterpolationPostAggregator.class,
-                INTERPOLATION_POST_AGG
-            ),
-            new NamedType(
-                TimeWeightedAveragePostAggregator.class,
-                TIME_WEIGHTED_AVERAGE_POST_AGG
             )
         ));
   }
