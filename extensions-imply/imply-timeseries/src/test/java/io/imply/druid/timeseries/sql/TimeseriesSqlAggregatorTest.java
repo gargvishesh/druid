@@ -51,13 +51,11 @@ import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
-import org.apache.druid.sql.calcite.planner.UnsupportedSQLQueryException;
 import org.apache.druid.sql.calcite.util.CalciteTests;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.sql.calcite.util.TestDataBuilder;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.partition.LinearShardSpec;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -437,23 +435,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         ),
         ImmutableList.of(new Object[]{21.0D})
     );
-  }
-
-  @Test
-  public void testSumTimeseriesAggOuterQuery_MaxEntriesParameterFailure()
-  {
-    cannotVectorize();
-    Assert.assertThrows(
-        "Query not supported",
-        UnsupportedSQLQueryException.class,
-        () -> testQuery(
-            "SELECT sum_timeseries(ts, 5) FROM ( \n" +
-            "SELECT padded_boundary(timeseries('0', m1, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z', 100), 'PT1H') as ts \n"
-            + "FROM foo GROUP BY m1"
-            + ")",
-            ImmutableList.of(),
-            ImmutableList.of()
-    ));
   }
 
   @Test

@@ -109,8 +109,7 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
         // In some cases, even if the maxEntries parameter is
         // present as a literal, the child node of an aggregate may not be a LogicalProject through which the constant can
         // be extracted. In such cases, the parameter becomes an RexInputRef for the aggreate leading to query planning
-        // failure. A test has been added for the same (testSumTimeseriesAggOuterQuery_MaxEntriesParameterFailure), so
-        // that when we fix this problem, we can remove that test as well.
+        // failure.
         return null;
       } else {
         maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
