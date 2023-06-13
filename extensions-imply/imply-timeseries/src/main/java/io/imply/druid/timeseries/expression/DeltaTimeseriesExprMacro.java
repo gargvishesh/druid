@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.expressions;
+package io.imply.druid.timeseries.expression;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
@@ -114,25 +114,28 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     ImplyLongArrayList deltaSeriesTimestamps = new ImplyLongArrayList();
     ImplyDoubleArrayList deltaSeriesDataPoints = new ImplyDoubleArrayList();
     DurationGranularity durationGranularity = new DurationGranularity(bucketMillis, 0);
-    long currBucketStart = durationGranularity.bucketStart(simpleTimeSeriesTimestamps.getLong(0));
+    long prevBucketStart = durationGranularity.bucketStart(simpleTimeSeriesTimestamps.getLong(0));
     double prevValue = simpleTimeSeriesDataPoints.getDouble(0);
     double runningSum = 0;
     for (int i = 1; i < simpleTimeSeries.size(); i++) {
       double currValue = simpleTimeSeriesDataPoints.getDouble(i);
       if (currValue > prevValue) {
         long currTimestamp = simpleTimeSeriesTimestamps.getLong(i);
-        if (durationGranularity.bucketStart(currTimestamp) > currBucketStart) {
-          deltaSeriesTimestamps.add(currBucketStart);
+        long currBucketStart = durationGranularity.bucketStart(currTimestamp);
+        if (currBucketStart > prevBucketStart) {
+          deltaSeriesTimestamps.add(prevBucketStart);
           deltaSeriesDataPoints.add(runningSum);
           runningSum = 0;
-          currBucketStart = durationGranularity.bucketStart(currTimestamp);
+          prevBucketStart = currBucketStart;
         }
         runningSum += currValue - prevValue;
         prevValue = currValue;
       }
     }
-    deltaSeriesTimestamps.add(currBucketStart);
-    deltaSeriesDataPoints.add(runningSum);
+    if (deltaSeriesTimestamps.size() > 1) {
+      deltaSeriesTimestamps.add(prevBucketStart);
+      deltaSeriesDataPoints.add(runningSum);
+    }
     return new SimpleTimeSeries(
         deltaSeriesTimestamps,
         deltaSeriesDataPoints,

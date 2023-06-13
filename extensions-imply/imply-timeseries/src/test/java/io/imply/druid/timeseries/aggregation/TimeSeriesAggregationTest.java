@@ -18,7 +18,7 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
-import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.jackson.GranularityModule;

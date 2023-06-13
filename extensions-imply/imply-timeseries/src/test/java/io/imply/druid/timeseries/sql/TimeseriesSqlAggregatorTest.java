@@ -16,14 +16,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
-import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.TimeWeightedAverageTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
+import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
+import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -141,11 +142,11 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         "SELECT\n"
         + "  timeseries_to_json(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')),\n"
         + "  timeseries_to_json(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
-        + "  timeseries_to_json(delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
+        + "  timeseries_to_json(delta_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'P1D')),\n"
         + "  timeseries_to_json(linear_interpolation(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')),\n"
         + "  timeseries_to_json(padding_interpolation(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H')),\n"
         + "  timeseries_to_json(time_weighted_average(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'linear', 'P1D')), \n"
-        + "  timeseries_to_json(time_weighted_average(backfill_interpolation(delta_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H'), 'linear', 'P1D')), \n"
+        + "  timeseries_to_json(time_weighted_average(backfill_interpolation(delta_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 100), 'P1D'), 'PT12H'), 'linear', 'P1D')), \n"
         + "  timeseries_to_json(linear_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(padded_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(backfill_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
@@ -175,35 +176,25 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           null
                       ),
-                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
+                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
                           "a2:agg",
                           "m1",
                           "__time",
                           null,
                           86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                          null
+                          100
                       ),
-                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                           "a3:agg",
                           "m1",
                           "__time",
                           null,
-                          86400000L,
-                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
-                          100
-                      ),
-                      DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
-                          "a4:agg",
-                          "m1",
-                          "__time",
-                          null,
-                          86400000L,
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           100
                       ),
                       SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
-                          "a5:agg",
+                          "a4:agg",
                           "ts",
                           260_000
                       )
@@ -223,7 +214,11 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       ),
                       new ExpressionPostAggregator(
                           "p2",
-                          StringUtils.format("%s(\"a2:agg\")", TimeseriesToJSONExprMacro.NAME),
+                          StringUtils.format(
+                              "%s(%s(\"a0:agg\",'P1D'))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              DeltaTimeseriesExprMacro.NAME
+                          ),
                           null,
                           Util.getMacroTable()
                       ),
@@ -240,7 +235,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       new ExpressionPostAggregator(
                           "p4",
                           StringUtils.format(
-                              "%s(%s(\"a3:agg\",'PT12H'))",
+                              "%s(%s(\"a2:agg\",'PT12H'))",
                               TimeseriesToJSONExprMacro.NAME,
                               new InterpolationTimeseriesExprMacro.PaddingInterpolationTimeseriesExprMacro().name()
                           ),
@@ -260,10 +255,11 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       new ExpressionPostAggregator(
                           "p6",
                           StringUtils.format(
-                              "%s(%s(%s(\"a4:agg\",'PT12H'),'linear','P1D'))",
+                              "%s(%s(%s(%s(\"a3:agg\",'P1D'),'PT12H'),'linear','P1D'))",
                               TimeseriesToJSONExprMacro.NAME,
                               TimeWeightedAverageTimeseriesExprMacro.NAME,
-                              new InterpolationTimeseriesExprMacro.BackfillInterpolationTimeseriesExprMacro().name()
+                              new InterpolationTimeseriesExprMacro.BackfillInterpolationTimeseriesExprMacro().name(),
+                              DeltaTimeseriesExprMacro.NAME
                           ),
                           null,
                           Util.getMacroTable()
@@ -301,7 +297,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       new ExpressionPostAggregator(
                           "p10",
                           StringUtils.format(
-                              "%s(\"a5:agg\")",
+                              "%s(\"a4:agg\")",
                               TimeseriesToJSONExprMacro.NAME
                           ),
                           null,
@@ -330,7 +326,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // delta_timeseries
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                    + "\"dataPoints\":[0.0,0.0,0.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"dataPoints\":[0.0,1.0,1.0],\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // linear_interpolation
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
@@ -349,7 +345,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // time_weighted_average(backfill_interpolation)
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[0.0,0.0,3.0],"
+                  + "\"dataPoints\":[0.75,1.0,3.25],"
                   + "\"timestamps\":[946684800000,946771200000,946857600000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // linear_boundary
@@ -466,7 +462,8 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
     cannotVectorize();
     testQuery(
         "SELECT\n"
-        + "  max_over_timeseries(ts) "
+        + "  max_over_timeseries(ts),"
+        + "  timeseries_to_json(delta_timeseries(ts)) "
         + "FROM foo",
         Collections.singletonList(
             Druids.newScanQueryBuilder()
@@ -478,21 +475,61 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           StringUtils.format("%s(\"ts\")", MaxOverTimeseriesExprMacro.NAME),
                           ColumnType.DOUBLE,
                           Util.getMacroTable()
+                      ),
+                      new ExpressionVirtualColumn(
+                          "v1",
+                          StringUtils.format(
+                              "%s(%s(\"ts\"))",
+                              TimeseriesToJSONExprMacro.NAME,
+                              DeltaTimeseriesExprMacro.NAME
+                          ),
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.getMacroTable()
                       )
                   )
-                  .columns("v0")
+                  .columns("v0", "v1")
                   .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                   .context(QUERY_CONTEXT_DEFAULT)
                   .legacy(false)
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{1D},
-            new Object[]{2D},
-            new Object[]{3D},
-            new Object[]{4D},
-            new Object[]{5D},
-            new Object[]{6D}
+            new Object[]{
+                1D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            },
+            new Object[]{
+                2D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            },
+            new Object[]{
+                3D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            },
+            new Object[]{
+                4D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            },
+            new Object[]{
+                5D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            },
+            new Object[]{
+                6D,
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            }
         )
     );
   }

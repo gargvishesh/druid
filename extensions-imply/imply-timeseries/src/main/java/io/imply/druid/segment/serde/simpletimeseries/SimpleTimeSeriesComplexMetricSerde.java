@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
 public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
 {
   public static final String TYPE_NAME = BaseTimeSeriesAggregatorFactory.TYPE.getComplexTypeName();
-  public static final Interval ALL_TIME_WINDOW = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
+  public static final Interval ALL_TIME_WINDOW = Intervals.ETERNITY;
 
   static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_OBJECT_STRATEGY =
       new SimpleTimeSeriesObjectStrategy();

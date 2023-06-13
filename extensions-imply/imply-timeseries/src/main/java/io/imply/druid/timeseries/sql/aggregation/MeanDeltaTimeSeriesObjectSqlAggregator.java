@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.aggregation;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;

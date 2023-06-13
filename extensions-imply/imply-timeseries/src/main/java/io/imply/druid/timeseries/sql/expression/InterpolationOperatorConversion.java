@@ -7,9 +7,10 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.expression;
 
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.OperandTypes;

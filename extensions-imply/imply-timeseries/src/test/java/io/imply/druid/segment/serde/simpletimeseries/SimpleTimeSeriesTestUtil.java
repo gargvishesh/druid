@@ -12,9 +12,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
-import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
-import org.joda.time.Interval;
 import org.junit.Assert;
 
 import java.nio.ByteBuffer;
@@ -25,7 +23,6 @@ import java.util.List;
 public class SimpleTimeSeriesTestUtil
 {
   public static final DateTime START_DATE_TIME = DateTimes.of("2020-01-01");
-  public static final Interval ALL_TIME_INTERVAL = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
   public static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new byte[0]).order(ByteOrder.nativeOrder());
 
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset)

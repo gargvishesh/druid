@@ -7,10 +7,11 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.expression;
 
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
+import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.druid.java.util.common.StringUtils;

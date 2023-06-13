@@ -7,35 +7,41 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.expressions;
+package io.imply.druid.timeseries.expression;
 
+import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.postprocessors.TimeWeightedAvgTimeSeriesFn;
+import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExpressionType;
-import org.apache.druid.segment.column.ColumnType;
+import org.joda.time.Period;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
-public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
+public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 {
-  public static final String NAME = "timeseries_to_json";
-  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-json");
+  public static final String NAME = "time_weighted_average";
 
   @Override
   public Expr apply(List<Expr> args)
   {
-    validationHelperCheckArgumentCount(args, 1);
+    validationHelperCheckArgumentCount(args, 3);
 
     Expr arg = args.get(0);
+    Interpolator interpolator = Interpolator.fromString(args.get(1).getLiteralValue().toString().toUpperCase(Locale.ROOT));
+    long bucketMillis = new Period(args.get(2).getLiteralValue()).toStandardDuration().getMillis();
 
-    class TimeseriesToJSONExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+    class TimeWeightedAverageTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {
 
-      public TimeseriesToJSONExpr(Expr arg)
+      public TimeWeightedAverageTimeseriesExpr(Expr arg)
       {
         super(NAME, arg);
       }
@@ -44,7 +50,8 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
-        ExpressionType outputType = Objects.requireNonNull(ExpressionType.fromColumnType(TYPE), "type is null");
+        ExpressionType outputType =
+            Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
         if (evalValue == null) {
           return ExprEval.ofComplex(
               outputType,
@@ -65,9 +72,11 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
               null
           );
         }
+        SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.computeSimple();
         return ExprEval.ofComplex(
             outputType,
-            simpleTimeSeriesContainer.computeSimple()
+            new TimeWeightedAvgTimeSeriesFn(bucketMillis, interpolator)
+                .compute(simpleTimeSeries, simpleTimeSeries.getMaxEntries())
         );
       }
 
@@ -80,10 +89,10 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.fromColumnType(TYPE);
+        return ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE);
       }
     }
-    return new TimeseriesToJSONExpr(arg);
+    return new TimeWeightedAverageTimeseriesExpr(arg);
   }
 
   @Override

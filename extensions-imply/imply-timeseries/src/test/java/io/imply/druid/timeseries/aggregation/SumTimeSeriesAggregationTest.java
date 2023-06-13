@@ -19,7 +19,7 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
-import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.jackson.GranularityModule;

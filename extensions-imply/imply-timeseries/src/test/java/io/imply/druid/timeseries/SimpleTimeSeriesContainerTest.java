@@ -12,6 +12,7 @@ package io.imply.druid.timeseries;
 import com.google.common.base.Suppliers;
 import io.imply.druid.segment.serde.simpletimeseries.IntegerDeltaEncoderDecoder;
 import io.imply.druid.segment.serde.simpletimeseries.IntegerDeltaTimestampsEncoderDecoder;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerdeTest;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerdeTestBase;
@@ -50,7 +51,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
               23.0,
               53.0
           }),
-      SimpleTimeSeriesTestUtil.ALL_TIME_INTERVAL,
+      SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
       Integer.MAX_VALUE
   );
   private static final SimpleTimeSeriesSerde TIME_SERIES_SERDE = new SimpleTimeSeriesSerde(
@@ -62,7 +63,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
   public SimpleTimeSeriesContainerTest()
   {
     super(
-        new SimpleTimeSeriesContainerTestingSerde(SimpleTimeSeriesTestUtil.ALL_TIME_INTERVAL, 1 << 16),
+        new SimpleTimeSeriesContainerTestingSerde(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, 1 << 16),
         new TestCasesConfig<>(SimpleTimeSeriesSerdeTest.class, SimpleTimeSeriesSerdeTestBase.class)
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testNull, TestCaseResult.of(new byte[]{1}))
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testEmptyList, TestCaseResult.of(new byte[]{1}))

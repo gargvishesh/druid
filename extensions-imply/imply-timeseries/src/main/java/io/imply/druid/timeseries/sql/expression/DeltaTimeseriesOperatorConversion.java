@@ -7,14 +7,14 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.expression;
 
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
+import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
@@ -23,21 +23,35 @@ import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
+import org.apache.druid.sql.calcite.table.RowSignatures;
 
 import javax.annotation.Nullable;
 
-public class MaxOverTimeseriesOperatorConversion implements SqlOperatorConversion
+public class DeltaTimeseriesOperatorConversion implements SqlOperatorConversion
 {
-  private static final String NAME = MaxOverTimeseriesExprMacro.NAME;
+  private static final String NAME = DeltaTimeseriesExprMacro.NAME;
 
   @Override
   public SqlOperator calciteOperator()
   {
     return OperatorConversions
         .operatorBuilder(StringUtils.toUpperCase(NAME))
-        .operandTypeChecker(TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE))
-        .returnTypeInference(ReturnTypes.explicit(SqlTypeName.DOUBLE))
-        .build();
+        .operandTypeChecker(
+            OperandTypes.or(
+                TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                OperandTypes.sequence(
+                    StringUtils.format("%s(timeseriesColumn, bucketPeriod)", NAME),
+                    TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                    OperandTypes.LITERAL
+                )
+            )
+        )
+        .returnTypeInference(opBinding -> RowSignatures.makeComplexType(
+            opBinding.getTypeFactory(),
+            BaseTimeSeriesAggregatorFactory.TYPE,
+            true
+        ))
+                        .build();
   }
 
   @Nullable

@@ -10,10 +10,11 @@
 package io.imply.druid.timeseries;
 
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.timeseries.expressions.InterpolationTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.MaxOverTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.TimeWeightedAverageTimeseriesExprMacro;
-import io.imply.druid.timeseries.expressions.TimeseriesToJSONExprMacro;
+import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.math.expr.ExprMacroTable;
@@ -38,7 +39,8 @@ public class Util
                      .add(
                          new MaxOverTimeseriesExprMacro(),
                          new TimeseriesToJSONExprMacro(),
-                         new TimeWeightedAverageTimeseriesExprMacro()
+                         new TimeWeightedAverageTimeseriesExprMacro(),
+                         new DeltaTimeseriesExprMacro()
                      )
                      .addAll(InterpolationTimeseriesExprMacro.getMacros());
     return new ExprMacroTable(macros.build());

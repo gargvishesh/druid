@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.expressions;
+package io.imply.druid.timeseries.expression;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.SimpleTimeSeries;
