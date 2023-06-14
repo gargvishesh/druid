@@ -120,15 +120,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     7200000L,
                     FULL_ON_INTERVAL,
                     null
-                ),
-                DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
-                    "deltaTimeseries",
-                    "dataPoints",
-                    "__time",
-                    null,
-                    10800000L,
-                    FULL_ON_INTERVAL,
-                    null
                 )
             )
         )
@@ -163,21 +154,12 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         FULL_ON_INTERVAL,
         219144
     );
-
-    long[] expectedDeltaTimestamps = new long[]{1413763200000L, 1413774000000L, 1413784800000L, 1413795600000L};
-    double[] expectedDeltaDataPoints = new double[]{10, 10.0, 10.0, 0.0};
-    SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedDeltaTimestamps),
-        new ImplyDoubleArrayList(expectedDeltaDataPoints),
-        FULL_ON_INTERVAL,
-        146096
-    );
+    
     Result<TimeseriesResultValue> expectedResult = new Result<>(
         DAY1,
         new TimeseriesResultValue(ImmutableMap.of(
             "timeseries", SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries),
-            "avgTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries),
-            "deltaTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedDeltaTimeSeries)
+            "avgTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries)
         ))
     );
     TestHelper.assertExpectedResults(ImmutableList.of(expectedResult), results);
@@ -211,15 +193,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     1800000L,
                     window,
                     null
-                ),
-                DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
-                    "deltaTimeseries",
-                    "dataPoints",
-                    "__time",
-                    null,
-                    1800000L,
-                    window,
-                    null
                 )
             )
         )
@@ -247,15 +220,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                 ),
                 null,
                 Util.getMacroTable()
-            ),
-            new ExpressionPostAggregator(
-                "deltaTimeseries-interpolation",
-                StringUtils.format(
-                    "%s(\"deltaTimeseries\", 'PT30M')",
-                    new InterpolationTimeseriesExprMacro.BackfillInterpolationTimeseriesExprMacro().name()
-                ),
-                null,
-                Util.getMacroTable()
             )
         )
         .build();
@@ -279,14 +243,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
     SimpleTimeSeries expectedAvgTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestamps),
         new ImplyDoubleArrayList(expectedMeanDataPoints),
-        window,
-        19
-    );
-
-    double[] expectedDeltaDataPoints = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedTimestamps),
-        new ImplyDoubleArrayList(expectedDeltaDataPoints),
         window,
         19
     );
@@ -319,17 +275,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         19
     );
 
-    double[] expectedInterpolatedDeltaDataPoints = new double[]{
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    };
-    SimpleTimeSeries expectedInterpolatedDeltaTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedInterpolatedTimestamps),
-        new ImplyDoubleArrayList(expectedInterpolatedDeltaDataPoints),
-        window,
-        19
-    );
-
     Result<TimeseriesResultValue> expectedResult = new Result<>(
         DAY1,
         new TimeseriesResultValue(
@@ -344,11 +289,6 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                         .put(
                             "avgTimeseries-interpolation",
                             SimpleTimeSeriesContainer.createFromInstance(expectedInterpolatedAvgTimeSeries)
-                        )
-                        .put("deltaTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedDeltaTimeSeries))
-                        .put(
-                            "deltaTimeseries-interpolation",
-                            SimpleTimeSeriesContainer.createFromInstance(expectedInterpolatedDeltaTimeSeries)
                         )
                         .build()
             )

@@ -14,9 +14,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.multibindings.Multibinder;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
-import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
@@ -25,7 +23,7 @@ import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
-import io.imply.druid.timeseries.sql.aggregation.MeanDeltaTimeSeriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.aggregation.MeanTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.expression.DeltaTimeseriesOperatorConversion;
@@ -37,7 +35,6 @@ import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.serde.ComplexMetrics;
-import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
 import org.apache.druid.sql.guice.SqlBindings;
 
 import java.util.List;
@@ -68,10 +65,6 @@ public class TimeSeriesModule implements DruidModule
                 AVG_TIMESERIES
             ),
             new NamedType(
-                DeltaTimeSeriesAggregatorFactory.class,
-                DELTA_TIMESERIES
-            ),
-            new NamedType(
                 SumTimeSeriesAggregatorFactory.class,
                 SUM_TIMESERIES
             )
@@ -86,9 +79,7 @@ public class TimeSeriesModule implements DruidModule
     // add aggregators
     SqlBindings.addAggregator(binder, SimpleTimeSeriesObjectSqlAggregator.class);
     SqlBindings.addAggregator(binder, SumTimeSeriesObjectSqlAggregator.class);
-    Multibinder.newSetBinder(binder, SqlAggregator.class)
-               .addBinding()
-               .toInstance(MeanDeltaTimeSeriesObjectSqlAggregator.MEAN_TIMESERIES);
+    SqlBindings.addAggregator(binder, MeanTimeSeriesObjectSqlAggregator.class);
 
     // add post processing bindings
     SqlBindings.addOperatorConversion(

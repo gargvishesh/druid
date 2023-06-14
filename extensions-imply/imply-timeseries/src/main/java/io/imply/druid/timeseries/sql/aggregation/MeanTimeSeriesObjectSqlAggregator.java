@@ -9,9 +9,7 @@
 
 package io.imply.druid.timeseries.sql.aggregation;
 
-import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
@@ -26,7 +24,6 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Optionality;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -44,80 +41,16 @@ import org.joda.time.Period;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
+public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
 {
-  public static final SqlAggregator MEAN_TIMESERIES = new MeanDeltaTimeSeriesObjectSqlAggregator(AggregatorType.MEAN_TIMESERIES);
-  public static final SqlAggregator DELTA_TIMESERIES = new MeanDeltaTimeSeriesObjectSqlAggregator(AggregatorType.DELTA_TIMESERIES);
+  public static final String MEAN_TIMESERIES_NAME = "MEAN_TIMESERIES";
 
-  enum AggregatorType
-  {
-    MEAN_TIMESERIES {
-      @Override
-      AggregatorFactory createAggregatorFactory(
-          String name,
-          String dataColumnName,
-          String timeColumnName,
-          long timeBucketMillis,
-          Interval window,
-          Integer maxEntries
-      )
-      {
-        return MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
-            StringUtils.format("%s:agg", name),
-            dataColumnName,
-            timeColumnName,
-            null,
-            timeBucketMillis,
-            window,
-            maxEntries);
-      }
-    },
-
-    DELTA_TIMESERIES {
-      @Override
-      AggregatorFactory createAggregatorFactory(
-          String name,
-          String dataColumnName,
-          String timeColumnName,
-          long timeBucketMillis,
-          Interval window,
-          Integer maxEntries
-      )
-      {
-        return DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
-            StringUtils.format("%s:agg", name),
-            dataColumnName,
-            timeColumnName,
-            null,
-            timeBucketMillis,
-            window,
-            maxEntries);
-      }
-    };
-
-    abstract AggregatorFactory createAggregatorFactory(
-        String name,
-        String dataColumnName,
-        String timeColumnName,
-        long timeBucketMillis,
-        Interval window,
-        Integer maxEntries
-    );
-  }
-
-  private final MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType aggregatorType;
-  private final SqlAggFunction function;
-
-  public MeanDeltaTimeSeriesObjectSqlAggregator(final MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType aggregatorType)
-  {
-    this.aggregatorType = aggregatorType;
-    this.function = new MeanDeltaTimeSeriesSqlAggFunction(aggregatorType);
-  }
+  private static final SqlAggFunction FUNCTION = new MeanTimeSeriesSqlAggFunction();
 
   @Override
   public SqlAggFunction calciteFunction()
   {
-    return function;
+    return FUNCTION;
   }
 
   @Nullable
@@ -219,24 +152,25 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
     }
 
     // create the factory
-    AggregatorFactory aggregatorFactory = aggregatorType.createAggregatorFactory(
-        name,
-        dataColumnName,
-        timeColumnName,
-        timeBucketMillis,
-        window,
-        maxEntries
+    return Aggregation.create(
+        MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+            StringUtils.format("%s:agg", name),
+            dataColumnName,
+            timeColumnName,
+            null,
+            timeBucketMillis,
+            window,
+            maxEntries
+        )
     );
-
-    return Aggregation.create(ImmutableList.of(aggregatorFactory), null);
   }
 
-  private static class MeanDeltaTimeSeriesSqlAggFunction extends SqlAggFunction
+  private static class MeanTimeSeriesSqlAggFunction extends SqlAggFunction
   {
-    MeanDeltaTimeSeriesSqlAggFunction(AggregatorType aggregatorType)
+    MeanTimeSeriesSqlAggFunction()
     {
       super(
-          aggregatorType.name(),
+          MEAN_TIMESERIES_NAME,
           null,
           SqlKind.OTHER_FUNCTION,
           opBinding -> RowSignatures.makeComplexType(
@@ -248,7 +182,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
           OperandTypes.or(
               OperandTypes.and(
                   OperandTypes.sequence(
-                      "'" + aggregatorType.name() + "'(timeColumn, dataColumn, window, bucketPeriod)",
+                      "'" + MEAN_TIMESERIES_NAME + "'(timeColumn, dataColumn, window, bucketPeriod)",
                       OperandTypes.ANY,
                       OperandTypes.ANY,
                       OperandTypes.LITERAL,
@@ -263,7 +197,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
               ),
               OperandTypes.and(
                   OperandTypes.sequence(
-                      "'" + aggregatorType.name() + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
+                      "'" + MEAN_TIMESERIES_NAME + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
                       OperandTypes.ANY,
                       OperandTypes.ANY,
                       OperandTypes.LITERAL,
