@@ -49,6 +49,12 @@ public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeS
                    getMaxEntries());
     }
 
+    // set bucket millis for simple time series
+    if (getBucketMillis(mem, buffStartPosition) != -1 &&
+        getBucketMillis(mem, buffStartPosition) != mergeSeries.getBucketMillis()) {
+      mem.putLong(buffStartPosition + BUCKET_MILLIS_OFFSET, -1);
+    }
+
     // bulk write timestamps
     mem.putLongArray(buffStartPosition + DATA_OFFSET + currSize * Long.BYTES,
                      mergeSeries.getTimestamps().getLongArray(),
@@ -81,7 +87,9 @@ public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeS
                                                              getWindow(),
                                                              getStartBuffered(mem, buffStartPosition),
                                                              getEndBuffered(mem, buffStartPosition),
-                                                             getMaxEntries());
+                                                             getMaxEntries(),
+                                                             getBucketMillis(mem, buffStartPosition)
+    );
     for (int idx : indices) {
       simpleTimeSeries.addDataPoint(mem.getLong(buffStartPosition + DATA_OFFSET + idx * Long.BYTES),
                                     mem.getDouble(buffStartPosition + DATA_OFFSET + (getMaxEntries() * Long.BYTES) + idx * Double.BYTES));

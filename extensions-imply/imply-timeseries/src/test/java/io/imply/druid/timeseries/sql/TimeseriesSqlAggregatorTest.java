@@ -315,55 +315,55 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
             new Object[]{
                 // timeseries
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                    + "\"dataPoints\":[1.0,2.0,3.0],"
+                    + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0],"
                     + "\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // mean_timeseries
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                    + "\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // delta_timeseries
-                "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                    + "\"dataPoints\":[0.0,1.0,1.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                    + "\"bucketMillis\":86400000,\"dataPoints\":[1.0,1.0,1.0],\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // linear_interpolation
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.0013736263736264],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.0013736263736264],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // padding_interpolation
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // time_weighted_average(timeseries)
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.5,2.5,3.0013736263736264],"
+                  + "\"bucketMillis\":86400000,\"dataPoints\":[1.5,2.5,3.0013736263736264],"
                   + "\"timestamps\":[946684800000,946771200000,946857600000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // time_weighted_average(backfill_interpolation)
-                "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[0.75,1.0,3.25],"
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":86400000,\"dataPoints\":[1.0,1.0,1.0],"
                   + "\"timestamps\":[946684800000,946771200000,946857600000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // linear_boundary
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.0013736263736264],"
+                  + "\"bucketMillis\":43200000,\"dataPoints\":[1.0,1.5,2.0,2.5,3.0,3.0013736263736264],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // padded_boundary
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
+                  + "\"bucketMillis\":43200000,\"dataPoints\":[1.0,1.0,2.0,2.0,3.0,3.0],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // backfill_boundary
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[1.0,2.0,2.0,3.0,3.0,4.0],"
+                  + "\"bucketMillis\":43200000,\"dataPoints\":[1.0,2.0,2.0,3.0,3.0,4.0],"
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // sum_timeseries
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[21.0],\"timestamps\":[1],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[21.0],\"timestamps\":[1],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
                 // max_over_timeseries
                 3D
@@ -478,37 +478,37 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
             new Object[]{
                 1D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             },
             new Object[]{
                 2D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             },
             new Object[]{
                 3D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             },
             new Object[]{
                 4D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             },
             new Object[]{
                 5D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             },
             new Object[]{
                 6D,
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
-                  + "\"dataPoints\":[],\"timestamps\":[],"
+                  + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             }
         )

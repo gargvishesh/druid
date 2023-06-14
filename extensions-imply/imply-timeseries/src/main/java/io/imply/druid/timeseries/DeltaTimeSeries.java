@@ -224,7 +224,9 @@ public class DeltaTimeSeries extends TimeSeries<DeltaTimeSeries>
                                                              getWindow(),
                                                              getStart(),
                                                              getEnd(),
-                                                             getMaxEntries());
+                                                             getMaxEntries(),
+                                                             1L
+    );
     for (int i = 0; i < simpleSeriesSize; i++) {
       simpleTimeSeries.addDataPoint(timeBucketGranularity.bucketStart(timestamps.getLong(2 * i)),
                                     dataPoints.getDouble(2 * i + 1) - dataPoints.getDouble(2 * i));

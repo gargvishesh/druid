@@ -16,11 +16,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
-import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.table.RowSignatures;
@@ -29,18 +27,17 @@ import javax.annotation.Nullable;
 
 public class DeltaTimeseriesOperatorConversion implements SqlOperatorConversion
 {
-  private static final String NAME = DeltaTimeseriesExprMacro.NAME;
 
   @Override
   public SqlOperator calciteOperator()
   {
     return OperatorConversions
-        .operatorBuilder(StringUtils.toUpperCase(NAME))
+        .operatorBuilder(StringUtils.toUpperCase(DeltaTimeseriesExprMacro.NAME))
         .operandTypeChecker(
             OperandTypes.or(
                 TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
                 OperandTypes.sequence(
-                    StringUtils.format("%s(timeseriesColumn, bucketPeriod)", NAME),
+                    StringUtils.format("%s(timeseriesColumn, bucketPeriod)", DeltaTimeseriesExprMacro.NAME),
                     TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
                     OperandTypes.LITERAL
                 )
@@ -58,18 +55,6 @@ public class DeltaTimeseriesOperatorConversion implements SqlOperatorConversion
   @Override
   public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
   {
-    return OperatorConversions.convertDirectCall(plannerContext, rowSignature, rexNode, NAME);
-  }
-
-  @Nullable
-  @Override
-  public PostAggregator toPostAggregator(
-      PlannerContext plannerContext,
-      RowSignature querySignature,
-      RexNode rexNode,
-      PostAggregatorVisitor postAggregatorVisitor
-  )
-  {
-    return null;
+    return OperatorConversions.convertDirectCall(plannerContext, rowSignature, rexNode, DeltaTimeseriesExprMacro.NAME);
   }
 }

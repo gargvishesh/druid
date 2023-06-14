@@ -72,7 +72,9 @@ public abstract class DeltaTimeSeriesBaseTest
                                                   window,
                                                   new TimeSeries.EdgePoint(0L, 0D),
                                                   null,
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
     SimpleTimeSeries second = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{5, 6, 9, 10}),
                                                    new ImplyDoubleArrayList(new double[]{1, 2, 5, 6}),
                                                    window,
@@ -82,7 +84,9 @@ public abstract class DeltaTimeSeriesBaseTest
                                                   window,
                                                   null,
                                                   new TimeSeries.EdgePoint(12L, 12D),
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
 
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{first, second, third},
                                                     window,
@@ -93,7 +97,9 @@ public abstract class DeltaTimeSeriesBaseTest
                                                            window,
                                                            new TimeSeries.EdgePoint(0L, 0D),
                                                            new TimeSeries.EdgePoint(12L, 12D),
-                                                           MAX_ENTRIES);
+                                                           MAX_ENTRIES,
+                                                           1L
+    );
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }

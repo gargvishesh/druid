@@ -30,7 +30,9 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
                                               new ImplyDoubleArrayList(),
                                               window,
                                               seriesList[i].getStart(),
-                                              seriesList[i].getEnd(), MAX_ENTRIES);
+                                              seriesList[i].getEnd(), MAX_ENTRIES,
+                                              1L
+      );
       for (int j = 0; j < seriesList[i].size(); j++) {
         seriesToMerge[i].addDataPoint(seriesList[i].getTimestamps().getLong(j), seriesList[i].getDataPoints().getDouble(j));
       }

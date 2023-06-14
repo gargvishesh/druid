@@ -28,6 +28,8 @@ import java.util.Objects;
 public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 {
   public static final String NAME = "time_weighted_average";
+  private static final ExpressionType OUTPUT_TYPE =
+      Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
 
   @Override
   public Expr apply(List<Expr> args)
@@ -35,26 +37,38 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
     validationHelperCheckArgumentCount(args, 3);
 
     Expr arg = args.get(0);
-    Interpolator interpolator = Interpolator.fromString(args.get(1).getLiteralValue().toString().toUpperCase(Locale.ROOT));
-    long bucketMillis = new Period(args.get(2).getLiteralValue()).toStandardDuration().getMillis();
+
+    Interpolator interpolator;
+    if (args.get(1).isLiteral()) {
+      interpolator = Interpolator.fromString(args.get(1).getLiteralValue().toString().toUpperCase(Locale.ROOT));
+    } else {
+      throw new IAE("Expected second argument in [%s] to be a literal", NAME);
+    }
+
+    long bucketMillis;
+    if (args.get(2).isLiteral()) {
+      bucketMillis = new Period(args.get(2).getLiteralValue()).toStandardDuration().getMillis();
+    } else {
+      throw new IAE("Expected third argument in [%s] to be a literal", NAME);
+    }
 
     class TimeWeightedAverageTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {
+      private final TimeWeightedAvgTimeSeriesFn timeWeightedAvgTimeSeriesFn;
 
       public TimeWeightedAverageTimeseriesExpr(Expr arg)
       {
         super(NAME, arg);
+        this.timeWeightedAvgTimeSeriesFn = new TimeWeightedAvgTimeSeriesFn(bucketMillis, interpolator);
       }
 
       @Override
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
-        ExpressionType outputType =
-            Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
         if (evalValue == null) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
@@ -68,15 +82,14 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
         SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
         if (simpleTimeSeriesContainer.isNull()) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
         SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.computeSimple();
         return ExprEval.ofComplex(
-            outputType,
-            new TimeWeightedAvgTimeSeriesFn(bucketMillis, interpolator)
-                .compute(simpleTimeSeries, simpleTimeSeries.getMaxEntries())
+            OUTPUT_TYPE,
+            timeWeightedAvgTimeSeriesFn.compute(simpleTimeSeries, simpleTimeSeries.getMaxEntries())
         );
       }
 
@@ -89,7 +102,7 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE);
+        return OUTPUT_TYPE;
       }
     }
     return new TimeWeightedAverageTimeseriesExpr(arg);

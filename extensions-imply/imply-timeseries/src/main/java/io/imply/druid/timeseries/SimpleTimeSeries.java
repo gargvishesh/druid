@@ -34,15 +34,16 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   private ImplyLongArrayList timestamps;
   private ImplyDoubleArrayList dataPoints;
   private final int maxEntries;
+  private Long bucketMillis;
 
   public SimpleTimeSeries(Interval window, int maxEntries)
   {
-    this(new ImplyLongArrayList(), new ImplyDoubleArrayList(), window, null, null, maxEntries);
+    this(new ImplyLongArrayList(), new ImplyDoubleArrayList(), window, null, null, maxEntries, 1L);
   }
 
   public SimpleTimeSeries(ImplyLongArrayList timestamps, ImplyDoubleArrayList dataPoints, Interval window, int maxEntries)
   {
-    this(timestamps, dataPoints, window, null, null, maxEntries);
+    this(timestamps, dataPoints, window, null, null, maxEntries, 1L);
   }
 
   public SimpleTimeSeries(
@@ -51,13 +52,15 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       Interval window,
       @Nullable EdgePoint start,
       @Nullable EdgePoint end,
-      int maxEntries
+      int maxEntries,
+      Long bucketMillis
   )
   {
     super(window, start, end, maxEntries);
     this.timestamps = timestamps;
     this.dataPoints = dataPoints;
     this.maxEntries = maxEntries;
+    this.bucketMillis = bucketMillis;
   }
 
   public SimpleTimeSeries withWindow(Interval newWindow)
@@ -84,6 +87,12 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   public ImplyDoubleArrayList getDataPoints()
   {
     return dataPoints;
+  }
+
+  @JsonProperty
+  public Long getBucketMillis()
+  {
+    return bucketMillis;
   }
 
   public List<SimpleTimeSeries> getTimeSeriesList()
@@ -139,7 +148,8 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
         getWindow(),
         getStart(),
         getEnd(),
-        getMaxEntries()
+        getMaxEntries(),
+        1L
     );
     mergedSeries.build();
     copy(mergedSeries);
@@ -156,6 +166,9 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
             timeSeries.getTimestamps().getLong(i - 1)
         );
       }
+    }
+    if (bucketMillis != null && !bucketMillis.equals(timeSeries.getBucketMillis())) {
+      bucketMillis = null;
     }
     timeSeriesList.add(timeSeries);
   }
@@ -229,7 +242,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   @Override
   public int hashCode()
   {
-    return Objects.hash(timestamps, dataPoints, timeSeriesList, super.hashCode());
+    return Objects.hash(timestamps, dataPoints, timeSeriesList, bucketMillis, super.hashCode());
   }
 
   @Override
@@ -245,7 +258,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     return Objects.equals(timestamps, that.timestamps) && Objects.equals(dataPoints, that.dataPoints) && Objects.equals(
         timeSeriesList,
         that.timeSeriesList
-    ) && super.equals(o);
+    ) && getBucketMillis().equals(that.getBucketMillis()) && super.equals(o);
   }
 
   @Override
@@ -256,7 +269,8 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
            ", dataPoints=" + dataPoints +
            ", maxEntries=" + maxEntries +
            ", start=" + getStart() +
-           ", end =" + getEnd() +
+           ", end=" + getEnd() +
+           ", bucketMillis=" + getBucketMillis() +
            '}';
   }
 

@@ -15,11 +15,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
-import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.table.RowSignatures;
@@ -49,18 +47,6 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
             true
         ))
         .build();
-  }
-
-  @Nullable
-  @Override
-  public PostAggregator toPostAggregator(
-      PlannerContext plannerContext,
-      RowSignature rowSignature,
-      RexNode rexNode,
-      PostAggregatorVisitor postAggregatorVisitor
-  )
-  {
-    return null;
   }
 
   @Nullable

@@ -141,7 +141,10 @@ public class TimeWeightedAvgTimeSeriesFnTest
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{1.165, 5.945, 15.245, 1.0450000000000002}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -165,7 +168,8 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(1, 7),
         new TimeSeries.EdgePoint(0, 1.25),
         null,
-        MAX_ENTRIES
+        MAX_ENTRIES,
+        2L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -193,7 +197,10 @@ public class TimeWeightedAvgTimeSeriesFnTest
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{3.44, -2.37, 16.8, 2.8}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -221,7 +228,10 @@ public class TimeWeightedAvgTimeSeriesFnTest
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{-1.67, 16.8, 2.8, 1.0}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }

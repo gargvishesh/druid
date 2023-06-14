@@ -73,7 +73,9 @@ public abstract class MeanTimeSeriesBaseTest
                                                   window,
                                                   new TimeSeries.EdgePoint(0L, 3D),
                                                   null,
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
     SimpleTimeSeries second = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{2, 4}),
                                                    new ImplyDoubleArrayList(new double[]{2, 5}),
                                                    window,
@@ -83,7 +85,9 @@ public abstract class MeanTimeSeriesBaseTest
                                                   window,
                                                   null,
                                                   new TimeSeries.EdgePoint(6L, 15D),
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
 
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{first, second, third},
                                                     window,
@@ -93,7 +97,9 @@ public abstract class MeanTimeSeriesBaseTest
                                                            window,
                                                            new TimeSeries.EdgePoint(0L, 3D),
                                                            new TimeSeries.EdgePoint(6L, 15D),
-                                                           MAX_ENTRIES);
+                                                           MAX_ENTRIES,
+                                                           1L
+    );
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }

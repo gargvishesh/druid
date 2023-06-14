@@ -17,11 +17,9 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
-import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
@@ -46,17 +44,5 @@ public class MaxOverTimeseriesOperatorConversion implements SqlOperatorConversio
   public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
   {
     return OperatorConversions.convertDirectCall(plannerContext, rowSignature, rexNode, NAME);
-  }
-
-  @Nullable
-  @Override
-  public PostAggregator toPostAggregator(
-      PlannerContext plannerContext,
-      RowSignature querySignature,
-      RexNode rexNode,
-      PostAggregatorVisitor postAggregatorVisitor
-  )
-  {
-    return null;
   }
 }

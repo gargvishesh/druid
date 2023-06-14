@@ -16,8 +16,10 @@ import org.joda.time.Interval;
 
 public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
 {
-  public static final int DATA_OFFSET = Integer.BYTES + 2 * (Long.BYTES + Double.BYTES); // 4 bytes TS size + 2 X (edge timestamp + edge data point)
-  protected static final int START_TS_OFFSET = Integer.BYTES;
+  // 4 bytes TS size + 8 bytes bucket millis + 2 X (edge timestamp + edge data point)
+  public static final int DATA_OFFSET = Integer.BYTES + Long.BYTES + 2 * (Long.BYTES + Double.BYTES);
+  public static final int BUCKET_MILLIS_OFFSET = Integer.BYTES;
+  protected static final int START_TS_OFFSET = BUCKET_MILLIS_OFFSET + Long.BYTES;
   protected static final int END_TS_OFFSET = START_TS_OFFSET + Long.BYTES + Double.BYTES;
   private final int maxEntries;
   private final Interval window;
@@ -31,6 +33,7 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   public void init(WritableMemory mem, int buffStartPosition)
   {
     mem.putInt(buffStartPosition, -1);
+    mem.putLong(buffStartPosition + BUCKET_MILLIS_OFFSET, 1);
     mem.putLong(buffStartPosition + START_TS_OFFSET, -1);
     mem.putDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES, -1);
     mem.putLong(buffStartPosition + END_TS_OFFSET, -1);
@@ -149,5 +152,10 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   public int size(WritableMemory mem, int buffStartPosition)
   {
     return mem.getInt(buffStartPosition);
+  }
+
+  public long getBucketMillis(WritableMemory mem, int buffStartPosition)
+  {
+    return mem.getLong(buffStartPosition + BUCKET_MILLIS_OFFSET);
   }
 }

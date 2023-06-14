@@ -30,6 +30,8 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
   private final String name;
   private final Interpolator interpolator;
   private final boolean keepBoundariesOnly;
+  private static final ExpressionType OUTPUT_TYPE =
+      Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
 
   public InterpolationTimeseriesExprMacro(String name, Interpolator interpolator, boolean keepBoundariesOnly)
   {
@@ -44,25 +46,34 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
     validationHelperCheckArgumentCount(args, 2);
 
     Expr arg = args.get(0);
-    long bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
+    long bucketMillis;
+    if (args.get(1).isLiteral()) {
+      bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
+    } else {
+      throw new IAE("Expected second argument in [%s] to be a literal", name);
+    }
 
     class InterpolationTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {
+      private final InterpolatorTimeSeriesFn interpolatorTimeSeriesFn;
 
       public InterpolationTimeseriesExpr(Expr arg)
       {
         super(InterpolationTimeseriesExprMacro.this.name, arg);
+        this.interpolatorTimeSeriesFn = new InterpolatorTimeSeriesFn(
+            bucketMillis,
+            interpolator,
+            keepBoundariesOnly
+        );
       }
 
       @Override
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
-        ExpressionType outputType =
-            Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
         if (evalValue == null) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
@@ -76,18 +87,13 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
         SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
         if (simpleTimeSeriesContainer.isNull()) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
         SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.computeSimple();
-        InterpolatorTimeSeriesFn interpolatorTimeSeriesFn = new InterpolatorTimeSeriesFn(
-            bucketMillis,
-            interpolator,
-            keepBoundariesOnly
-        );
         return ExprEval.ofComplex(
-            outputType,
+            OUTPUT_TYPE,
             interpolatorTimeSeriesFn.compute(simpleTimeSeries, simpleTimeSeries.getMaxEntries())
         );
       }
@@ -101,7 +107,7 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE);
+        return OUTPUT_TYPE;
       }
     }
     return new InterpolationTimeseriesExpr(arg);

@@ -46,7 +46,9 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
                                                            input.getWindow(),
                                                            input.getStart(),
                                                            input.getEnd(),
-                                                           maxEntries);
+                                                           maxEntries,
+                                                           timeBucketMillis
+    );
     // compute initial recordings
     long currentTimestamp = timestamps.getLong(0);
     long currentBucketStart = durationGranularity.bucketStart(currentTimestamp);

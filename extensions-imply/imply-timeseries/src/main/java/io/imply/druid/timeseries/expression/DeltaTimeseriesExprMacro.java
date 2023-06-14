@@ -28,6 +28,8 @@ import java.util.Objects;
 public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 {
   public static final String NAME = "delta_timeseries";
+  private static final ExpressionType OUTPUT_TYPE =
+      Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
 
   @Override
   public Expr apply(List<Expr> args)
@@ -36,8 +38,12 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 
     Expr arg = args.get(0);
     long bucketMillis = 1;
-    if (args.size() == 2 && args.get(1).isLiteral()) {
-      bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
+    if (args.size() == 2) {
+      if (args.get(1).isLiteral()) {
+        bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
+      } else {
+        throw new IAE("Expected second argument in [%s] to be a literal", NAME);
+      }
     }
 
     long finalBucketMillis = bucketMillis;
@@ -53,11 +59,9 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
-        ExpressionType outputType =
-            Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE));
         if (evalValue == null) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
@@ -71,12 +75,12 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
         if (simpleTimeSeriesContainer.isNull()) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
         return ExprEval.ofComplex(
-            outputType,
+            OUTPUT_TYPE,
             SimpleTimeSeriesContainer.createFromInstance(
                 buildDeltaSeries(simpleTimeSeriesContainer.computeSimple(), finalBucketMillis)
             )
@@ -92,7 +96,7 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE);
+        return OUTPUT_TYPE;
       }
     }
     return new DeltaTimeseriesExpr(arg);
@@ -117,32 +121,49 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     long prevBucketStart = durationGranularity.bucketStart(simpleTimeSeriesTimestamps.getLong(0));
     double prevValue = simpleTimeSeriesDataPoints.getDouble(0);
     double runningSum = 0;
+    boolean bucketInitialized = false;
     for (int i = 1; i < simpleTimeSeries.size(); i++) {
       double currValue = simpleTimeSeriesDataPoints.getDouble(i);
       if (currValue > prevValue) {
         long currTimestamp = simpleTimeSeriesTimestamps.getLong(i);
         long currBucketStart = durationGranularity.bucketStart(currTimestamp);
+        runningSum += currValue - prevValue;
         if (currBucketStart > prevBucketStart) {
-          deltaSeriesTimestamps.add(prevBucketStart);
-          deltaSeriesDataPoints.add(runningSum);
+          if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
+            deltaSeriesTimestamps.add(prevBucketStart);
+            deltaSeriesDataPoints.add(runningSum);
+          }
           runningSum = 0;
           prevBucketStart = currBucketStart;
+          bucketInitialized = false;
+        } else {
+          bucketInitialized = true;
         }
-        runningSum += currValue - prevValue;
         prevValue = currValue;
       }
     }
-    if (deltaSeriesTimestamps.size() > 1) {
-      deltaSeriesTimestamps.add(prevBucketStart);
-      deltaSeriesDataPoints.add(runningSum);
+    if (simpleTimeSeries.getEnd().getTimestamp() != -1 && simpleTimeSeries.getEnd().getData() > prevValue) {
+      // if end exists and is a greater value than the last value in the timeseries, then add the delta
+      runningSum += simpleTimeSeries.getEnd().getData() - prevValue;
+      if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
+        deltaSeriesTimestamps.add(prevBucketStart);
+        deltaSeriesDataPoints.add(runningSum);
+      }
+    } else if (bucketInitialized) {
+      // this means that the end is not a valid data point, so add to the series only if there's any delta to be collected
+      if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
+        deltaSeriesTimestamps.add(prevBucketStart);
+        deltaSeriesDataPoints.add(runningSum);
+      }
     }
     return new SimpleTimeSeries(
         deltaSeriesTimestamps,
         deltaSeriesDataPoints,
         simpleTimeSeries.getWindow(),
-        simpleTimeSeries.getStart(),
-        simpleTimeSeries.getEnd(),
-        simpleTimeSeries.getMaxEntries()
+        null,
+        null,
+        simpleTimeSeries.getMaxEntries(),
+        bucketMillis
     );
   }
 }

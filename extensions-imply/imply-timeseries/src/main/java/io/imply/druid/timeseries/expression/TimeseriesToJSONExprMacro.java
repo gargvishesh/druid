@@ -24,6 +24,8 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
 {
   public static final String NAME = "timeseries_to_json";
   public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-json");
+  private static final ExpressionType OUTPUT_TYPE =
+      Objects.requireNonNull(ExpressionType.fromColumnType(TYPE), "type is null");
 
   @Override
   public Expr apply(List<Expr> args)
@@ -44,10 +46,9 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
       public ExprEval eval(ObjectBinding bindings)
       {
         Object evalValue = arg.eval(bindings).value();
-        ExpressionType outputType = Objects.requireNonNull(ExpressionType.fromColumnType(TYPE), "type is null");
         if (evalValue == null) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
@@ -61,12 +62,12 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
         SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
         if (simpleTimeSeriesContainer.isNull()) {
           return ExprEval.ofComplex(
-              outputType,
+              OUTPUT_TYPE,
               null
           );
         }
         return ExprEval.ofComplex(
-            outputType,
+            OUTPUT_TYPE,
             simpleTimeSeriesContainer.computeSimple()
         );
       }
@@ -80,7 +81,7 @@ public class TimeseriesToJSONExprMacro implements ExprMacroTable.ExprMacro
       @Override
       public ExpressionType getOutputType(InputBindingInspector inspector)
       {
-        return ExpressionType.fromColumnType(TYPE);
+        return OUTPUT_TYPE;
       }
     }
     return new TimeseriesToJSONExpr(arg);

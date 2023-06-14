@@ -140,7 +140,9 @@ public enum Interpolator
                                                            inputSeries.getWindow(),
                                                            inputSeries.getStart(),
                                                            inputSeries.getEnd(),
-                                                           maxEntries);
+                                                           maxEntries,
+                                                           1L
+        );
         timeSeries.addDataPoint(inputSeries.getWindow().getStartMillis(),
                                 interpolate(inputSeries.getStart().getTimestamp(),
                                             inputSeries.getStart().getData(),
@@ -160,7 +162,9 @@ public enum Interpolator
                                                        inputSeries.getWindow(),
                                                        inputSeries.getStart(),
                                                        inputSeries.getEnd(),
-                                                       maxEntries);
+                                                       maxEntries,
+                                                       keepBoundariesOnly ? durationGranularity.getDurationMillis() : 1L
+    );
 
     long currTimestamp = timestamps.getLong(0);
     long currTimestampBucketStart = durationGranularity.bucketStart(timestamps.getLong(0));

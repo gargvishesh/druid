@@ -103,7 +103,8 @@ public class SimpleTimeSeriesContainer
         window,
         edgePointStart,
         edgePointEnd,
-        maxEntries
+        maxEntries,
+        1L
     );
 
     return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
