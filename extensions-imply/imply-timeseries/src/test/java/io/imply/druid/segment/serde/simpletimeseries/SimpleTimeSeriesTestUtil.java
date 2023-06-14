@@ -12,6 +12,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 
@@ -33,7 +34,7 @@ public class SimpleTimeSeriesTestUtil
   public static SimpleTimeSeries buildTimeSeries(double initialValue, double increment, DateTime... timestamps)
   {
     SimpleTimeSeries simpleTimeSeries =
-        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+        new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     double value = initialValue;
 
@@ -48,7 +49,7 @@ public class SimpleTimeSeriesTestUtil
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset, int modulo)
   {
     SimpleTimeSeries simpleTimeSeries =
-        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+        new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     for (int i = offset; i < offset + numDataPoints; i++) {
       int value = i % modulo;
@@ -72,7 +73,7 @@ public class SimpleTimeSeriesTestUtil
   )
   {
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
+        Intervals.ETERNITY,
         Integer.MAX_VALUE
     );
     int value = 0;

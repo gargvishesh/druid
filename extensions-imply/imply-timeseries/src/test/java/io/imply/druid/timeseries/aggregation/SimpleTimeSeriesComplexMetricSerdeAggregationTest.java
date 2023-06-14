@@ -149,7 +149,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                 "timeseries-name-pa",
                 "timeseries_to_json(\"timeseries-name\")",
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             )
         )
         .build();
@@ -205,7 +205,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                 "bar",
                 StringUtils.format("%s(\"timeseries-name\")", TimeseriesToJSONExprMacro.NAME),
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "baz",
@@ -214,7 +214,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                     new InterpolationTimeseriesExprMacro.LinearInterpolationTimeseriesExprMacro().name()
                 ),
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             )
         ),
         null,

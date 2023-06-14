@@ -12,6 +12,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.CompressedPools;
@@ -310,7 +311,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   private static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset)
   {
     SimpleTimeSeries simpleTimeSeries =
-        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+        new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     for (int i = offset; i < offset + numDataPoints; i++) {
       simpleTimeSeries.addDataPoint(start.plusMillis(i).getMillis(), i);

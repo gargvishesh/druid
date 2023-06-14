@@ -12,11 +12,11 @@ package io.imply.druid.timeseries;
 import com.google.common.base.Suppliers;
 import io.imply.druid.segment.serde.simpletimeseries.IntegerDeltaEncoderDecoder;
 import io.imply.druid.segment.serde.simpletimeseries.IntegerDeltaTimestampsEncoderDecoder;
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesTestUtil;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -41,7 +41,7 @@ public class SimpleTimeSeriesBufferTest
               23.0,
               53.0
           }),
-      SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
+      Intervals.ETERNITY,
       Integer.MAX_VALUE
   );
   private static final SimpleTimeSeriesSerde TIME_SERIES_SERDE = new SimpleTimeSeriesSerde(

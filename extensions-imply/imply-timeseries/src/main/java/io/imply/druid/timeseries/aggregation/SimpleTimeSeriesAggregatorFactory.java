@@ -12,10 +12,10 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
@@ -63,7 +63,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       throw new IAE("Must exclusively have a valid, non-null (timeColumn, dataColumn) or timeseriesColumn");
     }
     if (window == null) {
-      window = SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW;
+      window = Intervals.ETERNITY;
     }
     int finalMaxEntries = DEFAULT_MAX_ENTRIES;
     if (maxEntries != null) {

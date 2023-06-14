@@ -32,7 +32,7 @@ public class Util
                                 MAX_ENTRIES);
   }
 
-  public static ExprMacroTable getMacroTable()
+  public static ExprMacroTable makeTimeSeriesMacroTable()
   {
     ImmutableList.Builder<ExprMacroTable.ExprMacro> macros =
         ImmutableList.<ExprMacroTable.ExprMacro>builder()

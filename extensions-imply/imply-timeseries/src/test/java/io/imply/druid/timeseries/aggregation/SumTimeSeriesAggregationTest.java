@@ -120,7 +120,7 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
                 "max_val_ts",
                 StringUtils.format("%s(fuu)", MaxOverTimeseriesExprMacro.NAME),
                 ColumnType.DOUBLE,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             )
         )
         .aggregators(

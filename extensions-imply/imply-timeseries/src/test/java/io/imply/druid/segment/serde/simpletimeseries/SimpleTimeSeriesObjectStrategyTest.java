@@ -13,6 +13,7 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,7 +35,7 @@ public class SimpleTimeSeriesObjectStrategyTest
   public void setup()
   {
     DateTime startDateTime = DateTimes.of("2020-01-01");
-    timeSeries = new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+    timeSeries = new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     for (int i = numEntries; i >= 0; i--) {
       timeSeries.addDataPoint(startDateTime.plusHours(i).getMillis(), i);

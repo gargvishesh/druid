@@ -201,7 +201,7 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                 "timeseries-pa",
                 "timeseries_to_json(\"timeseries\")",
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "timeseries-interpolation",
@@ -210,7 +210,7 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     new InterpolationTimeseriesExprMacro.LinearInterpolationTimeseriesExprMacro().name()
                 ),
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "avgTimeseries-interpolation",
@@ -219,7 +219,7 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     new InterpolationTimeseriesExprMacro.PaddingInterpolationTimeseriesExprMacro().name()
                 ),
                 null,
-                Util.getMacroTable()
+                Util.makeTimeSeriesMacroTable()
             )
         )
         .build();

@@ -13,14 +13,12 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import org.apache.druid.data.input.InputRow;
-import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.GenericColumnSerializer;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.data.ObjectStrategy;
 import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
-import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -28,7 +26,6 @@ import java.nio.ByteBuffer;
 public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
 {
   public static final String TYPE_NAME = BaseTimeSeriesAggregatorFactory.TYPE.getComplexTypeName();
-  public static final Interval ALL_TIME_WINDOW = Intervals.ETERNITY;
 
   static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_OBJECT_STRATEGY =
       new SimpleTimeSeriesObjectStrategy();
