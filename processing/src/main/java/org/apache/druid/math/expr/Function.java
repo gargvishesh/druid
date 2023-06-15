@@ -3557,7 +3557,7 @@ public interface Function extends NamedFunction
       final List<Object> array2 = Arrays.asList(rhsExpr.asArray());
       boolean any = false;
       for (Object check : array1) {
-        any |= array2.contains(check);
+        any = any || array2.contains(check);
       }
       return ExprEval.ofLongBoolean(any);
     }
@@ -3809,7 +3809,7 @@ public interface Function extends NamedFunction
 
       List<Long> listOfDateTimes = new ArrayList<>();
 
-      for (long cur = startTime; cur <= endTime; cur += granularityInMillis) {
+      for (long cur = startTime; cur < endTime; cur += granularityInMillis) {
         listOfDateTimes.add(cur);
       }
 
