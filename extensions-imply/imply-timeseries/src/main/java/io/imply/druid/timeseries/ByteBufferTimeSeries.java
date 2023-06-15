@@ -120,25 +120,25 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
 
   public abstract SimpleTimeSeries computeSimpleBuffered(WritableMemory mem, int buffStartPosition);
 
-  protected TimeSeries.EdgePoint getStartBuffered(WritableMemory mem, int buffStartPosition)
+  public TimeSeries.EdgePoint getStartBuffered(WritableMemory mem, int buffStartPosition)
   {
     return new TimeSeries.EdgePoint(mem.getLong(buffStartPosition + START_TS_OFFSET),
                                     mem.getDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES));
   }
 
-  protected void setStartBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newStart)
+  public void setStartBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newStart)
   {
     mem.putLong(buffStartPosition + START_TS_OFFSET, newStart.getTimestamp());
     mem.putDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES, newStart.getData());
   }
 
-  protected TimeSeries.EdgePoint getEndBuffered(WritableMemory mem, int buffStartPosition)
+  public TimeSeries.EdgePoint getEndBuffered(WritableMemory mem, int buffStartPosition)
   {
     return new TimeSeries.EdgePoint(mem.getLong(buffStartPosition + END_TS_OFFSET),
                                     mem.getDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES));
   }
 
-  protected void setEndBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newEnd)
+  public void setEndBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newEnd)
   {
     mem.putLong(buffStartPosition + END_TS_OFFSET, newEnd.getTimestamp());
     mem.putDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES, newEnd.getData());
@@ -157,5 +157,10 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   public long getBucketMillis(WritableMemory mem, int buffStartPosition)
   {
     return mem.getLong(buffStartPosition + BUCKET_MILLIS_OFFSET);
+  }
+
+  public void setBucketMillis(WritableMemory mem, int buffStartPosition, long newValue)
+  {
+    mem.putLong(buffStartPosition + BUCKET_MILLIS_OFFSET, newValue);
   }
 }

@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
@@ -34,18 +35,22 @@ import org.apache.druid.query.aggregation.AggregationTestHelper;
 import org.apache.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.query.timeseries.TimeseriesResultValue;
+import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.apache.druid.segment.TestHelper;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.joda.time.DateTime;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -155,6 +160,98 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
         ))
     );
     TestHelper.assertExpectedResults(ImmutableList.of(expectedResult), results);
+  }
+
+  @Test
+  public void testSumAggregatorBucketMillisAndEdges()
+  {
+    SimpleTimeSeriesContainerObjectSelector selector = new SimpleTimeSeriesContainerObjectSelector();
+    SumTimeSeriesAggregator sumTimeSeriesAggregator = new SumTimeSeriesAggregator(
+        selector,
+        Intervals.utc(2, 5),
+        100
+    );
+    while (!selector.isDone()) {
+      sumTimeSeriesAggregator.aggregate();
+    }
+    SimpleTimeSeriesContainer container = (SimpleTimeSeriesContainer) sumTimeSeriesAggregator.get();
+    SimpleTimeSeries resultSeries = container.getSimpleTimeSeries().computeSimple();
+    Assert.assertEquals(new TimeSeries.EdgePoint(1, 2), resultSeries.getStart());
+    Assert.assertEquals(new TimeSeries.EdgePoint(5, 10), resultSeries.getEnd());
+    Assert.assertEquals(Long.valueOf(100), resultSeries.getBucketMillis());
+  }
+
+  @Test
+  public void testBufferedSumAggregatorBucketMillisAndEdges()
+  {
+    ByteBuffer buffer = ByteBuffer.allocate(1_000_000);
+    SimpleTimeSeriesContainerObjectSelector selector = new SimpleTimeSeriesContainerObjectSelector();
+    SumTimeSeriesBufferAggregator sumTimeSeriesAggregator = new SumTimeSeriesBufferAggregator(
+        selector,
+        Intervals.utc(2, 5),
+        100
+    );
+    sumTimeSeriesAggregator.init(buffer, 0);
+    while (!selector.isDone()) {
+      sumTimeSeriesAggregator.aggregate(buffer, 0);
+    }
+    SimpleTimeSeriesContainer container = (SimpleTimeSeriesContainer) sumTimeSeriesAggregator.get(buffer, 0);
+    SimpleTimeSeries resultSeries = container.getSimpleTimeSeries().computeSimple();
+    Assert.assertEquals(new TimeSeries.EdgePoint(1, 2), resultSeries.getStart());
+    Assert.assertEquals(new TimeSeries.EdgePoint(5, 10), resultSeries.getEnd());
+    Assert.assertEquals(Long.valueOf(100), resultSeries.getBucketMillis());
+  }
+
+  private static class SimpleTimeSeriesContainerObjectSelector implements BaseObjectColumnValueSelector<SimpleTimeSeriesContainer>
+  {
+    private final SimpleTimeSeries[] simpleTimeSeriesList = new SimpleTimeSeries[]{
+        new SimpleTimeSeries(
+            new ImplyLongArrayList(new long[]{2, 3, 4}),
+            new ImplyDoubleArrayList(new double[]{2, 3, 4}),
+            Intervals.utc(2, 5),
+            new TimeSeries.EdgePoint(1, 1),
+            new TimeSeries.EdgePoint(5, 5),
+            100,
+            100L
+        ),
+        new SimpleTimeSeries(
+            new ImplyLongArrayList(new long[]{2, 3, 4}),
+            new ImplyDoubleArrayList(new double[]{2, 3, 4}),
+            Intervals.utc(2, 5),
+            new TimeSeries.EdgePoint(0, 0),
+            new TimeSeries.EdgePoint(7, 7),
+            100,
+            100L
+        ),
+        new SimpleTimeSeries(
+            new ImplyLongArrayList(new long[]{2, 3, 4}),
+            new ImplyDoubleArrayList(new double[]{2, 3, 4}),
+            Intervals.utc(2, 5),
+            new TimeSeries.EdgePoint(1, 1),
+            new TimeSeries.EdgePoint(5, 5),
+            100,
+            100L
+        )
+    };
+    private int index = 0;
+
+    @Nullable
+    @Override
+    public SimpleTimeSeriesContainer getObject()
+    {
+      return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeriesList[index++]);
+    }
+
+    @Override
+    public Class<? extends SimpleTimeSeriesContainer> classOfObject()
+    {
+      return SimpleTimeSeriesContainer.class;
+    }
+
+    public boolean isDone()
+    {
+      return index == simpleTimeSeriesList.length;
+    }
   }
 
   private static File fromCp(String filename)

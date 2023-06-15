@@ -16,7 +16,6 @@ import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
-import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.druid.common.guava.GuavaUtils;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.UOE;
@@ -127,15 +126,9 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
 
     SimpleTimeSeries leftSimple = leftSeries.getSimpleTimeSeries().computeSimple();
     SimpleTimeSeries rightSimple = rightSeries.getSimpleTimeSeries().computeSimple();
-    AggregateOperators.addIdenticalTimestamps(
-        leftSimple.getTimestamps().getLongArray(),
-        leftSimple.getDataPoints().getDoubleArray(),
-        rightSimple.getTimestamps().getLongArray(),
-        rightSimple.getDataPoints().getDoubleArray(),
-        leftSimple.size(),
-        rightSimple.size()
+    return SimpleTimeSeriesContainer.createFromInstance(
+        SumTimeSeriesAggregator.combineTimeSeries(leftSimple, rightSimple)
     );
-    return SimpleTimeSeriesContainer.createFromInstance(rightSimple);
   }
 
   @Override

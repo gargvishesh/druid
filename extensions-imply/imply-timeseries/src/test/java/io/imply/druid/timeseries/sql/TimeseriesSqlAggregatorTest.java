@@ -299,7 +299,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"timestamps\":[946684800000,946728000000,946771200000,946814400000,946857600000,946900800000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // time_weighted_average(timeseries)
-                "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
                   + "\"bucketMillis\":86400000,\"dataPoints\":[1.5,2.5,3.0013736263736264],"
                   + "\"timestamps\":[946684800000,946771200000,946857600000],"
                   + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",

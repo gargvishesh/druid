@@ -12,6 +12,7 @@ package io.imply.druid.timeseries.aggregation;
 import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.IAE;
@@ -74,12 +75,47 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
           position,
           window
       );
+      simpleByteBufferTimeSeries.setBucketMillis(
+          memory,
+          position,
+          simpleTimeSeriesContainer.getBucketMillis() == null ? -1 : simpleTimeSeriesContainer.getBucketMillis()
+      );
       tempTimestamps = new long[simpleByteBufferTimeSeries.size(memory, position)];
       tempDataPoints = new double[simpleByteBufferTimeSeries.size(memory, position)];
     } else {
       simpleByteBufferTimeSeries.getTimestamps(memory, position, tempTimestamps);
       simpleByteBufferTimeSeries.getDataPoints(memory, position, tempDataPoints);
       SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple();
+
+      if (simpleByteBufferTimeSeries.getBucketMillis(memory, position) != -1 &&
+          !simpleTimeSeriesContainer.getBucketMillis().equals(simpleByteBufferTimeSeries.getBucketMillis(memory, position))) {
+        simpleByteBufferTimeSeries.setBucketMillis(memory, position, -1);
+      }
+
+      // merge endpoints as : choose the closer end point if both are different, otherwise, add them.
+      TimeSeries.EdgePoint inputStart = simpleTimeSeries.getStart();
+      if (inputStart.getTimestamp() > 0) {
+        TimeSeries.EdgePoint currStart = simpleByteBufferTimeSeries.getStartBuffered(memory, position);
+        if (inputStart.getTimestamp() > currStart.getTimestamp()) {
+          currStart.setTimestamp(inputStart.getTimestamp());
+          currStart.setData(inputStart.getData());
+        } else if (inputStart.getTimestamp() == currStart.getTimestamp()) {
+          currStart.setData(currStart.getData() + inputStart.getData());
+        }
+        simpleByteBufferTimeSeries.setStartBuffered(memory, position, currStart);
+      }
+      TimeSeries.EdgePoint inputEnd = simpleTimeSeries.getEnd();
+      if (inputEnd.getTimestamp() > 0) {
+        TimeSeries.EdgePoint currEnd = simpleByteBufferTimeSeries.getEndBuffered(memory, position);
+        if (inputEnd.getTimestamp() < currEnd.getTimestamp()) {
+          currEnd.setTimestamp(inputEnd.getTimestamp());
+          currEnd.setData(inputEnd.getData());
+        } else if (inputEnd.getTimestamp() == currEnd.getTimestamp()) {
+          currEnd.setData(currEnd.getData() + inputEnd.getData());
+        }
+        simpleByteBufferTimeSeries.setEndBuffered(memory, position, currEnd);
+      }
+
       AggregateOperators.addIdenticalTimestamps(
           simpleTimeSeries.getTimestamps().getLongArray(),
           simpleTimeSeries.getDataPoints().getDoubleArray(),

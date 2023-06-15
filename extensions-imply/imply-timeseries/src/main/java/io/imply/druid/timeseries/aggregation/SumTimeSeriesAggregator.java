@@ -11,6 +11,7 @@ package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.aggregation.Aggregator;
@@ -54,21 +55,52 @@ public class SumTimeSeriesAggregator implements Aggregator
       return;
     }
     // do the aggregation
+    SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries()
+                                                                  .computeSimple()
+                                                                  .withWindowAndMaxEntries(window, maxEntries);
     if (timeSeries == null) {
-      timeSeries = new SimpleTimeSeries(window, maxEntries);
-      timeSeries.addTimeSeries(simpleTimeSeriesContainer.getSimpleTimeSeries().withWindow(window));
-      timeSeries.computeSimple();
+      timeSeries = simpleTimeSeries;
     } else {
-      SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple();
-      AggregateOperators.addIdenticalTimestamps(
-          simpleTimeSeries.getTimestamps().getLongArray(),
-          simpleTimeSeries.getDataPoints().getDoubleArray(),
-          timeSeries.getTimestamps().getLongArray(),
-          timeSeries.getDataPoints().getDoubleArray(),
-          simpleTimeSeries.size(),
-          timeSeries.size()
-      );
+      timeSeries = combineTimeSeries(timeSeries, simpleTimeSeries);
     }
+  }
+
+  public static SimpleTimeSeries combineTimeSeries(SimpleTimeSeries timeSeries, SimpleTimeSeries simpleTimeSeries)
+  {
+    if (timeSeries.getBucketMillis() != null &&
+        !simpleTimeSeries.getBucketMillis().equals(timeSeries.getBucketMillis())) {
+      timeSeries.setBucketMillis(null);
+    }
+    // merge endpoints as : choose the closer end point if both are different, otherwise, add them.
+    TimeSeries.EdgePoint inputStart = simpleTimeSeries.getStart();
+    if (inputStart.getTimestamp() > 0) {
+      TimeSeries.EdgePoint currStart = timeSeries.getStart();
+      if (inputStart.getTimestamp() > currStart.getTimestamp()) {
+        currStart.setTimestamp(inputStart.getTimestamp());
+        currStart.setData(inputStart.getData());
+      } else if (inputStart.getTimestamp() == currStart.getTimestamp()) {
+        currStart.setData(currStart.getData() + inputStart.getData());
+      }
+    }
+    TimeSeries.EdgePoint inputEnd = simpleTimeSeries.getEnd();
+    if (inputEnd.getTimestamp() > 0) {
+      TimeSeries.EdgePoint currEnd = timeSeries.getEnd();
+      if (inputEnd.getTimestamp() < currEnd.getTimestamp()) {
+        currEnd.setTimestamp(inputEnd.getTimestamp());
+        currEnd.setData(inputEnd.getData());
+      } else if (inputEnd.getTimestamp() == currEnd.getTimestamp()) {
+        currEnd.setData(currEnd.getData() + inputEnd.getData());
+      }
+    }
+    AggregateOperators.addIdenticalTimestamps(
+        simpleTimeSeries.getTimestamps().getLongArray(),
+        simpleTimeSeries.getDataPoints().getDoubleArray(),
+        timeSeries.getTimestamps().getLongArray(),
+        timeSeries.getDataPoints().getDoubleArray(),
+        simpleTimeSeries.size(),
+        timeSeries.size()
+    );
+    return timeSeries;
   }
 
   @Nullable

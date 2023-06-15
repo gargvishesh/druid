@@ -157,6 +157,11 @@ public class SimpleTimeSeriesContainer
     return isBuffered ? simpleTimeSeriesBuffer.getSimpleTimeSeries() : simpleTimeSeries;
   }
 
+  public Long getBucketMillis()
+  {
+    return getSimpleTimeSeries().getBucketMillis();
+  }
+
   public SimpleTimeSeries computeSimple()
   {
     if (isNull()) {

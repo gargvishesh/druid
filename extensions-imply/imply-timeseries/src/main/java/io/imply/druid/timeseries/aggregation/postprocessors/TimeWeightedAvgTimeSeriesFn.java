@@ -44,8 +44,8 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
     SimpleTimeSeries computedSeries = new SimpleTimeSeries(new ImplyLongArrayList(maxEntries),
                                                            new ImplyDoubleArrayList(maxEntries),
                                                            input.getWindow(),
-                                                           input.getStart(),
-                                                           input.getEnd(),
+                                                           null,
+                                                           null,
                                                            maxEntries,
                                                            timeBucketMillis
     );

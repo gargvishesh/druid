@@ -65,13 +65,32 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
 
   public SimpleTimeSeries withWindow(Interval newWindow)
   {
-    SimpleTimeSeries newSimpleTimeSeries = new SimpleTimeSeries(newWindow, maxEntries);
+    return withWindowAndMaxEntries(newWindow, maxEntries);
+  }
+
+  public SimpleTimeSeries withWindowAndMaxEntries(Interval newWindow, int newMaxEntries)
+  {
+    SimpleTimeSeries newSimpleTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(),
+        new ImplyDoubleArrayList(),
+        newWindow,
+        null,
+        null,
+        newMaxEntries,
+        getBucketMillis()
+    );
 
     for (int i = 0; i < timestamps.size(); i++) {
       long timestamp = timestamps.getLong(i);
       double datapoint = dataPoints.getDouble(i);
 
       newSimpleTimeSeries.addDataPoint(timestamp, datapoint);
+    }
+    if (getStart().getTimestamp() != -1) {
+      newSimpleTimeSeries.addDataPoint(getStart().getTimestamp(), getStart().getData());
+    }
+    if (getEnd().getTimestamp() != -1) {
+      newSimpleTimeSeries.addDataPoint(getEnd().getTimestamp(), getEnd().getData());
     }
 
     return newSimpleTimeSeries;
@@ -93,6 +112,11 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   public Long getBucketMillis()
   {
     return bucketMillis;
+  }
+
+  public void setBucketMillis(Long bucketMillis)
+  {
+    this.bucketMillis = bucketMillis;
   }
 
   public List<SimpleTimeSeries> getTimeSeriesList()
