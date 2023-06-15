@@ -60,7 +60,7 @@ public class CalciteDateExpandQueryTest extends BaseCalciteQueryTest
         )
     );
   }
-  
+
   @Test
   public void testDateExpandOperatorWithInvalidRange()
   {
