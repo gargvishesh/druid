@@ -3557,7 +3557,7 @@ public interface Function extends NamedFunction
       final List<Object> array2 = Arrays.asList(rhsExpr.asArray());
       boolean any = false;
       for (Object check : array1) {
-        any = any || array2.contains(check);
+        any |= array2.contains(check);
       }
       return ExprEval.ofLongBoolean(any);
     }
