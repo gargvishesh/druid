@@ -28,7 +28,7 @@ export function columnToSummary(column: Column): string {
 }
 
 function getEffectiveColumnType(column: Column): string | undefined {
-  if (column.sqlType === 'TIMESTAMP') return column.sqlType;
+  if (column.sqlType === 'TIMESTAMP' || column.sqlType === 'BOOLEAN') return column.sqlType;
   return column.nativeType || column.sqlType;
 }
 
@@ -43,6 +43,9 @@ export function dataTypeToIcon(dataType: string): IconName {
   switch (typeUpper) {
     case 'TIMESTAMP':
       return IconNames.TIME;
+
+    case 'BOOLEAN':
+      return IconNames.SEGMENTED_CONTROL;
 
     case 'VARCHAR':
     case 'STRING':
@@ -71,12 +74,25 @@ export function dataTypeToIcon(dataType: string): IconName {
     case 'COMPLEX<JSON>':
       return IconNames.DIAGRAM_TREE;
 
+    case 'COMPLEX<HYPERUNIQUE>':
+    case 'COMPLEX<HLLSKETCHBUILD>':
+    case 'COMPLEX<THETASKETCHBUILD>':
+      return IconNames.SNOWFLAKE;
+
+    case 'COMPLEX<QUANTILESDOUBLESSKETCH>':
+      return IconNames.HORIZONTAL_DISTRIBUTION;
+
     case 'COMPLEX<VARIANCE>':
       return IconNames.ALIGNMENT_HORIZONTAL_CENTER;
 
     case 'COMPLEX<IPADDRESS>':
     case 'COMPLEX<IPPREFIX>':
       return IconNames.IP_ADDRESS;
+
+    // BEGIN: Imply-added code for the timeseries extension
+    case 'COMPLEX<IMPLY-TS-SIMPLE>':
+      return IconNames.TIMELINE_LINE_CHART;
+    // END: Imply-added code for the timeseries extension
 
     case 'NULL':
       return IconNames.CIRCLE;
@@ -99,6 +115,9 @@ export function dataTypeToWidth(dataType: string | undefined): number {
   switch (typeUpper) {
     case 'TIMESTAMP':
       return 180;
+
+    case 'BOOLEAN':
+      return 100;
 
     case 'VARCHAR':
     case 'STRING':
