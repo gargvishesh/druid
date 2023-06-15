@@ -54,9 +54,9 @@ public class CalciteDateExpandQueryTest extends BaseCalciteQueryTest
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{"[946684800000,946684810000,946684820000]"},
-            new Object[]{"[946771200000,946771210000,946771220000]"},
-            new Object[]{"[946857600000,946857610000,946857620000]"}
+            new Object[]{"[946684800000,946684810000]"},
+            new Object[]{"[946771200000,946771210000]"},
+            new Object[]{"[946857600000,946857610000]"}
         )
     );
   }

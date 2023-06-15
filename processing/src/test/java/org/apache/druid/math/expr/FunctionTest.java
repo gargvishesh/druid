@@ -1149,7 +1149,7 @@ public class FunctionTest extends InitializedNullHandlingTest
   @Test
   public void testDateExpand()
   {
-    assertArrayExpr("date_expand(1674202858000, 1674202858500, 'PT0.1S')", new Long[]{1674202858000L, 1674202858100L, 1674202858200L, 1674202858300L, 1674202858400L, 1674202858500L});
+    assertArrayExpr("date_expand(1674202858000, 1674202858500, 'PT0.1S')", new Long[]{1674202858000L, 1674202858100L, 1674202858200L, 1674202858300L, 1674202858400L});
   }
 
   @Test
