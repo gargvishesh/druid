@@ -139,8 +139,8 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         } else {
           bucketInitialized = true;
         }
-        prevValue = currValue;
       }
+      prevValue = currValue;
     }
     if (simpleTimeSeries.getEnd().getTimestamp() != -1 && simpleTimeSeries.getEnd().getData() > prevValue) {
       // if end exists and is a greater value than the last value in the timeseries, then add the delta

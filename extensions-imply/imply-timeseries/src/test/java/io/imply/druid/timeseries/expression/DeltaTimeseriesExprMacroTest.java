@@ -162,7 +162,7 @@ public class DeltaTimeseriesExprMacroTest
     SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 5L);
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{0}),
-        new ImplyDoubleArrayList(new double[]{2}),
+        new ImplyDoubleArrayList(new double[]{2.5}),
         Intervals.ETERNITY,
         null,
         null,
