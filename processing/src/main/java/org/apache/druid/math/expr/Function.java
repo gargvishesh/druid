@@ -3809,7 +3809,7 @@ public interface Function extends NamedFunction
 
       List<Long> listOfDateTimes = new ArrayList<>();
 
-      for (long cur = startTime; cur <= endTime; cur += granularityInMillis) {
+      for (long cur = startTime; cur < endTime; cur += granularityInMillis) {
         listOfDateTimes.add(cur);
       }
 
