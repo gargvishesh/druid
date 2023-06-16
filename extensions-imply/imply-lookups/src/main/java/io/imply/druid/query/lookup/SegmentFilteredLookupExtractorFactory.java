@@ -50,9 +50,11 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -196,7 +198,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       // for broadcast *or* it could be because of a race at startup time (expected to be seen in realtime nodes most).
       // The options we have are to
       // 1) throw an exception here (which will break all queries any time the race occurs, which could be on every
-      //    start of a realtime node, i.e. a really bad experience)
+      //    start of a realtime node, i.e. a really sub-optimal experience)
       // 2) Return an effectively null lookup, which allows queries to make progress, but the result of the lookup
       //    will be null until the data is loaded and then become a real value.  This can cause some weird behavior
       //    but given that it's primarily happening on the stream, it should only impact the most recent data.  This
@@ -210,7 +212,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       //
       // We need the ability for nodes to identify which segments they need at startup time (e.g. an endpoint on the
       // coordinator that could tell a node that it needs XYZ broadcast segments), which would allow us to startup with
-      // a bit more reassurance that we have all of the necessary segments already loaded.  Once we had that in place
+      // a bit more reassurance that we have all the necessary segments already loaded.  Once we had that in place
       // it would likely become safe to switch the treatment here to (1) as then the lack of loading of the segment is
       // indicative of something much more nefarious and unexpected.
       return new NullLookupExtractorFactory(cacheKey);
@@ -473,7 +475,38 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     @Override
     public List<String> unapply(@Nullable String value)
     {
-      throw new UnsupportedOperationException();
+      try (CloseableNaivePool.PooledResourceHolder<SegmentLookupHolder> holder = segRef.getPool().take()) {
+        final SegmentLookupHolder lookupHolder = holder.get();
+
+        final BitmapResultFactory<ImmutableBitmap> bitmapResultFactory = lookupHolder.getBitmapResultFactory();
+        final StringValueSetIndex valueColumnIndex = lookupHolder.getAsStringValueSetIndex(valueColumn);
+        final DictionaryEncodedColumn<String> keyCol = lookupHolder.getDictionaryColumn(keyColumn);
+
+        ImmutableBitmap bitmap = valueColumnIndex.forValue(value).computeBitmapResult(bitmapResultFactory);
+        if (bitmap.isEmpty()) {
+          return Collections.emptyList();
+        }
+
+        if (filterBitmap != null) {
+          bitmap = bitmap.intersection(filterBitmap);
+        }
+
+        LinkedHashSet<Integer> seenValues = new LinkedHashSet<>();
+
+        final IntIterator iter = bitmap.iterator();
+        while (iter.hasNext()) {
+          // keyCol should never be null because it will have been validated before this LookupExtractor was created
+          //noinspection ConstantConditions
+          seenValues.add(keyCol.getSingleValueRow(iter.next()));
+        }
+
+        ArrayList<String> retVal = new ArrayList<>(seenValues.size());
+        for (Integer seenValue : seenValues) {
+          retVal.add(keyCol.lookupName(seenValue));
+        }
+
+        return retVal;
+      }
     }
 
     @Override
@@ -602,10 +635,9 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         return ScheduledExecutors.Signal.STOP;
       }
 
-
       // We have to build a dummy DataSourceAnalysis because the getTimeline API for manager requires it.
-      // It would be great if SegmentManager had a method that just took a table name, but it doesn't currently
-      // and we are in an extension, so until that day comes, we build this fake object.
+      // It would be great if SegmentManager had a method that just took a table name, but it doesn't and we are
+      // in an extension, so until that day comes, we build this fake object.
       final DataSourceAnalysis analysis = new TableDataSource(table).getAnalysis();
 
       // manager will never be null because this callable will not be built if it is null
