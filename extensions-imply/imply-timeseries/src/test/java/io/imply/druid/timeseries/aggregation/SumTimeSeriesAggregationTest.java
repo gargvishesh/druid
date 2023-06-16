@@ -133,7 +133,8 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
                 SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                     "sumtimeseries",
                     "fuu",
-                    null
+                    null,
+                    Intervals.ETERNITY
                 ),
                 new DoubleMaxAggregatorFactory("m1", "max_val_ts")
             )

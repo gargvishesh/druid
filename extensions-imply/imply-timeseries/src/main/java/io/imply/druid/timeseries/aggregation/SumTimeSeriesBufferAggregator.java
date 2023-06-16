@@ -16,6 +16,7 @@ import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.joda.time.Interval;
@@ -27,8 +28,9 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector selector;
   private final Interval window;
-  private final SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
+  private SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
+  private final int maxEntries;
   private long[] tempTimestamps;
   private double[] tempDataPoints;
 
@@ -40,14 +42,14 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.window = window;
-    this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(window, maxEntries);
+    this.maxEntries = maxEntries;
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    simpleByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
+    // no op
   }
 
   @Override
@@ -68,17 +70,12 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
     // do the aggregation
     WritableMemory memory = bufferToWritableMemoryCache.getMemory(buf);
 
-    if (simpleByteBufferTimeSeries.isNull(memory, position)) {
-      simpleTimeSeriesContainer.pushInto(
-          simpleByteBufferTimeSeries,
+    if (simpleByteBufferTimeSeries == null) {
+      simpleByteBufferTimeSeries = simpleTimeSeriesContainer.initAndPushInto(
           memory,
           position,
-          window
-      );
-      simpleByteBufferTimeSeries.setBucketMillis(
-          memory,
-          position,
-          simpleTimeSeriesContainer.getBucketMillis() == null ? -1 : simpleTimeSeriesContainer.getBucketMillis()
+          window,
+          maxEntries
       );
       tempTimestamps = new long[simpleByteBufferTimeSeries.size(memory, position)];
       tempDataPoints = new double[simpleByteBufferTimeSeries.size(memory, position)];
@@ -86,6 +83,14 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
       simpleByteBufferTimeSeries.getTimestamps(memory, position, tempTimestamps);
       simpleByteBufferTimeSeries.getDataPoints(memory, position, tempDataPoints);
       SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple();
+
+      if (!simpleByteBufferTimeSeries.getWindow().equals(simpleTimeSeries.getWindow())) {
+        throw new ISE(
+            "SumSeries aggregator expects the windows of input time series to be same, but found (%s, %s)",
+            simpleByteBufferTimeSeries.getWindow(),
+            simpleTimeSeries.getWindow()
+        );
+      }
 
       if (simpleByteBufferTimeSeries.getBucketMillis(memory, position) != -1 &&
           !simpleTimeSeriesContainer.getBucketMillis().equals(simpleByteBufferTimeSeries.getBucketMillis(memory, position))) {

@@ -11,6 +11,7 @@ package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -200,10 +201,39 @@ public class SimpleTimeSeriesContainer
       Interval window
   )
   {
-    // apply query window to properly filter data points and compute edges
-    SimpleTimeSeries windowFilteredTimeSeries = getSimpleTimeSeries().withWindow(window);
+    Preconditions.checkNotNull(simpleByteBufferTimeSeries, "simple time series is null");
+    Preconditions.checkNotNull(window, "window is null");
+    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().withWindow(window));
+  }
 
-    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, windowFilteredTimeSeries);
+  public SimpleByteBufferTimeSeries initAndPushInto(
+      WritableMemory writableMemory,
+      int pos,
+      @Nullable Interval window,
+      int maxEntries
+  )
+  {
+    // apply query window to properly filter data points and compute edges
+    SimpleTimeSeries windowFilteredTimeSeries;
+    if (window == null) {
+      windowFilteredTimeSeries = getSimpleTimeSeries();
+    } else {
+      windowFilteredTimeSeries = getSimpleTimeSeries().withWindow(window);
+    }
+
+    SimpleByteBufferTimeSeries simpleByteBufferTimeSeries =
+        new SimpleByteBufferTimeSeries(windowFilteredTimeSeries.getWindow(), maxEntries);
+    // init the series
+    simpleByteBufferTimeSeries.init(writableMemory, pos);
+
+    pushInto(simpleByteBufferTimeSeries, writableMemory, pos, windowFilteredTimeSeries.getWindow());
+
+    simpleByteBufferTimeSeries.setBucketMillis(
+        writableMemory,
+        pos,
+        getBucketMillis() == null ? -1 : getBucketMillis()
+    );
+    return simpleByteBufferTimeSeries;
   }
 
   public void pushInto(SimpleTimeSeriesContainer simpleTimeSeriesContainer)

@@ -23,6 +23,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.util.Optionality;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.VirtualColumn;
@@ -36,6 +37,7 @@ import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.VirtualColumnRegistry;
 import org.apache.druid.sql.calcite.table.RowSignatures;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -66,7 +68,7 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
       boolean finalizeAggregations
   )
   {
-    if (aggregateCall.getArgList().size() < 1) {
+    if (aggregateCall.getArgList().size() < 2) {
       return null;
     }
 
@@ -96,14 +98,31 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
       timeSeriesColumnName = virtualColumn.getOutputName();
     }
 
+    Interval window;
+    final RexNode timeWindowArg = Expressions.fromFieldAccess(
+        rexBuilder.getTypeFactory(),
+        rowSignature,
+        project,
+        aggregateCall.getArgList().get(1)
+    );
+    if (!timeWindowArg.isA(SqlKind.LITERAL)) {
+      // In some cases, even if the maxEntries parameter is
+      // present as a literal, the child node of an aggregate may not be a LogicalProject through which the constant can
+      // be extracted. In such cases, the parameter becomes an RexInputRef for the aggreate leading to query planning
+      // failure.
+      return null;
+    } else {
+      window = Intervals.of(RexLiteral.stringValue(timeWindowArg));
+    }
+
     // check if maxEntries is provided
     int maxEntries;
-    if (aggregateCall.getArgList().size() == 2) {
+    if (aggregateCall.getArgList().size() == 3) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
           rexBuilder.getTypeFactory(),
           rowSignature,
           project,
-          aggregateCall.getArgList().get(1)
+          aggregateCall.getArgList().get(2)
       );
       if (!maxEntriesArg.isA(SqlKind.LITERAL)) {
         // In some cases, even if the maxEntries parameter is
@@ -124,7 +143,8 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
     AggregatorFactory aggregatorFactory = SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
         StringUtils.format("%s:agg", name),
         timeSeriesColumnName,
-        maxEntries
+        maxEntries,
+        window
     );
 
     return Aggregation.create(ImmutableList.of(aggregatorFactory), null);
@@ -132,7 +152,8 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
 
   private static class SumTimeSeriesSqlAggFunction extends SqlAggFunction
   {
-    private static final String SIGNATURE2 = "'" + NAME + "'(timeSeriesColumn, maxEntries)";
+    private static final String SIGNATURE = "'" + NAME + "'(timeSeriesColumn, window)";
+    private static final String SIGNATURE2 = "'" + NAME + "'(timeSeriesColumn, window, maxEntries)";
 
     SumTimeSeriesSqlAggFunction()
     {
@@ -147,10 +168,15 @@ public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
           ),
           null,
           OperandTypes.or(
-              TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+              OperandTypes.sequence(
+                  SIGNATURE,
+                  TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                  OperandTypes.STRING
+              ),
               OperandTypes.sequence(
                   SIGNATURE2,
                   TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                  OperandTypes.STRING,
                   OperandTypes.POSITIVE_INTEGER_LITERAL
               )
           ),

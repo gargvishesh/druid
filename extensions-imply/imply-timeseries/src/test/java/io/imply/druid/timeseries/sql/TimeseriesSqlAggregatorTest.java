@@ -22,7 +22,6 @@ import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
-import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -146,7 +145,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         + "  timeseries_to_json(linear_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(padded_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(backfill_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
-        + "  timeseries_to_json(sum_timeseries(ts)), \n"
+        + "  timeseries_to_json(sum_timeseries(ts, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z')), \n"
         + "  max_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'))"
         + "FROM foo",
         Collections.singletonList(
@@ -192,7 +191,8 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                           "a4:agg",
                           "ts",
-                          260_000
+                          260_000,
+                          Intervals.ETERNITY
                       )
                   ))
                   .postAggregators(
@@ -338,7 +338,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
   {
     cannotVectorize();
     testQuery(
-        "SELECT max_over_timeseries(sum_timeseries(ts)) FROM ( \n" +
+        "SELECT max_over_timeseries(sum_timeseries(ts, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z', 100)) FROM ( \n" +
         "SELECT timeseries('0', m1, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z') as ts \n"
         + "FROM foo GROUP BY m1"
         + ")",
@@ -379,7 +379,8 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                       SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
                           "_a0:agg",
                           "a0:agg",
-                          SumTimeSeriesObjectSqlAggregator.SQL_DEFAULT_MAX_ENTRIES
+                          100,
+                          Intervals.ETERNITY
                       )
                   ))
                   .setPostAggregatorSpecs(

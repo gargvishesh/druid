@@ -112,7 +112,8 @@ public class TimeSeriesGroupByAggregationTest
         + " \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
         + "  {\"type\": \"avgTimeseries\", \"name\": \"avgTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
         + " \"timeBucketMillis\" : 7200000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
-        + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\"}"
+        + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\", "
+        + " \"window\" : \"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
         + "  ],"
         + "  \"intervals\": [\"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"]"
         + "  }",

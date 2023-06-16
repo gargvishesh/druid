@@ -96,6 +96,22 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     return newSimpleTimeSeries;
   }
 
+  public SimpleTimeSeries withMaxEntries(int newMaxEntries)
+  {
+    if (size() > newMaxEntries) {
+      throw new RuntimeException("Exceeded the max entries allowed");
+    }
+    return new SimpleTimeSeries(
+        getTimestamps(),
+        getDataPoints(),
+        getWindow(),
+        getStart(),
+        getEnd(),
+        newMaxEntries,
+        getBucketMillis()
+    );
+  }
+
   @JsonProperty
   public ImplyLongArrayList getTimestamps()
   {

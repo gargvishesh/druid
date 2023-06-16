@@ -24,6 +24,7 @@ public class SumTimeSeriesAggregator implements Aggregator
 {
   private SimpleTimeSeries timeSeries;
   private final BaseObjectColumnValueSelector selector;
+  @Nullable
   private final Interval window;
   private final int maxEntries;
 
@@ -55,9 +56,14 @@ public class SumTimeSeriesAggregator implements Aggregator
       return;
     }
     // do the aggregation
-    SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries()
-                                                                  .computeSimple()
-                                                                  .withWindowAndMaxEntries(window, maxEntries);
+    SimpleTimeSeries simpleTimeSeries;
+    if (window == null) {
+      simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple().withMaxEntries(maxEntries);
+    } else {
+      simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries()
+                                                  .computeSimple()
+                                                  .withWindowAndMaxEntries(window, maxEntries);
+    }
     if (timeSeries == null) {
       timeSeries = simpleTimeSeries;
     } else {
@@ -67,6 +73,13 @@ public class SumTimeSeriesAggregator implements Aggregator
 
   public static SimpleTimeSeries combineTimeSeries(SimpleTimeSeries timeSeries, SimpleTimeSeries simpleTimeSeries)
   {
+    if (!timeSeries.getWindow().equals(simpleTimeSeries.getWindow())) {
+      throw new ISE(
+          "SumSeries aggregator expects the windows of input time series to be same, but found (%s, %s)",
+          timeSeries.getWindow(),
+          simpleTimeSeries.getWindow()
+      );
+    }
     if (timeSeries.getBucketMillis() != null &&
         !simpleTimeSeries.getBucketMillis().equals(timeSeries.getBucketMillis())) {
       timeSeries.setBucketMillis(null);

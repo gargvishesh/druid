@@ -17,7 +17,6 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import org.apache.druid.common.guava.GuavaUtils;
-import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
@@ -38,27 +37,30 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   private final String name;
   private final String timeseriesColumn;
   private final int maxEntries;
-  private final Interval window = Intervals.ETERNITY;
+  private final Interval window;
   public static final ColumnType TYPE = BaseTimeSeriesAggregatorFactory.TYPE;
 
-  private SumTimeSeriesAggregatorFactory(String name, String timeseriesColumn, int maxEntries)
+  private SumTimeSeriesAggregatorFactory(String name, String timeseriesColumn, int maxEntries, Interval window)
   {
     this.name = Preconditions.checkNotNull(name, "name is null");
     this.timeseriesColumn = Preconditions.checkNotNull(timeseriesColumn, "time series column is null");
     this.maxEntries = maxEntries;
+    this.window = Preconditions.checkNotNull(window, "window is null");
   }
 
   @JsonCreator
   public static SumTimeSeriesAggregatorFactory getTimeSeriesAggregationFactory(
       @JsonProperty("name") final String name,
       @JsonProperty("timeseriesColumn") final String timeseriesColumn,
-      @JsonProperty("maxEntries") @Nullable final Integer maxEntries
+      @JsonProperty("maxEntries") @Nullable final Integer maxEntries,
+      @JsonProperty("window") Interval window
   )
   {
     return new SumTimeSeriesAggregatorFactory(
         name,
         timeseriesColumn,
-        GuavaUtils.firstNonNull(maxEntries, SimpleTimeSeriesAggregatorFactory.DEFAULT_MAX_ENTRIES)
+        GuavaUtils.firstNonNull(maxEntries, SimpleTimeSeriesAggregatorFactory.DEFAULT_MAX_ENTRIES),
+        window
     );
   }
 
@@ -71,6 +73,12 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   public int getMaxEntries()
   {
     return maxEntries;
+  }
+
+  @JsonProperty
+  public Interval getWindow()
+  {
+    return window;
   }
 
   @Override
@@ -88,7 +96,7 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   {
     return new SumTimeSeriesAggregator(
         metricFactory.makeColumnValueSelector(getTimeseriesColumn()),
-        window,
+        getWindow(),
         getMaxEntries()
     );
   }
@@ -98,7 +106,7 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   {
     return new SumTimeSeriesBufferAggregator(
         metricFactory.makeColumnValueSelector(getTimeseriesColumn()),
-        window,
+        getWindow(),
         getMaxEntries()
     );
   }
@@ -134,7 +142,7 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new SumTimeSeriesAggregatorFactory(getName(), getName(), getMaxEntries());
+    return new SumTimeSeriesAggregatorFactory(getName(), getName(), getMaxEntries(), getWindow());
   }
 
   @Override
@@ -194,13 +202,13 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory withName(String newName)
   {
-    return new SumTimeSeriesAggregatorFactory(newName, getTimeseriesColumn(), getMaxEntries());
+    return new SumTimeSeriesAggregatorFactory(newName, getTimeseriesColumn(), getMaxEntries(), getWindow());
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(getName(), getTimeseriesColumn(), getMaxEntries());
+    return Objects.hash(getName(), getTimeseriesColumn(), getMaxEntries(), getWindow());
   }
 
   @Override
@@ -216,6 +224,7 @@ public class SumTimeSeriesAggregatorFactory extends AggregatorFactory
     SumTimeSeriesAggregatorFactory that = (SumTimeSeriesAggregatorFactory) obj;
     return Objects.equals(getName(), that.getName()) &&
            Objects.equals(getTimeseriesColumn(), that.getTimeseriesColumn()) &&
-           Objects.equals(getMaxEntries(), that.getMaxEntries());
+           Objects.equals(getMaxEntries(), that.getMaxEntries()) &&
+           Objects.equals(getWindow(), that.getWindow());
   }
 }
