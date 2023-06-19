@@ -22,9 +22,9 @@ import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.query.SqlAsyncQueryMetadata;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.server.coordinator.CoordinatorStats;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 import org.joda.time.Duration;
 
 import java.util.Collection;
@@ -35,9 +35,7 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
 {
   public static final String JSON_TYPE_NAME = "killAsyncQueryMetadata";
   public static final String TIME_TO_RETAIN_KEY = "timeToRetain";
-  static final String METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY = "metadataRemovedSucceedCount";
-  static final String METADATA_REMOVED_FAILED_COUNT_STAT_KEY = "metadataRemovedFailedCount";
-  static final String METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY = "metadataRemovedSkippedCount";
+
   private static final Logger log = new Logger(KillAsyncQueryMetadata.class);
 
   private final Duration timeToRetain;
@@ -113,11 +111,11 @@ public class KillAsyncQueryMetadata implements CoordinatorCustomDuty
       }
     }
     log.info("Finished %s duty. Removed [%,d]. Failed [%,d]. Skipped [%,d].", JSON_TYPE_NAME, removed, failed, skipped);
-    CoordinatorStats stats = new CoordinatorStats();
-    stats.addToGlobalStat(METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY, removed);
-    stats.addToGlobalStat(METADATA_REMOVED_FAILED_COUNT_STAT_KEY, failed);
-    stats.addToGlobalStat(METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY, skipped);
-    return params.buildFromExisting().withCoordinatorStats(stats).build();
+    final CoordinatorRunStats stats = params.getCoordinatorStats();
+    stats.add(Stats.METADATA_CLEANUP_SUCCESS, removed);
+    stats.add(Stats.METADATA_CLEANUP_FAILED, failed);
+    stats.add(Stats.METADATA_CLEANUP_SKIPPED, skipped);
+    return params;
   }
 
   @VisibleForTesting

@@ -10,17 +10,16 @@
 package io.imply.druid.sql.async.coordinator.duty;
 
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
-import org.apache.druid.java.util.emitter.service.ServiceEmitter;
-import org.apache.druid.java.util.emitter.service.ServiceEventBuilder;
-import org.apache.druid.server.coordinator.CoordinatorRuntimeParamsTestHelpers;
-import org.apache.druid.server.coordinator.CoordinatorStats;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+
+import java.util.Arrays;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EmitAsyncStatsAndMetricsTest
@@ -28,42 +27,27 @@ public class EmitAsyncStatsAndMetricsTest
   @Mock
   private SqlAsyncMetadataManager mockSqlAsyncMetadataManager;
 
-  @Mock
-  private ServiceEmitter mockServiceEmitter;
-
   @Test
   public void testRun()
   {
     EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
-    CoordinatorStats stats = new CoordinatorStats();
-    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, 1);
-    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_COUNT_STAT_KEY, 2);
-    stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY, 3);
-    stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_FAILED_COUNT_STAT_KEY, 4);
-    stats.addToGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY, 5);
-    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY, 6);
-    stats.addToGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY, 7);
-    stats.addToGlobalStat(UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT, 8);
-    DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder()
-                                                                              .withCoordinatorStats(stats)
-                                                                              .withEmitter(mockServiceEmitter)
-                                                                              .build();
-    emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(10)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
-    Mockito.verifyNoMoreInteractions(mockServiceEmitter);
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
+
+    Mockito.when(mockSqlAsyncMetadataManager.getAllAsyncResultIds())
+           .thenReturn(Arrays.asList("resultId1", "resultId2"));
+    params = emitAsyncStatsAndMetrics.run(params);
+    Assert.assertEquals(2L, params.getCoordinatorStats().get(Stats.TRACKED_RESULTS));
   }
 
   @Test
   public void testRunWithSomeDutyMetricMissing()
   {
     EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
-    CoordinatorStats stats = new CoordinatorStats();
-    DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder()
-                                                                              .withCoordinatorStats(stats)
-                                                                              .withEmitter(mockServiceEmitter)
-                                                                              .build();
-    emitAsyncStatsAndMetrics.run(params);
-    Mockito.verify(mockServiceEmitter, Mockito.times(10)).emit(ArgumentMatchers.any(ServiceEventBuilder.class));
-    Mockito.verifyNoMoreInteractions(mockServiceEmitter);
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
+
+    Mockito.when(mockSqlAsyncMetadataManager.getAllAsyncResultIds())
+           .thenReturn(Arrays.asList("resultId1", "resultId2"));
+    params = emitAsyncStatsAndMetrics.run(params);
+    Assert.assertEquals(2L, params.getCoordinatorStats().get(Stats.TRACKED_RESULTS));
   }
 }

@@ -16,7 +16,6 @@ import io.imply.druid.sql.async.SqlAsyncModule;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.apache.druid.java.util.metrics.AbstractMonitor;
-import org.apache.druid.query.DruidMetrics;
 
 public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
 {
@@ -40,29 +39,22 @@ public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
   public boolean doMonitor(ServiceEmitter emitter)
   {
     SqlAsyncQueryPool.BestEffortStatsSnapshot sqlAsyncQueryPoolStats = sqlAsyncQueryPool.getBestEffortStatsSnapshot();
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.SERVER, brokerId)
-            .build("async/sqlQuery/running/count", sqlAsyncQueryPoolStats.getQueryRunningCount())
-    );
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.SERVER, brokerId)
-            .build("async/sqlQuery/queued/count", sqlAsyncQueryPoolStats.getQueryQueuedCount())
-    );
+    emitStat("async/sqlQuery/running/count", sqlAsyncQueryPoolStats.getQueryRunningCount(), emitter);
+    emitStat("async/sqlQuery/queued/count", sqlAsyncQueryPoolStats.getQueryQueuedCount(), emitter);
 
     // Emit stats from limit configs
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.SERVER, brokerId)
-            .build("async/sqlQuery/running/max", asyncQueryLimitsConfig.getMaxConcurrentQueries())
-    );
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.SERVER, brokerId)
-            .build("async/sqlQuery/queued/max", asyncQueryLimitsConfig.getMaxQueriesToQueue())
-    );
+    emitStat("async/sqlQuery/running/max", asyncQueryLimitsConfig.getMaxConcurrentQueries(), emitter);
+    emitStat("async/sqlQuery/queued/max", asyncQueryLimitsConfig.getMaxQueriesToQueue(), emitter);
 
     return true;
+  }
+
+  private void emitStat(String statName, int value, ServiceEmitter emitter)
+  {
+    emitter.emit(
+        new ServiceMetricEvent.Builder()
+            .setDimension("server", brokerId)
+            .build(statName, value)
+    );
   }
 }

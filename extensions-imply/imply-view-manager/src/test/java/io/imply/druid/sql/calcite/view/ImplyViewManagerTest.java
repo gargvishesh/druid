@@ -11,13 +11,13 @@ package io.imply.druid.sql.calcite.view;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.timeseries.TimeseriesQuery;
 import org.apache.druid.server.security.AuthConfig;
-import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.druid.sql.calcite.util.CalciteTests;
@@ -91,7 +91,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
       .run();
 
     // Drop the view, the view query should fail
-    expectedException.expect(SqlPlanningException.class);
+    expectedException.expect(DruidException.class);
     expectedException.expectMessage("Object 'bview' not found within 'view'");
 
     plannerFixture.viewManager().dropView("bview");
@@ -99,11 +99,7 @@ public class ImplyViewManagerTest extends BaseCalciteQueryTest
       .plannerFixture(plannerFixture)
       .sql("SELECT * FROM view.bview")
       .expectedQuery(query)
-      .expectedResults(
-          ImmutableList.of(
-              new Object[]{5L}
-          )
-       )
+      .expectedResults(ImmutableList.of(new Object[]{5L}))
       .run();
   }
 

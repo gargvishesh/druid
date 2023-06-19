@@ -12,8 +12,9 @@ package io.imply.druid.sql.async.coordinator.duty;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
-import org.apache.druid.server.coordinator.CoordinatorRuntimeParamsTestHelpers;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,25 +56,14 @@ public class KillAsyncQueryResultWithoutMetadataTest
     Mockito.when(mockSqlAsyncResultManager.getResultSize(ArgumentMatchers.eq(query3))).thenReturn(query3Size);
 
     killAsyncQueryResultWithoutMetadata = new KillAsyncQueryResultWithoutMetadata(mockSqlAsyncResultManager, mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder().build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
     killAsyncQueryResultWithoutMetadata.run(params);
 
-    Assert.assertEquals(
-        1,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY)
-    );
-    Assert.assertEquals(
-        1,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_COUNT_STAT_KEY)
-    );
-    Assert.assertEquals(
-        query2Size,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY)
-    );
-    Assert.assertEquals(
-        query3Size,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY)
-    );
+    final CoordinatorRunStats stats = params.getCoordinatorStats();
+    Assert.assertEquals(1, stats.get(Stats.RESULT_CLEANUP_SUCCESS_COUNT));
+    Assert.assertEquals(1, stats.get(Stats.RESULT_CLEANUP_FAILED_COUNT));
+    Assert.assertEquals(query2Size, stats.get(Stats.RESULT_CLEANUP_SUCCESS_BYTES));
+    Assert.assertEquals(query3Size, stats.get(Stats.RESULT_CLEANUP_FAILED_BYTES));
     Mockito.verify(mockSqlAsyncResultManager).getAllAsyncResultIds();
     Mockito.verify(mockSqlAsyncResultManager).deleteResults(ArgumentMatchers.eq(query2));
     Mockito.verify(mockSqlAsyncResultManager).deleteResults(ArgumentMatchers.eq(query3));
