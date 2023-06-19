@@ -12,6 +12,7 @@ package io.imply.druid.sql.async.coordinator.duty;
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 import org.junit.Assert;
@@ -55,7 +56,7 @@ public class KillAsyncQueryResultWithoutMetadataTest
     Mockito.when(mockSqlAsyncResultManager.getResultSize(ArgumentMatchers.eq(query3))).thenReturn(query3Size);
 
     killAsyncQueryResultWithoutMetadata = new KillAsyncQueryResultWithoutMetadata(mockSqlAsyncResultManager, mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(System.nanoTime()).build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
     killAsyncQueryResultWithoutMetadata.run(params);
 
     final CoordinatorRunStats stats = params.getCoordinatorStats();

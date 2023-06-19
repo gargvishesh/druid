@@ -10,6 +10,7 @@
 package io.imply.druid.sql.async.coordinator.duty;
 
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +31,7 @@ public class EmitAsyncStatsAndMetricsTest
   public void testRun()
   {
     EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(System.nanoTime()).build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
 
     Mockito.when(mockSqlAsyncMetadataManager.getAllAsyncResultIds())
            .thenReturn(Arrays.asList("resultId1", "resultId2"));
@@ -42,7 +43,7 @@ public class EmitAsyncStatsAndMetricsTest
   public void testRunWithSomeDutyMetricMissing()
   {
     EmitAsyncStatsAndMetrics emitAsyncStatsAndMetrics = new EmitAsyncStatsAndMetrics(mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(System.nanoTime()).build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
 
     Mockito.when(mockSqlAsyncMetadataManager.getAllAsyncResultIds())
            .thenReturn(Arrays.asList("resultId1", "resultId2"));

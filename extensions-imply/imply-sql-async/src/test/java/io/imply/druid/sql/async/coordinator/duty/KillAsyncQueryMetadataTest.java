@@ -15,6 +15,7 @@ import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.query.SqlAsyncQueryMetadata;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
@@ -180,7 +181,7 @@ public class KillAsyncQueryMetadataTest
            .thenReturn(true);
 
     killAsyncQueryMetadata = new KillAsyncQueryMetadata(new Duration("PT60000S"), mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(System.nanoTime()).build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(DateTimes.nowUtc()).build();
     killAsyncQueryMetadata.run(params);
 
     final CoordinatorRunStats stats = params.getCoordinatorStats();
