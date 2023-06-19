@@ -16,8 +16,8 @@ import io.imply.druid.sql.async.query.SqlAsyncQueryDetails;
 import io.imply.druid.sql.async.query.SqlAsyncQueryDetailsAndMetadata;
 import io.imply.druid.sql.async.query.SqlAsyncQueryMetadata;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.server.coordinator.CoordinatorRuntimeParamsTestHelpers;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 import org.apache.druid.sql.http.ResultFormat;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -180,20 +180,13 @@ public class KillAsyncQueryMetadataTest
            .thenReturn(true);
 
     killAsyncQueryMetadata = new KillAsyncQueryMetadata(new Duration("PT60000S"), mockSqlAsyncMetadataManager);
-    DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers.newBuilder().build();
+    DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder(System.nanoTime()).build();
     killAsyncQueryMetadata.run(params);
-    Assert.assertEquals(
-        1,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY)
-    );
-    Assert.assertEquals(
-        1,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_FAILED_COUNT_STAT_KEY)
-    );
-    Assert.assertEquals(
-        2,
-        params.getCoordinatorStats().getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY)
-    );
+
+    final CoordinatorRunStats stats = params.getCoordinatorStats();
+    Assert.assertEquals(1, stats.get(Stats.METADATA_CLEANUP_SUCCESS));
+    Assert.assertEquals(1, stats.get(Stats.METADATA_CLEANUP_FAILED));
+    Assert.assertEquals(2, stats.get(Stats.METADATA_CLEANUP_SKIPPED));
 
     Mockito.verify(mockSqlAsyncMetadataManager).removeQueryDetails(ArgumentMatchers.eq(sqlAsyncQueryDetail1));
 
