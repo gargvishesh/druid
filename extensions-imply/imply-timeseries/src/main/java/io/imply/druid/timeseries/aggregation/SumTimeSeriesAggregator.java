@@ -58,11 +58,11 @@ public class SumTimeSeriesAggregator implements Aggregator
     // do the aggregation
     SimpleTimeSeries simpleTimeSeries;
     if (window == null) {
-      simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple().withMaxEntries(maxEntries);
+      simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple().copyWithMaxEntries(maxEntries);
     } else {
       simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries()
                                                   .computeSimple()
-                                                  .withWindowAndMaxEntries(window, maxEntries);
+                                                  .copyWithWindowAndMaxEntries(window, maxEntries);
     }
     if (timeSeries == null) {
       timeSeries = simpleTimeSeries;
@@ -86,7 +86,7 @@ public class SumTimeSeriesAggregator implements Aggregator
     }
     // merge endpoints as : choose the closer end point if both are different, otherwise, add them.
     TimeSeries.EdgePoint inputStart = simpleTimeSeries.getStart();
-    if (inputStart.getTimestamp() > 0) {
+    if (inputStart.getTimestamp() != -1) {
       TimeSeries.EdgePoint currStart = timeSeries.getStart();
       if (inputStart.getTimestamp() > currStart.getTimestamp()) {
         currStart.setTimestamp(inputStart.getTimestamp());
@@ -96,7 +96,7 @@ public class SumTimeSeriesAggregator implements Aggregator
       }
     }
     TimeSeries.EdgePoint inputEnd = simpleTimeSeries.getEnd();
-    if (inputEnd.getTimestamp() > 0) {
+    if (inputEnd.getTimestamp() != -1) {
       TimeSeries.EdgePoint currEnd = timeSeries.getEnd();
       if (inputEnd.getTimestamp() < currEnd.getTimestamp()) {
         currEnd.setTimestamp(inputEnd.getTimestamp());

@@ -86,7 +86,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
         DateTimes.of("2020-01-01T04"),
         DateTimes.of("2020-01-01T05"),
         DateTimes.of("2020-01-01T06")
-    ).withWindow(interval);
+    ).copyWithWindow(interval);
     byte[] bytes = SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries).getSerializedBytes();
     Assert.assertEquals(78, bytes.length);
     SimpleTimeSeries deserialized = SimpleTimeSeriesContainer.createFromByteBuffer(

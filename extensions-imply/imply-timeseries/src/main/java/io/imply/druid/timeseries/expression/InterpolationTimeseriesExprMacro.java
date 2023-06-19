@@ -46,12 +46,7 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
     validationHelperCheckArgumentCount(args, 2);
 
     Expr arg = args.get(0);
-    long bucketMillis;
-    if (args.get(1).isLiteral()) {
-      bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
-    } else {
-      throw new IAE("Expected second argument in [%s] to be a literal", name);
-    }
+    long bucketMillis = new Period(Utils.expectLiteral(args.get(1), name, 2)).toStandardDuration().getMillis();
 
     class InterpolationTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {

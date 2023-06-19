@@ -19,12 +19,9 @@ import io.imply.druid.timeseries.Util;
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
-import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.Druids;
@@ -416,17 +413,13 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   .virtualColumns(
                       new ExpressionVirtualColumn(
                           "v0",
-                          StringUtils.format("%s(\"ts\")", MaxOverTimeseriesExprMacro.NAME),
+                          "max_over_timeseries(\"ts\")",
                           ColumnType.DOUBLE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionVirtualColumn(
                           "v1",
-                          StringUtils.format(
-                              "%s(%s(\"ts\"))",
-                              TimeseriesToJSONExprMacro.NAME,
-                              DeltaTimeseriesExprMacro.NAME
-                          ),
+                          "timeseries_to_json(delta_timeseries(\"ts\"))",
                           TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       )

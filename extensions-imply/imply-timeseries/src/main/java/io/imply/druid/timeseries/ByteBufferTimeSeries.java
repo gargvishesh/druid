@@ -109,10 +109,11 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
       setEndBuffered(mem, buffStartPosition, mergeSeries.getEnd());
     }
 
-    // merge the visible window
+    // if null, set the timeseries to an empty one for merge
     if (isNull(mem, buffStartPosition)) {
       mem.putInt(buffStartPosition, 0);
     }
+    // merge the visible window
     internalMergeSeriesBuffered(mem, buffStartPosition, mergeSeries);
   }
 

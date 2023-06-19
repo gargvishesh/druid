@@ -203,7 +203,7 @@ public class SimpleTimeSeriesContainer
   {
     Preconditions.checkNotNull(simpleByteBufferTimeSeries, "simple time series is null");
     Preconditions.checkNotNull(window, "window is null");
-    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().withWindow(window));
+    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().copyWithWindow(window));
   }
 
   public SimpleByteBufferTimeSeries initAndPushInto(
@@ -218,13 +218,11 @@ public class SimpleTimeSeriesContainer
     if (window == null) {
       windowFilteredTimeSeries = getSimpleTimeSeries();
     } else {
-      windowFilteredTimeSeries = getSimpleTimeSeries().withWindow(window);
+      windowFilteredTimeSeries = getSimpleTimeSeries().copyWithWindow(window);
     }
 
     SimpleByteBufferTimeSeries simpleByteBufferTimeSeries =
         new SimpleByteBufferTimeSeries(windowFilteredTimeSeries.getWindow(), maxEntries);
-    // init the series
-    simpleByteBufferTimeSeries.init(writableMemory, pos);
 
     pushInto(simpleByteBufferTimeSeries, writableMemory, pos, windowFilteredTimeSeries.getWindow());
 

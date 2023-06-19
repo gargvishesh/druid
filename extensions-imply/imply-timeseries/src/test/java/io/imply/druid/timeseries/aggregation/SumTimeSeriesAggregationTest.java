@@ -20,13 +20,11 @@ import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
-import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.jackson.GranularityModule;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
-import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.Druids;
 import org.apache.druid.query.QueryRunnerTestHelper;
@@ -123,7 +121,7 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
         .virtualColumns(
             new ExpressionVirtualColumn(
                 "max_val_ts",
-                StringUtils.format("%s(fuu)", MaxOverTimeseriesExprMacro.NAME),
+                "max_over_timeseries(fuu)",
                 ColumnType.DOUBLE,
                 Util.makeTimeSeriesMacroTable()
             )

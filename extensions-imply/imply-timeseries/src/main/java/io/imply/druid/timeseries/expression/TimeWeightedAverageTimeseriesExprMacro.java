@@ -38,19 +38,10 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
 
     Expr arg = args.get(0);
 
-    Interpolator interpolator;
-    if (args.get(1).isLiteral()) {
-      interpolator = Interpolator.fromString(args.get(1).getLiteralValue().toString().toUpperCase(Locale.ROOT));
-    } else {
-      throw new IAE("Expected second argument in [%s] to be a literal", NAME);
-    }
-
-    long bucketMillis;
-    if (args.get(2).isLiteral()) {
-      bucketMillis = new Period(args.get(2).getLiteralValue()).toStandardDuration().getMillis();
-    } else {
-      throw new IAE("Expected third argument in [%s] to be a literal", NAME);
-    }
+    Interpolator interpolator = Interpolator.fromString(
+        Utils.expectLiteral(args.get(1), NAME, 2).toString().toUpperCase(Locale.ROOT)
+    );
+    long bucketMillis = new Period(Utils.expectLiteral(args.get(2), NAME, 3)).toStandardDuration().getMillis();
 
     class TimeWeightedAverageTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {

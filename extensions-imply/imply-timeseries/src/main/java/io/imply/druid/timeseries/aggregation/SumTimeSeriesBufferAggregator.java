@@ -17,6 +17,7 @@ import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.joda.time.Interval;
@@ -44,12 +45,13 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
     this.window = window;
     this.maxEntries = maxEntries;
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
+    this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(Intervals.ETERNITY, maxEntries);
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    // no op
+    simpleByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -70,7 +72,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
     // do the aggregation
     WritableMemory memory = bufferToWritableMemoryCache.getMemory(buf);
 
-    if (simpleByteBufferTimeSeries == null) {
+    if (simpleByteBufferTimeSeries.isNull(memory, position)) {
       simpleByteBufferTimeSeries = simpleTimeSeriesContainer.initAndPushInto(
           memory,
           position,
@@ -99,7 +101,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
 
       // merge endpoints as : choose the closer end point if both are different, otherwise, add them.
       TimeSeries.EdgePoint inputStart = simpleTimeSeries.getStart();
-      if (inputStart.getTimestamp() > 0) {
+      if (inputStart.getTimestamp() != -1) {
         TimeSeries.EdgePoint currStart = simpleByteBufferTimeSeries.getStartBuffered(memory, position);
         if (inputStart.getTimestamp() > currStart.getTimestamp()) {
           currStart.setTimestamp(inputStart.getTimestamp());
@@ -110,7 +112,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
         simpleByteBufferTimeSeries.setStartBuffered(memory, position, currStart);
       }
       TimeSeries.EdgePoint inputEnd = simpleTimeSeries.getEnd();
-      if (inputEnd.getTimestamp() > 0) {
+      if (inputEnd.getTimestamp() != -1) {
         TimeSeries.EdgePoint currEnd = simpleByteBufferTimeSeries.getEndBuffered(memory, position);
         if (inputEnd.getTimestamp() < currEnd.getTimestamp()) {
           currEnd.setTimestamp(inputEnd.getTimestamp());

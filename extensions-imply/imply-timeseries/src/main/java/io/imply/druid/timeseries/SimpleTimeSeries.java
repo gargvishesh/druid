@@ -63,12 +63,12 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     this.bucketMillis = bucketMillis;
   }
 
-  public SimpleTimeSeries withWindow(Interval newWindow)
+  public SimpleTimeSeries copyWithWindow(Interval newWindow)
   {
-    return withWindowAndMaxEntries(newWindow, maxEntries);
+    return copyWithWindowAndMaxEntries(newWindow, maxEntries);
   }
 
-  public SimpleTimeSeries withWindowAndMaxEntries(Interval newWindow, int newMaxEntries)
+  public SimpleTimeSeries copyWithWindowAndMaxEntries(Interval newWindow, int newMaxEntries)
   {
     SimpleTimeSeries newSimpleTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(),
@@ -96,7 +96,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     return newSimpleTimeSeries;
   }
 
-  public SimpleTimeSeries withMaxEntries(int newMaxEntries)
+  public SimpleTimeSeries copyWithMaxEntries(int newMaxEntries)
   {
     if (size() > newMaxEntries) {
       throw new RuntimeException("Exceeded the max entries allowed");

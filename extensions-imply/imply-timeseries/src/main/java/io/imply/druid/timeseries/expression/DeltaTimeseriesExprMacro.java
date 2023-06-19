@@ -39,11 +39,7 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     Expr arg = args.get(0);
     long bucketMillis = 1;
     if (args.size() == 2) {
-      if (args.get(1).isLiteral()) {
-        bucketMillis = new Period(args.get(1).getLiteralValue()).toStandardDuration().getMillis();
-      } else {
-        throw new IAE("Expected second argument in [%s] to be a literal", NAME);
-      }
+      bucketMillis = new Period(Utils.expectLiteral(args.get(1), NAME, 2)).toStandardDuration().getMillis();
     }
 
     long finalBucketMillis = bucketMillis;
@@ -132,6 +128,19 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
           if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
             deltaSeriesTimestamps.add(prevBucketStart);
             deltaSeriesDataPoints.add(runningSum);
+          } else {
+            throw new IAE(
+                "Found a delta recording (input timestamp : [%d], timestamp bucket : [%d]) outside the "
+                  + "window parameter of the resultant series. "
+                  + "Please align the bucketPeriod [%s] of delta timeseries and the window parameter [%s] of "
+                  + "input series such that the delta recordings are not outside the "
+                  + "input series' window period.",
+                currTimestamp,
+                currBucketStart,
+                bucketMillis,
+                new Period(bucketMillis),
+                simpleTimeSeries.getWindow()
+            );
           }
           runningSum = 0;
           prevBucketStart = currBucketStart;
