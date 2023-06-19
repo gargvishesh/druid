@@ -24,6 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -212,6 +213,49 @@ public class SegmentFilteredLookupExtractorFactoryTest
     }
     finally {
       factory.close();
+    }
+  }
+
+  @Test
+  public void testUnapply() throws SegmentLoadingException
+  {
+    SegmentFilteredLookupExtractorFactory unfilteredGlobal = new SegmentFilteredLookupExtractorFactory(
+        "filterable", Collections.emptyList(), segs, cronFactory
+    );
+
+    SegmentFilteredLookupExtractorFactory filtered = buildFilterableFactory();
+
+    try {
+      Assert.assertTrue(filtered.start());
+      Assert.assertTrue(scheduled.get());
+
+      scheduled.set(false);
+      Assert.assertTrue(unfilteredGlobal.start());
+      Assert.assertTrue(scheduled.get());
+
+      loadLookup("filterable");
+
+      final LookupExtractor lookup = filtered.specialize(
+          SpecializableLookup.LookupSpec.parseString("lookupName[colB][colC][B]")
+      ).get();
+
+      Assert.assertEquals(Collections.singletonList("a"), lookup.unapply("bob"));
+      Assert.assertEquals(Collections.singletonList("b"), lookup.unapply("bill"));
+      Assert.assertEquals(Collections.singletonList("c"), lookup.unapply("the"));
+      Assert.assertEquals(Collections.singletonList("d"), lookup.unapply("kid"));
+      Assert.assertTrue(lookup.unapply("notThere").isEmpty());
+
+      final LookupExtractor anotherLookup = unfilteredGlobal.specialize(
+          SpecializableLookup.LookupSpec.parseString("lookupName[colC][colB]")
+      ).get();
+
+      Assert.assertEquals(Arrays.asList("sally", "bob", "three"), anotherLookup.unapply("a"));
+      Assert.assertEquals(Arrays.asList("sue", "bill", "two"), anotherLookup.unapply("b"));
+      Assert.assertEquals(Arrays.asList("the", "one"), anotherLookup.unapply("c"));
+      Assert.assertEquals(Arrays.asList("seamstress", "kid", "!!!", "boom"), anotherLookup.unapply("d"));
+    }
+    finally {
+      filtered.close();
     }
   }
 
