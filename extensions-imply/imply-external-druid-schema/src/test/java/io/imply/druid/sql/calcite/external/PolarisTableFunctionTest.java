@@ -20,6 +20,7 @@ import org.apache.druid.data.input.impl.CsvInputFormat;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.s3.S3InputSource;
 import org.apache.druid.data.input.s3.S3InputSourceDruidModule;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.IAE;
@@ -31,7 +32,6 @@ import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
 import org.apache.druid.server.security.ResourceType;
-import org.apache.druid.sql.SqlPlanningException;
 import org.apache.druid.sql.calcite.CalciteIngestionDmlTest;
 import org.apache.druid.sql.calcite.external.ExternalDataSource;
 import org.apache.druid.sql.calcite.external.Externals;
@@ -266,7 +266,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", VALID_SOURCE_ARG))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "POLARIS_SOURCE does not support the EXTEND clause."))
             ))
@@ -282,7 +282,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", INVALID_SOURCE_ARG))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
             ))
         .verify();
@@ -356,7 +356,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", VALID_POLARIS_FILE))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Must provide a value for the [format] parameter"))
             ))
@@ -374,7 +374,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME")
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Must provide a non-empty value for the [files] parameter"))
             ))
@@ -393,7 +393,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", INVALID_POLARIS_FILE))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
             ))
         .verify();
@@ -468,7 +468,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME"))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Must provide a value for the [connectionName] parameter"))
             ))
@@ -487,7 +487,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Must provide a non-empty value for one of [uris, prefixes, objects, pattern] parameters"))
             ))
@@ -508,7 +508,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(
                     "Exactly one of [uris, prefixes, objects, pattern] must be specified"))
             ))
@@ -528,7 +528,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", INVALID_POLARIS_S3_CONN_NAME))
         .expectValidationError(
             CoreMatchers.allOf(
-                CoreMatchers.instanceOf(SqlPlanningException.class),
+                CoreMatchers.instanceOf(DruidException.class),
                 ThrowableMessageMatcher.hasMessage(CoreMatchers.containsString(RESOLVER_FAILURE_MESSAGE))
             ))
         .verify();
