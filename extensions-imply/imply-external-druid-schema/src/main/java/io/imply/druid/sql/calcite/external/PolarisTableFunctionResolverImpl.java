@@ -11,7 +11,7 @@ package io.imply.druid.sql.calcite.external;
 
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionMapper;
-import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.error.InvalidInput;
 
 import javax.annotation.Nullable;
 
@@ -32,7 +32,7 @@ public class PolarisTableFunctionResolverImpl implements PolarisTableFunctionRes
   public PolarisExternalTableSpec resolve(@Nullable final PolarisTableFunctionSpec fn)
   {
     if (null == fn) {
-      throw new IAE("Polaris table function spec must be provided.");
+      throw InvalidInput.exception("Polaris table function spec must be provided.");
     }
     return tableFunctionMapper.getTableFunctionMapping(fn);
   }

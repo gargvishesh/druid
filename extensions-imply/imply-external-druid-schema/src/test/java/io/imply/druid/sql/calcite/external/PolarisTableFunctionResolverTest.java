@@ -12,7 +12,7 @@ package io.imply.druid.sql.calcite.external;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.imply.druid.sql.calcite.schema.ImplyExternalDruidSchemaCommonConfig;
 import io.imply.druid.sql.calcite.schema.tables.mapping.ExternalTableFunctionApiMapperImpl;
-import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.junit.Assert;
 import org.junit.Before;
@@ -49,7 +49,7 @@ public class PolarisTableFunctionResolverTest
   @Test
   public void test_nullTableFunctionSpec_resolve_ThrowsException()
   {
-    IAE exception = Assert.assertThrows(IAE.class, () -> resolver.resolve(null));
+    DruidException exception = Assert.assertThrows(DruidException.class, () -> resolver.resolve(null));
     Assert.assertTrue(exception.getMessage().contains("Polaris table function spec must be provided."));
   }
 }
