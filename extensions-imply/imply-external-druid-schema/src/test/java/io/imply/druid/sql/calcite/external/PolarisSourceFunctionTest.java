@@ -18,6 +18,7 @@ import org.apache.druid.catalog.model.table.ExternalTableSpec;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.impl.InlineInputSource;
 import org.apache.druid.data.input.impl.JsonInputFormat;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -125,7 +126,7 @@ public class PolarisSourceFunctionTest
   @Test
   public void test_apply_columnsInExtend_expectedExtTableSpec()
   {
-    IAE exception = Assert.assertThrows(IAE.class, () -> function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER));
+    DruidException exception = Assert.assertThrows(DruidException.class, () -> function.apply(FUNCTION_NAME, ARGS_WITH_SOURCE, COLUMNS, MAPPER));
     Assert.assertTrue(exception.getMessage().contains("does not support the EXTEND clause"));
   }
 }
