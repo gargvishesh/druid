@@ -14,6 +14,7 @@ import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.math.expr.Expr;
@@ -125,23 +126,15 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         long currBucketStart = durationGranularity.bucketStart(currTimestamp);
         runningSum += currValue - prevValue;
         if (currBucketStart > prevBucketStart) {
-          if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
-            deltaSeriesTimestamps.add(prevBucketStart);
-            deltaSeriesDataPoints.add(runningSum);
-          } else {
-            throw new IAE(
-                "Found a delta recording (input timestamp : [%d], timestamp bucket : [%d]) outside the "
-                  + "window parameter of the resultant series. "
-                  + "Please align the bucketPeriod [%s] of delta timeseries and the window parameter [%s] of "
-                  + "input series such that the delta recordings are not outside the "
-                  + "input series' window period.",
-                currTimestamp,
-                currBucketStart,
-                bucketMillis,
-                new Period(bucketMillis),
-                simpleTimeSeries.getWindow()
-            );
-          }
+          tryAddToTimeseries(
+              deltaSeriesTimestamps,
+              deltaSeriesDataPoints,
+              simpleTimeSeriesTimestamps.getLong(i - 1),
+              prevBucketStart,
+              runningSum,
+              bucketMillis,
+              simpleTimeSeries
+          );
           runningSum = 0;
           prevBucketStart = currBucketStart;
           bucketInitialized = false;
@@ -154,16 +147,26 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     if (simpleTimeSeries.getEnd().getTimestamp() != -1 && simpleTimeSeries.getEnd().getData() > prevValue) {
       // if end exists and is a greater value than the last value in the timeseries, then add the delta
       runningSum += simpleTimeSeries.getEnd().getData() - prevValue;
-      if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
-        deltaSeriesTimestamps.add(prevBucketStart);
-        deltaSeriesDataPoints.add(runningSum);
-      }
+      tryAddToTimeseries(
+          deltaSeriesTimestamps,
+          deltaSeriesDataPoints,
+          simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
+          prevBucketStart,
+          runningSum,
+          bucketMillis,
+          simpleTimeSeries
+      );
     } else if (bucketInitialized) {
       // this means that the end is not a valid data point, so add to the series only if there's any delta to be collected
-      if (simpleTimeSeries.getWindow().contains(prevBucketStart)) {
-        deltaSeriesTimestamps.add(prevBucketStart);
-        deltaSeriesDataPoints.add(runningSum);
-      }
+      tryAddToTimeseries(
+          deltaSeriesTimestamps,
+          deltaSeriesDataPoints,
+          simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
+          prevBucketStart,
+          runningSum,
+          bucketMillis,
+          simpleTimeSeries
+      );
     }
     return new SimpleTimeSeries(
         deltaSeriesTimestamps,
@@ -174,5 +177,33 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         simpleTimeSeries.getMaxEntries(),
         bucketMillis
     );
+  }
+
+  private static void tryAddToTimeseries(
+      ImplyLongArrayList timestamps,
+      ImplyDoubleArrayList dataPoints,
+      long currTimestamp,
+      long currBucketStart,
+      double dataPoint,
+      long bucketMillis,
+      SimpleTimeSeries inputSeries
+  )
+  {
+    if (inputSeries.getWindow().contains(currBucketStart)) {
+      timestamps.add(currBucketStart);
+      dataPoints.add(dataPoint);
+    } else {
+      throw new IAE(
+          "Found a delta recording (input timestamp : [%s], timestamp bucket : [%s]) outside the "
+          + "window parameter of the resultant series. "
+          + "Please align the bucketPeriod [%s] of delta timeseries and the window parameter [%s] of "
+          + "input series such that the delta recordings are not outside the "
+          + "input series' window period.",
+          DateTimes.utc(currTimestamp),
+          DateTimes.utc(currBucketStart),
+          new Period(bucketMillis),
+          inputSeries.getWindow()
+      );
+    }
   }
 }

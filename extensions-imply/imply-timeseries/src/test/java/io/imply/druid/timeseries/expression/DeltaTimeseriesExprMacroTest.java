@@ -13,6 +13,7 @@ import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
 import org.junit.Assert;
 import org.junit.Test;
@@ -63,24 +64,14 @@ public class DeltaTimeseriesExprMacroTest
   @Test
   public void testSimpleDeltaTimeseries_WithBucketMillis2()
   {
-    // bucket start comes out to 0, but since the window is [1, 5), the delta timeseries comes out to be empty
+    // bucket start comes out to 0, but since the window is [1, 5), the delta timeseries will throw an error
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
         new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
         Intervals.utc(1, 5),
         100
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 10L);
-    SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(),
-        new ImplyDoubleArrayList(),
-        Intervals.utc(1, 5),
-        null,
-        null,
-        100,
-        10L
-    );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    Assert.assertThrows(IAE.class, () -> DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 10L));
   }
 
   @Test
