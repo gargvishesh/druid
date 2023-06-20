@@ -248,8 +248,8 @@ public class UpdateStaleQueryState implements CoordinatorCustomDuty
 
     LOG.info("Scheduled [%s] tasks to update query states.", scheduled);
 
-    params.getCoordinatorStats().addToGlobalStat(
-        STALE_QUERIES_MARKED_UNDETERMINED_COUNT,
+    params.getCoordinatorStats().add(
+        Stats.UNDETERMINED_QUERIES,
         numStaleQueriesMarked.getAndSet(0)
     );
 
