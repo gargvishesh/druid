@@ -28,6 +28,7 @@ import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.guice.annotations.EscalatedClient;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -129,8 +130,11 @@ public class ViewStateManagerResource
     try {
       IdUtils.validateId("view", name);
     }
-    catch (IllegalArgumentException iae) {
-      return clientBadRequestError(iae.getMessage());
+    catch (DruidException e) {
+      return Response.status(e.getStatusCode())
+                     .type(MediaType.APPLICATION_JSON_TYPE)
+                     .entity(e.toErrorResponse())
+                     .build();
     }
 
     ImplyViewDefinition targetView = viewStateManager.getViewState().get(name);
@@ -154,8 +158,11 @@ public class ViewStateManagerResource
     try {
       IdUtils.validateId("view", name);
     }
-    catch (IllegalArgumentException iae) {
-      return clientBadRequestError(iae.getMessage());
+    catch (DruidException e) {
+      return Response.status(e.getStatusCode())
+                     .type(MediaType.APPLICATION_JSON_TYPE)
+                     .entity(e.toErrorResponse())
+                     .build();
     }
 
     try {
@@ -201,8 +208,11 @@ public class ViewStateManagerResource
     try {
       IdUtils.validateId("view", name);
     }
-    catch (IllegalArgumentException iae) {
-      return clientBadRequestError(iae.getMessage());
+    catch (DruidException e) {
+      return Response.status(e.getStatusCode())
+                     .type(MediaType.APPLICATION_JSON_TYPE)
+                     .entity(e.toErrorResponse())
+                     .build();
     }
 
     try {
@@ -245,8 +255,11 @@ public class ViewStateManagerResource
     try {
       IdUtils.validateId("view", name);
     }
-    catch (IllegalArgumentException iae) {
-      return clientBadRequestError(iae.getMessage());
+    catch (DruidException e) {
+      return Response.status(e.getStatusCode())
+                     .type(MediaType.APPLICATION_JSON_TYPE)
+                     .entity(e.toErrorResponse())
+                     .build();
     }
 
     try {
@@ -276,8 +289,11 @@ public class ViewStateManagerResource
     try {
       IdUtils.validateId("view", name);
     }
-    catch (IllegalArgumentException iae) {
-      return clientBadRequestError(iae.getMessage());
+    catch (DruidException e) {
+      return Response.status(e.getStatusCode())
+                     .type(MediaType.APPLICATION_JSON_TYPE)
+                     .entity(e.toErrorResponse())
+                     .build();
     }
 
     ImplyViewDefinition targetView = viewStateManager.getViewState().get(name);

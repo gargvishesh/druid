@@ -15,9 +15,9 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import io.imply.druid.sql.async.result.SqlAsyncResultManager;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.server.coordinator.CoordinatorStats;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 
 import java.util.Collection;
 
@@ -25,10 +25,7 @@ import java.util.Collection;
 public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDuty
 {
   public static final String JSON_TYPE_NAME = "killAsyncQueryResultWithoutMetadata";
-  static final String RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY = "resultRemovedSucceedCount";
-  static final String RESULT_REMOVED_FAILED_COUNT_STAT_KEY = "resultRemovedFailedCount";
-  static final String RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY = "resultRemovedSucceedSize";
-  static final String RESULT_REMOVED_FAILED_SIZE_STAT_KEY = "resultRemovedFailedSize";
+
   private static final Logger log = new Logger(KillAsyncQueryResultWithoutMetadata.class);
 
   private final SqlAsyncResultManager sqlAsyncResultManager;
@@ -98,13 +95,13 @@ public class KillAsyncQueryResultWithoutMetadata implements CoordinatorCustomDut
         failedCount,
         failedSize
     );
-    CoordinatorStats stats = new CoordinatorStats();
-    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY, removedCount);
-    stats.addToGlobalStat(RESULT_REMOVED_FAILED_COUNT_STAT_KEY, failedCount);
-    stats.addToGlobalStat(RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY, removedSize);
-    stats.addToGlobalStat(RESULT_REMOVED_FAILED_SIZE_STAT_KEY, failedSize);
+    final CoordinatorRunStats stats = params.getCoordinatorStats();
+    stats.add(Stats.RESULT_CLEANUP_SUCCESS_COUNT, removedCount);
+    stats.add(Stats.RESULT_CLEANUP_FAILED_COUNT, failedCount);
+    stats.add(Stats.RESULT_CLEANUP_SUCCESS_BYTES, removedSize);
+    stats.add(Stats.RESULT_CLEANUP_FAILED_BYTES, failedSize);
 
-    return params.buildFromExisting().withCoordinatorStats(stats).build();
+    return params;
   }
 
 }

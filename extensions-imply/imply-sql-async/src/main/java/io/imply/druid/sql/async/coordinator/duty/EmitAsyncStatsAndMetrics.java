@@ -12,15 +12,16 @@ package io.imply.druid.sql.async.coordinator.duty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.imply.druid.sql.async.metadata.SqlAsyncMetadataManager;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.java.util.emitter.service.ServiceEmitter;
-import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
-import org.apache.druid.query.DruidMetrics;
-import org.apache.druid.server.coordinator.CoordinatorStats;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
+import org.apache.druid.server.coordinator.stats.CoordinatorRunStats;
 
 import java.util.Collection;
 
+/**
+ * This duty just needs to collect required stats. All stats which can be
+ * emitted as metrics are emitted by the Coordinator by default.
+ */
 @JsonTypeName("emitAsyncStatsAndMetrics")
 public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
 {
@@ -40,117 +41,19 @@ public class EmitAsyncStatsAndMetrics implements CoordinatorCustomDuty
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
     try {
-      CoordinatorStats stats = params.getCoordinatorStats();
-      ServiceEmitter emitter = params.getEmitter();
+      // We just collect stats here and don't emit them
+      final CoordinatorRunStats stats = params.getCoordinatorStats();
 
-      // Emit stats from cleanup duties
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/result/removed/count",
-              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_COUNT_STAT_KEY)
-          )
+      final Collection<String> allAsyncResultIds = metadataManager.getAllAsyncResultIds();
+      stats.add(Stats.TRACKED_RESULTS, allAsyncResultIds.size());
+      stats.add(
+          Stats.TRACKED_RESULT_BYTES,
+          metadataManager.totalCompleteQueryResultsSize(allAsyncResultIds)
       );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/result/failed/count",
-              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_COUNT_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/result/removed/bytes",
-              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_SUCCEED_SIZE_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/result/failed/bytes",
-              stats.getGlobalStat(KillAsyncQueryResultWithoutMetadata.RESULT_REMOVED_FAILED_SIZE_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/metadata/removed/count",
-              stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SUCCEED_COUNT_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/metadata/failed/count",
-              stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_FAILED_COUNT_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              "async/cleanup/metadata/skipped/count",
-              stats.getGlobalStat(KillAsyncQueryMetadata.METADATA_REMOVED_SKIPPED_COUNT_STAT_KEY)
-          )
-      );
-      emitter.emit(
-          new ServiceMetricEvent.Builder().build(
-              UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT,
-              stats.getGlobalStat(UpdateStaleQueryState.STALE_QUERIES_MARKED_UNDETERMINED_COUNT)
-          )
-      );
-
-      // Emit stats from current state
-      try {
-        Collection<String> allAsyncResultIds = metadataManager.getAllAsyncResultIds();
-
-        emitter.emit(
-            new ServiceMetricEvent.Builder().build(
-                "async/result/tracked/count",
-                allAsyncResultIds.size()
-            )
-        );
-
-        emitter.emit(
-            new ServiceMetricEvent.Builder().build(
-                "async/result/tracked/bytes",
-                metadataManager.totalCompleteQueryResultsSize(allAsyncResultIds)
-            )
-        );
-      }
-      catch (Exception e) {
-        LOG.warn(e, "Cannot emit metrics as fail get all async result ids from metadata");
-      }
-
-      // Emit coordinator runtime stats
-      emitDutyStats(emitter, "coordinator/time", stats, "runtime");
     }
     catch (Exception e) {
-      LOG.warn(e, "Failed to emit async stats and metrics.");
-      return params;
+      LOG.warn(e, "Failed to collect async stats and metrics.");
     }
     return params;
-  }
-
-  private void emitDutyStats(
-      final ServiceEmitter emitter,
-      final String metricName,
-      final CoordinatorStats stats,
-      final String statName
-  )
-  {
-    stats.forEachDutyStat(
-        statName,
-        (final String duty, final long count) -> {
-          emitDutyStat(emitter, metricName, duty, count);
-        }
-    );
-  }
-
-  private void emitDutyStat(
-      final ServiceEmitter emitter,
-      final String metricName,
-      final String duty,
-      final long value
-  )
-  {
-    emitter.emit(
-        new ServiceMetricEvent.Builder()
-            .setDimension(DruidMetrics.DUTY, duty)
-            .build(metricName, value)
-    );
   }
 }

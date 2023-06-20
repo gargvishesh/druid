@@ -25,6 +25,9 @@ import org.apache.druid.discovery.DiscoveryDruidNode;
 import org.apache.druid.discovery.DruidNodeDiscovery;
 import org.apache.druid.discovery.DruidNodeDiscoveryProvider;
 import org.apache.druid.discovery.NodeRole;
+import org.apache.druid.error.DruidException;
+import org.apache.druid.error.DruidExceptionMatcher;
+import org.apache.druid.error.ErrorResponse;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
@@ -36,6 +39,7 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.server.DruidNode;
 import org.easymock.EasyMock;
+import org.hamcrest.MatcherAssert;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.DateTime;
@@ -325,8 +329,7 @@ public class ViewStateManagerResourceTest
   @Test
   public void testBadNames()
   {
-    String badName = "bad/name";
-    Map<String, Object> errorEntity = ImmutableMap.of("error", "view cannot contain the '/' character.");
+    final String badName = "bad/name";
 
     Response response = viewStateManagerResource.createView(
         new ViewStateManagerResource.ViewDefinitionRequest(SOME_SQL),
@@ -334,7 +337,7 @@ public class ViewStateManagerResourceTest
         req
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
-    Assert.assertEquals(errorEntity, response.getEntity());
+    assertInvalidInputResponse(response, "Invalid value for field [view]: Value [bad/name] cannot contain '/'.");
 
     response = viewStateManagerResource.alterView(
         new ViewStateManagerResource.ViewDefinitionRequest(SOME_SQL),
@@ -342,28 +345,28 @@ public class ViewStateManagerResourceTest
         req
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
-    Assert.assertEquals(errorEntity, response.getEntity());
+    assertInvalidInputResponse(response, "Invalid value for field [view]: Value [bad/name] cannot contain '/'.");
 
     response = viewStateManagerResource.deleteView(
         badName,
         req
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
-    Assert.assertEquals(errorEntity, response.getEntity());
+    assertInvalidInputResponse(response, "Invalid value for field [view]: Value [bad/name] cannot contain '/'.");
 
     response = viewStateManagerResource.getSingleView(
         badName,
         req
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
-    Assert.assertEquals(errorEntity, response.getEntity());
+    assertInvalidInputResponse(response, "Invalid value for field [view]: Value [bad/name] cannot contain '/'.");
 
     response = viewStateManagerResource.getViewLoadStatus(
         badName,
         req
     );
     Assert.assertEquals(HttpResponseStatus.BAD_REQUEST.getCode(), response.getStatus());
-    Assert.assertEquals(errorEntity, response.getEntity());
+    assertInvalidInputResponse(response, "Invalid value for field [view]: Value [bad/name] cannot contain '/'.");
   }
 
   @Test
@@ -667,6 +670,21 @@ public class ViewStateManagerResourceTest
                   .usingGetClass()
                   .withNonnullFields("fresh", "stale", "unknown")
                   .verify();
+  }
+
+  private DruidException getDruidException(Response response)
+  {
+    Object entity = response.getEntity();
+    Assert.assertTrue(entity instanceof ErrorResponse);
+    return ((ErrorResponse) response.getEntity()).getUnderlyingException();
+  }
+
+  private void assertInvalidInputResponse(Response response, String expectedMessage)
+  {
+    MatcherAssert.assertThat(
+        getDruidException(response),
+        DruidExceptionMatcher.invalidInput().expectMessageIs(expectedMessage)
+    );
   }
 
   private void replayAll()

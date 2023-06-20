@@ -51,8 +51,8 @@ public class ExternalTableFunctionApiMapperImpl implements ExternalTableFunction
   // A unique prefix tag that Polaris can use to decode the original exception.
   @VisibleForTesting
   public static final String POLARIS_EXCEPTION_TAG = "POLARIS_RETURNED_EXCEPTION";
-  private static final Duration POLARIS_POST_TIMEOUT = Duration.millis(5000L);
-  private static final int POLARIS_RETRY_COUNT = 5;
+  private static final Duration POLARIS_POST_TIMEOUT = Duration.millis(15000L);
+  private static final int POLARIS_RETRY_COUNT = 4;
 
   private final ImplyExternalDruidSchemaCommonConfig commonConfig;
   private final HttpClient httpClient;

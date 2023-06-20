@@ -29,7 +29,7 @@
 
     <groupId>org.apache.druid</groupId>
     <artifactId>druid</artifactId>
-    <version>2023.06.0-iap-SNAPSHOT</version>
+    <version>2023.07.0-iap-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Druid</name>
@@ -87,7 +87,7 @@
           Also, CalcitePlanner is a clone of Calcite's PlannerImpl and may require updates when
           Calcite is upgrade. -->
         <calcite.version>1.21.0</calcite.version>
-        <datasketches.version>4.0.0</datasketches.version>
+        <datasketches.version>4.1.0</datasketches.version>
         <datasketches.memory.version>2.2.0</datasketches.memory.version>
         <derby.version>10.14.2.0</derby.version>
         <dropwizard.metrics.version>4.0.0</dropwizard.metrics.version>
@@ -199,6 +199,7 @@
         <module>extensions-imply/clarity-emitter/kafka</module>
         <module>extensions-imply/imply-utility-belt</module>
         <module>extensions-imply/indexed-table-loader</module>
+        <module>extensions-imply/imply-lookups</module>
         <module>extensions-imply/imply-druid-security</module>
         <module>extensions-imply/imply-view-manager</module>
         <module>extensions-imply/keycloak</module>
