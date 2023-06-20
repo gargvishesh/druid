@@ -16,7 +16,7 @@ import org.apache.druid.catalog.model.TableDefnRegistry;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
-import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.error.InvalidInput;
 import org.apache.druid.utils.CollectionUtils;
 
 import javax.annotation.Nonnull;
@@ -105,7 +105,7 @@ public class PolarisUploadedInputSourceDefn extends BasePolarisInputSourceDefn
   {
     final List<String> files = CatalogUtils.getStringArray(args, FILES_PARAMETER);
     if (CollectionUtils.isNullOrEmpty(files)) {
-      throw new IAE("Must provide a non-empty value for the [%s] parameter", FILES_PARAMETER);
+      throw InvalidInput.exception("Must provide a non-empty value for the [%s] parameter.", FILES_PARAMETER);
     }
     return new PolarisUploadedFunctionSpec(files);
   }

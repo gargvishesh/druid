@@ -16,6 +16,7 @@ import com.google.inject.Inject;
 import org.apache.druid.catalog.model.CatalogUtils;
 import org.apache.druid.catalog.model.ColumnSpec;
 import org.apache.druid.catalog.model.table.ExternalTableSpec;
+import org.apache.druid.error.InvalidInput;
 import org.apache.druid.guice.annotations.Json;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -128,10 +129,7 @@ public class PolarisSourceOperatorConversion extends PolarisSourceTableMacroConv
     )
     {
       if (null != columns) {
-        throw new IAE(StringUtils.format(
-            "%s does not support the EXTEND clause.",
-            FUNCTION_NAME
-        ));
+        throw InvalidInput.exception("[%s] does not support the EXTEND clause.", FUNCTION_NAME);
       }
       final PolarisTableFunctionSpec tblFnSpec = convertArgsToTblFnDefn(args);
       // expect polaris to return PolarisExternalTableSpec with input, format, and signature non-null

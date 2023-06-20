@@ -17,7 +17,7 @@ import org.apache.druid.catalog.model.TableDefnRegistry;
 import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
-import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.error.InvalidInput;
 import org.apache.druid.utils.CollectionUtils;
 
 import javax.annotation.Nullable;
@@ -168,7 +168,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
 
     // Sanity check args before constructing the spec.
     if (connectionName == null) {
-      throw new IAE("Must provide a value for the [%s] parameter", CONNECTION_NAME_PARAMETER);
+      throw InvalidInput.exception("Must provide a value for the [%s] parameter.", CONNECTION_NAME_PARAMETER);
     }
 
     final int hasUris = !CollectionUtils.isNullOrEmpty(uris) ? 1 : 0;
@@ -177,13 +177,17 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
     final int hasPattern = !Strings.isNullOrEmpty(pattern) ? 1 : 0;
     final int requestParam = hasObjects + hasPrefixes + hasUris + hasPattern;
     if (requestParam == 0) {
-      throw new IAE("Must provide a non-empty value for one of [%s, %s, %s, %s] parameters",
-                    URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER);
+      throw InvalidInput.exception(
+          "Must provide a non-empty value for one of [%s, %s, %s, %s] parameters.",
+          URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER
+      );
     }
 
     if (requestParam > 1) {
-      throw new IAE("Exactly one of [%s, %s, %s, %s] must be specified",
-                    URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER);
+      throw InvalidInput.exception(
+          "Exactly one of [%s, %s, %s, %s] must be specified.",
+          URIS_PARAMETER, PREFIXES_PARAMETER, OBJECTS_PARAMETER, PATTERN_PARAMETER
+      );
     }
     return new PolarisS3ConnectionFunctionSpec(connectionName, uris, prefixes, objects, pattern);
   }
