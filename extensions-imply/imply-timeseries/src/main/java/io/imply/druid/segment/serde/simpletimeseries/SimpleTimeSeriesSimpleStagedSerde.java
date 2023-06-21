@@ -12,6 +12,7 @@ package io.imply.druid.segment.serde.simpletimeseries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.serde.cell.StagedSerde;
 import org.apache.druid.segment.serde.cell.StorableBuffer;
 
@@ -72,7 +73,7 @@ public class SimpleTimeSeriesSimpleStagedSerde implements StagedSerde<SimpleTime
 
     ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(doubleValues);
 
-    return new SimpleTimeSeries(timestamps, dataPoints, SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, count);
+    return new SimpleTimeSeries(timestamps, dataPoints, Intervals.ETERNITY, count);
 
   }
 }

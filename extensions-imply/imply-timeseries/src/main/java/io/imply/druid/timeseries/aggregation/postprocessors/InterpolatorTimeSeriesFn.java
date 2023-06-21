@@ -9,10 +9,9 @@
 
 package io.imply.druid.timeseries.aggregation.postprocessors;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 
@@ -22,43 +21,28 @@ public class InterpolatorTimeSeriesFn implements TimeSeriesFn
 {
   private final Long timeBucketMillis;
   private final Interpolator interpolator;
+  private final boolean keepBoundariesOnly;
 
-  @JsonCreator
   public InterpolatorTimeSeriesFn(
-      @JsonProperty("timeBucketMillis") @Nullable final Long timeBucketMillis,
-      @JsonProperty("interpolator") @Nullable final Interpolator interpolator
+      @Nullable final Long timeBucketMillis,
+      @Nullable final Interpolator interpolator,
+      boolean keepBoundariesOnly
   )
   {
     this.timeBucketMillis = Preconditions.checkNotNull(timeBucketMillis);
     this.interpolator = Preconditions.checkNotNull(interpolator);
-  }
-
-  @JsonProperty
-  public Long getTimeBucketMillis()
-  {
-    return timeBucketMillis;
-  }
-
-  @JsonProperty
-  public Interpolator getInterpolator()
-  {
-    return interpolator;
+    this.keepBoundariesOnly = keepBoundariesOnly;
   }
 
   @Override
-  public SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries)
+  public SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries)
   {
     return interpolator.interpolate(
         input,
         new DurationGranularity(timeBucketMillis, 0),
         maxEntries,
-        false
+        keepBoundariesOnly
     );
   }
 
-  @Override
-  public String cacheString()
-  {
-    return String.join(",", "interpolation", String.valueOf(timeBucketMillis), interpolator.toString());
-  }
 }

@@ -76,7 +76,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(0, 2700001),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     Assert.assertEquals(1, avg.size());
     Assert.assertEquals(0, avg.getTimestamps().getLong(0));
     Assert.assertEquals(6.63611, avg.getDataPoints().getDouble(0), 1e-4);
@@ -94,7 +94,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(0, 60000),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     Assert.assertEquals(1, avg.size());
     Assert.assertEquals(0, avg.getTimestamps().getLong(0));
     Assert.assertEquals(4.25, avg.getDataPoints().getDouble(0), 1e-4);
@@ -112,7 +112,7 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(0, 60000),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     Assert.assertEquals(1, avg.size());
     Assert.assertEquals(0, avg.getTimestamps().getLong(0));
     Assert.assertEquals(5.5833, avg.getDataPoints().getDouble(0), 1e-4);
@@ -136,12 +136,15 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(10000, 60000),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{1.165, 5.945, 15.245, 1.0450000000000002}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -158,14 +161,15 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(1, 7),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{2, 6}),
         new ImplyDoubleArrayList(new double[]{3, 6}),
         Intervals.utc(1, 7),
         new TimeSeries.EdgePoint(0, 1.25),
         null,
-        MAX_ENTRIES
+        MAX_ENTRIES,
+        2L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -188,12 +192,15 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(10000, 60000),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{3.44, -2.37, 16.8, 2.8}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }
@@ -216,12 +223,15 @@ public class TimeWeightedAvgTimeSeriesFnTest
         Intervals.utc(10000, 60000),
         MAX_ENTRIES
     );
-    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES);
+    SimpleTimeSeries avg = fn.compute(simpleTimeSeries, MAX_ENTRIES).computeSimple();
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{10000, 20000, 30000, 50000}),
         new ImplyDoubleArrayList(new double[]{-1.67, 16.8, 2.8, 1.0}),
         Intervals.utc(10000, 60000),
-        MAX_ENTRIES
+        null,
+        null,
+        MAX_ENTRIES,
+        10000L
     );
     Assert.assertEquals(expectedTimeSeries, avg);
   }

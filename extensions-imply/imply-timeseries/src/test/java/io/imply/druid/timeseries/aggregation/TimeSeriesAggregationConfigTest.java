@@ -23,25 +23,9 @@ public class TimeSeriesAggregationConfigTest
                                                                             "",
                                                                             "",
                                                                             null,
-                                                                            null,
                                                                             2L,
                                                                             Intervals.utc(3, 7),
                                                                             null);
     Assert.assertEquals(3, meanTimeSeriesAggregationFactory.getMaxEntries());
-  }
-
-  @Test
-  public void testMaxEntriesDeltaTimeSeries()
-  {
-    DeltaTimeSeriesAggregatorFactory deltaTimeSeriesAggregatorFactory =
-        DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory("",
-                                                                              "",
-                                                                              "",
-                                                                              null,
-                                                                              null,
-                                                                              2L,
-                                                                              Intervals.utc(3, 7),
-                                                                              null);
-    Assert.assertEquals(3, deltaTimeSeriesAggregatorFactory.getMaxEntries());
   }
 }

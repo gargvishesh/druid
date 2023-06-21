@@ -13,6 +13,7 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.segment.serde.cell.StagedSerde;
 import org.apache.druid.segment.serde.cell.StorableBuffer;
 
@@ -134,7 +135,7 @@ public class SimpleTimeSeriesSerde implements StagedSerde<SimpleTimeSeries>
       SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
           timestamps,
           values,
-          SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
+          Intervals.ETERNITY,
           1
       );
 
@@ -155,7 +156,7 @@ public class SimpleTimeSeriesSerde implements StagedSerde<SimpleTimeSeries>
       return new SimpleTimeSeries(
           timestamps,
           datapoints,
-          SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
+          Intervals.ETERNITY,
           timestamps.size()
       );
     }

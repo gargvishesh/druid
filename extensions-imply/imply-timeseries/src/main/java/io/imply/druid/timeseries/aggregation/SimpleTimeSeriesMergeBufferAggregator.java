@@ -54,7 +54,12 @@ public class SimpleTimeSeriesMergeBufferAggregator implements BufferAggregator
       return;
     }
 
-    mergeSeriesContainer.pushInto(simpleByteBufferTimeSeries, bufferToWritableMemoryCache.getMemory(buf), position, window);
+    mergeSeriesContainer.pushInto(
+        simpleByteBufferTimeSeries,
+        bufferToWritableMemoryCache.getMemory(buf),
+        position,
+        window
+    );
   }
 
   @Nullable

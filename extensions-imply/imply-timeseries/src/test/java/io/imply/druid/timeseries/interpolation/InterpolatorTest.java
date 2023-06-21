@@ -381,12 +381,15 @@ public class InterpolatorTest
           interpolationBucket,
           MAX_ENTRIES,
           keepBoundaries
-      );
+      ).computeSimple();
       SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
           new ImplyLongArrayList(expectedTimestampsList[i]),
           new ImplyDoubleArrayList(expectedDataPointsList[i]),
           Intervals.utc(0, 8),
-          MAX_ENTRIES
+          null,
+          null,
+          MAX_ENTRIES,
+          keepBoundaries ? interpolationBucket.getDurationMillis() : 1L
       );
       Assert.assertEquals(interpolatedSeries, expectedSeries);
     }
@@ -422,7 +425,8 @@ public class InterpolatorTest
           Intervals.utc(1, 8),
           starts[i],
           ends[i],
-          MAX_ENTRIES
+          MAX_ENTRIES,
+          1L
       );
 
       SimpleTimeSeries linearInterpolatedSeries = interpolator.interpolate(
@@ -430,14 +434,15 @@ public class InterpolatorTest
           durationGranularity,
           MAX_ENTRIES,
           keepBoundaries
-      );
+      ).computeSimple();
       SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
           new ImplyLongArrayList(expectedTimestampsList[i]),
           new ImplyDoubleArrayList(expectedDataPointsList[i]),
           Intervals.utc(1, 8),
           starts[i],
           ends[i],
-          MAX_ENTRIES
+          MAX_ENTRIES,
+          keepBoundaries ? durationGranularity.getDurationMillis() : 1L
       );
       Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
     }
@@ -452,7 +457,8 @@ public class InterpolatorTest
         Intervals.utc(1, 4),
         new TimeSeries.EdgePoint(0L, 0D),
         new TimeSeries.EdgePoint(4L, 4D),
-        MAX_ENTRIES
+        MAX_ENTRIES,
+        1L
     );
     Interpolator linearInterpolator = Interpolator.LINEAR;
     long[] expectedTimestamps = new long[]{1};
@@ -462,14 +468,15 @@ public class InterpolatorTest
         new DurationGranularity(1, 0),
         MAX_ENTRIES,
         false
-    );
+    ).computeSimple();
     SimpleTimeSeries expectedLinearInterpolatedSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestamps),
         new ImplyDoubleArrayList(expectedDataPoints),
         Intervals.utc(1, 4),
         new TimeSeries.EdgePoint(0L, 0D),
         new TimeSeries.EdgePoint(4L, 4D),
-        MAX_ENTRIES
+        MAX_ENTRIES,
+        1L
     );
     Assert.assertEquals(expectedLinearInterpolatedSeries, timeSeries);
   }

@@ -7,7 +7,7 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.expressions;
+package io.imply.druid.timeseries.expression;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
@@ -48,20 +48,18 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         if (evalValue == null) {
           return ExprEval.ofDouble(null);
         }
-        if (evalValue instanceof SimpleTimeSeries) {
-          return ExprEval.ofDouble(getMaxValue((SimpleTimeSeries) evalValue));
-        } else if (evalValue instanceof SimpleTimeSeriesContainer) {
-          SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
-          if (simpleTimeSeriesContainer.isNull()) {
-            return ExprEval.ofDouble(null);
-          }
-          return ExprEval.ofDouble(getMaxValue(simpleTimeSeriesContainer.computeSimple()));
-        } else {
+        if (!(evalValue instanceof SimpleTimeSeriesContainer)) {
           throw new IAE(
               "Expected a timeseries object, but rather found object of type [%s]",
               evalValue.getClass()
           );
         }
+
+        SimpleTimeSeriesContainer simpleTimeSeriesContainer = (SimpleTimeSeriesContainer) evalValue;
+        if (simpleTimeSeriesContainer.isNull()) {
+          return ExprEval.ofDouble(null);
+        }
+        return ExprEval.ofDouble(getMaxValue(simpleTimeSeriesContainer.computeSimple()));
       }
 
       @Override
@@ -88,7 +86,7 @@ public class MaxOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
   @Nullable
   public static Double getMaxValue(SimpleTimeSeries simpleTimeSeries)
   {
-    if (simpleTimeSeries.getDataPoints().size() == 0) {
+    if (simpleTimeSeries.size() == 0) {
       return null;
     }
     double maxValue = simpleTimeSeries.getDataPoints().getDouble(0);

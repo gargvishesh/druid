@@ -38,7 +38,6 @@ public class SimpleTimeSeriesAggregatorFactoryTest
         null,
         null,
         "notUsed",
-        null,
         Intervals.of("1970/P1D"),
         1000
     );

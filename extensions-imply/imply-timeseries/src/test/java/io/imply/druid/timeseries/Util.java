@@ -9,8 +9,15 @@
 
 package io.imply.druid.timeseries;
 
+import com.google.common.collect.ImmutableList;
+import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.math.expr.ExprMacroTable;
 
 import static io.imply.druid.timeseries.SimpleByteBufferTimeSeriesTest.VISIBLE_WINDOW;
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
@@ -23,5 +30,19 @@ public class Util
                                 new ImplyDoubleArrayList(dp),
                                 VISIBLE_WINDOW,
                                 MAX_ENTRIES);
+  }
+
+  public static ExprMacroTable makeTimeSeriesMacroTable()
+  {
+    ImmutableList.Builder<ExprMacroTable.ExprMacro> macros =
+        ImmutableList.<ExprMacroTable.ExprMacro>builder()
+                     .add(
+                         new MaxOverTimeseriesExprMacro(),
+                         new TimeseriesToJSONExprMacro(),
+                         new TimeWeightedAverageTimeseriesExprMacro(),
+                         new DeltaTimeseriesExprMacro()
+                     )
+                     .addAll(InterpolationTimeseriesExprMacro.getMacros());
+    return new ExprMacroTable(macros.build());
   }
 }

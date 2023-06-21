@@ -206,7 +206,9 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
                                                              getWindow(),
                                                              getStart(),
                                                              getEnd(),
-                                                             getMaxEntries());
+                                                             getMaxEntries(),
+                                                             1L
+    );
     for (int i = 0; i < simpleSeriesSize; i++) {
       simpleTimeSeries.addDataPoint(bucketStarts.getLong(i), sumPoints.getDouble(i) / countPoints.getLong(i));
     }

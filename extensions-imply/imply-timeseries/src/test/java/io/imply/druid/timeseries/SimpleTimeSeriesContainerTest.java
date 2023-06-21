@@ -50,7 +50,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
               23.0,
               53.0
           }),
-      SimpleTimeSeriesTestUtil.ALL_TIME_INTERVAL,
+      Intervals.ETERNITY,
       Integer.MAX_VALUE
   );
   private static final SimpleTimeSeriesSerde TIME_SERIES_SERDE = new SimpleTimeSeriesSerde(
@@ -62,7 +62,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
   public SimpleTimeSeriesContainerTest()
   {
     super(
-        new SimpleTimeSeriesContainerTestingSerde(SimpleTimeSeriesTestUtil.ALL_TIME_INTERVAL, 1 << 16),
+        new SimpleTimeSeriesContainerTestingSerde(Intervals.ETERNITY, 1 << 16),
         new TestCasesConfig<>(SimpleTimeSeriesSerdeTest.class, SimpleTimeSeriesSerdeTestBase.class)
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testNull, TestCaseResult.of(new byte[]{1}))
             .setTestCaseValue(SimpleTimeSeriesSerdeTest::testEmptyList, TestCaseResult.of(new byte[]{1}))
@@ -86,7 +86,7 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
         DateTimes.of("2020-01-01T04"),
         DateTimes.of("2020-01-01T05"),
         DateTimes.of("2020-01-01T06")
-    ).withWindow(interval);
+    ).copyWithWindow(interval);
     byte[] bytes = SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries).getSerializedBytes();
     Assert.assertEquals(78, bytes.length);
     SimpleTimeSeries deserialized = SimpleTimeSeriesContainer.createFromByteBuffer(
