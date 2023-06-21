@@ -112,9 +112,8 @@ public class TimeSeriesGroupByAggregationTest
         + " \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
         + "  {\"type\": \"avgTimeseries\", \"name\": \"avgTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
         + " \"timeBucketMillis\" : 7200000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
-        + "  {\"type\": \"deltaTimeseries\", \"name\": \"deltaTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
-        + " \"timeBucketMillis\" : 10800000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
-        + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\"}"
+        + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\", "
+        + " \"window\" : \"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
         + "  ],"
         + "  \"intervals\": [\"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"]"
         + "  }",
@@ -149,15 +148,6 @@ public class TimeSeriesGroupByAggregationTest
         30684
     );
 
-    long[] expectedDeltaTimestamps = new long[]{1413763200000L, 1413774000000L, 1413784800000L, 1413795600000L};
-    double[] expectedDeltaDataPoints = new double[]{10, 10.0, 10.0, 0.0};
-    SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedDeltaTimestamps),
-        new ImplyDoubleArrayList(expectedDeltaDataPoints),
-        Intervals.of("2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z"),
-        20456
-    );
-
     long[] expectedSumTimestamps = new long[]{0L};
     double[] expectedSumDataPoints = new double[]{225D};
     SimpleTimeSeries expectedSumTimeSeries = new SimpleTimeSeries(
@@ -166,10 +156,9 @@ public class TimeSeriesGroupByAggregationTest
         Intervals.ETERNITY,
         DEFAULT_MAX_ENTRIES
     );
-    Assert.assertEquals(expectedTimeSeries, resultRow.get(0));
-    Assert.assertEquals(expectedAvgTimeSeries, resultRow.get(1));
-    Assert.assertEquals(expectedDeltaTimeSeries, resultRow.get(2));
-    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedSumTimeSeries), resultRow.get(3));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries), resultRow.get(0));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries), resultRow.get(1));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedSumTimeSeries), resultRow.get(2));
   }
 
 

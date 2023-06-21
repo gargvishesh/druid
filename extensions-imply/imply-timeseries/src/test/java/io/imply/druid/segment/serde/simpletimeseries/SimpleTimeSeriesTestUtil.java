@@ -14,7 +14,6 @@ import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
-import org.joda.time.Interval;
 import org.junit.Assert;
 
 import java.nio.ByteBuffer;
@@ -25,7 +24,6 @@ import java.util.List;
 public class SimpleTimeSeriesTestUtil
 {
   public static final DateTime START_DATE_TIME = DateTimes.of("2020-01-01");
-  public static final Interval ALL_TIME_INTERVAL = Intervals.utc(Long.MIN_VALUE, Long.MAX_VALUE);
   public static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new byte[0]).order(ByteOrder.nativeOrder());
 
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset)
@@ -36,7 +34,7 @@ public class SimpleTimeSeriesTestUtil
   public static SimpleTimeSeries buildTimeSeries(double initialValue, double increment, DateTime... timestamps)
   {
     SimpleTimeSeries simpleTimeSeries =
-        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+        new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     double value = initialValue;
 
@@ -51,7 +49,7 @@ public class SimpleTimeSeriesTestUtil
   public static SimpleTimeSeries buildTimeSeries(DateTime start, int numDataPoints, int offset, int modulo)
   {
     SimpleTimeSeries simpleTimeSeries =
-        new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, Integer.MAX_VALUE);
+        new SimpleTimeSeries(Intervals.ETERNITY, Integer.MAX_VALUE);
 
     for (int i = offset; i < offset + numDataPoints; i++) {
       int value = i % modulo;
@@ -75,7 +73,7 @@ public class SimpleTimeSeriesTestUtil
   )
   {
     SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW,
+        Intervals.ETERNITY,
         Integer.MAX_VALUE
     );
     int value = 0;

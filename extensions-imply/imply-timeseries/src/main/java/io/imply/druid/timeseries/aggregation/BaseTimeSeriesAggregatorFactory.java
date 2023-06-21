@@ -11,9 +11,6 @@ package io.imply.druid.timeseries.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.timeseries.SimpleTimeSeries;
-import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
-import org.apache.druid.java.util.common.RE;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
@@ -27,7 +24,6 @@ import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
 {
@@ -39,19 +35,16 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   @Nullable
   protected final String timeseriesColumn;
   @Nullable
-  protected final List<TimeSeriesFn> postProcessing;
-  @Nullable
   protected final Long timeBucketMillis;
   protected final Interval window;
   protected final int maxEntries;
-  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-simple");
+  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts");
 
   protected BaseTimeSeriesAggregatorFactory(
       String name,
       @Nullable String dataColumn,
       @Nullable String timeColumn,
       @Nullable String timeseriesColumn,
-      @Nullable List<TimeSeriesFn> postProcessing,
       @Nullable Long timeBucketMillis,
       Interval window,
       int maxEntries
@@ -61,7 +54,6 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
     this.dataColumn = dataColumn;
     this.timeColumn = timeColumn;
     this.timeseriesColumn = timeseriesColumn;
-    this.postProcessing = postProcessing;
     this.timeBucketMillis = timeBucketMillis;
     this.window = window;
     this.maxEntries = maxEntries;
@@ -103,13 +95,6 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
     return timeBucketMillis;
   }
 
-  @Nullable
-  @JsonProperty
-  public List<TimeSeriesFn> getPostProcessing()
-  {
-    return postProcessing;
-  }
-
   @Nonnull
   @JsonProperty
   public Interval getWindow()
@@ -140,9 +125,6 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
                    .appendString(String.valueOf(getTimeBucketMillis()))
                    .appendString(String.valueOf(getWindow()))
                    .appendInt(getMaxEntries());
-    if (getPostProcessing() != null) {
-      cacheKeyBuilder.appendString(getPostProcessing().stream().map(TimeSeriesFn::cacheString).collect(Collectors.joining(",")));
-    }
   }
 
   @Override
@@ -192,21 +174,7 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(@Nullable Object object)
   {
-    if (object == null) {
-      return null;
-    }
-
-    if (!(object instanceof SimpleTimeSeries)) {
-      throw new RE("Found object of type %s in finalize", object.getClass());
-    }
-
-    SimpleTimeSeries finalResult = (SimpleTimeSeries) object;
-    if (getPostProcessing() != null) {
-      for (TimeSeriesFn postprocessor : getPostProcessing()) {
-        finalResult = postprocessor.compute(finalResult, getMaxEntries());
-      }
-    }
-    return finalResult;
+    return object;
   }
 
   @Override
@@ -252,7 +220,6 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
            Objects.equals(timeColumn, that.timeColumn) &&
            Objects.equals(dataColumn, that.dataColumn) &&
            Objects.equals(timeseriesColumn, that.timeseriesColumn) &&
-           Objects.equals(postProcessing, that.postProcessing) &&
            Objects.equals(timeBucketMillis, that.timeBucketMillis) &&
            Objects.equals(window, that.window);
   }
@@ -265,7 +232,6 @@ public abstract class BaseTimeSeriesAggregatorFactory extends AggregatorFactory
         dataColumn,
         timeColumn,
         timeseriesColumn,
-        postProcessing,
         timeBucketMillis,
         window,
         maxEntries

@@ -68,7 +68,9 @@ public abstract class SimpleTimeSeriesBaseTest
                                                   window,
                                                   new TimeSeries.EdgePoint(1L, 1D),
                                                   null,
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
     SimpleTimeSeries second = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{2}),
                                                    new ImplyDoubleArrayList(new double[]{2}),
                                                    window,
@@ -78,7 +80,9 @@ public abstract class SimpleTimeSeriesBaseTest
                                                   window,
                                                   null,
                                                   new TimeSeries.EdgePoint(5L, 5D),
-                                                  MAX_ENTRIES);
+                                                  MAX_ENTRIES,
+                                                  1L
+    );
 
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{first, second, third}, window);
     SimpleTimeSeries expectedSeries = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{2, 3, 4}),
@@ -86,7 +90,9 @@ public abstract class SimpleTimeSeriesBaseTest
                                                            window,
                                                            new TimeSeries.EdgePoint(1L, 1D),
                                                            new TimeSeries.EdgePoint(5L, 5D),
-                                                           MAX_ENTRIES);
+                                                           MAX_ENTRIES,
+                                                           1L
+    );
     Assert.assertEquals(3, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -136,7 +142,8 @@ public abstract class SimpleTimeSeriesBaseTest
           windowList[i],
           startsList[i],
           endsList[i],
-          100
+          100,
+          1L
       );
       Assert.assertEquals(expectedSeries, simpleTimeSeries);
     }

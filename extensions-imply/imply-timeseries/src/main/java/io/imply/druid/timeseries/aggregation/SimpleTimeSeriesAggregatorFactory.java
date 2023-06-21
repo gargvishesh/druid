@@ -12,12 +12,10 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.ByteBufferTimeSeries;
-import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
-import io.imply.druid.timeseries.aggregation.postprocessors.TimeSeriesFn;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
@@ -30,7 +28,6 @@ import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.util.List;
 
 
 public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
@@ -42,13 +39,12 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       @Nullable String dataColumn,
       @Nullable String timeColumn,
       @Nullable String timeseriesColumn,
-      @Nullable List<TimeSeriesFn> postProcessing,
       @Nullable Long timeBucketMillis,
       Interval window,
       int maxEntries
   )
   {
-    super(name, dataColumn, timeColumn, timeseriesColumn, postProcessing, timeBucketMillis, window, maxEntries);
+    super(name, dataColumn, timeColumn, timeseriesColumn, timeBucketMillis, window, maxEntries);
   }
 
   @JsonCreator
@@ -57,7 +53,6 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       @JsonProperty("dataColumn") @Nullable final String dataColumn,
       @JsonProperty("timeColumn") @Nullable final String timeColumn,
       @JsonProperty("timeseriesColumn") @Nullable final String timeseriesColumn,
-      @JsonProperty("postProcessing") @Nullable final List<TimeSeriesFn> postProcessing,
       @JsonProperty("window") Interval window,
       @JsonProperty("maxEntries") @Nullable final Integer maxEntries
   )
@@ -68,7 +63,7 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
       throw new IAE("Must exclusively have a valid, non-null (timeColumn, dataColumn) or timeseriesColumn");
     }
     if (window == null) {
-      window = SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW;
+      window = Intervals.ETERNITY;
     }
     int finalMaxEntries = DEFAULT_MAX_ENTRIES;
     if (maxEntries != null) {
@@ -79,7 +74,6 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         dataColumn,
         timeColumn,
         timeseriesColumn,
-        postProcessing,
         null,
         window,
         finalMaxEntries
@@ -160,7 +154,6 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         null,
         null,
         getName(),
-        getPostProcessing(),
         getTimeBucketMillis(),
         getWindow(),
         getMaxEntries()
@@ -177,33 +170,13 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   @Override
   public Object finalizeComputation(@Nullable Object object)
   {
-    if (object == null) {
-      return null;
-    }
-
-    SimpleTimeSeries finalResult;
-
-    if (object instanceof SimpleTimeSeries) {
-      finalResult = (SimpleTimeSeries) object;
-    } else {
-      SimpleTimeSeriesContainer finalContainer = (SimpleTimeSeriesContainer) object;
-
-      if (finalContainer.isNull()) {
-        finalResult = new SimpleTimeSeries(getWindow(), getMaxEntries());
-      } else {
-        finalResult = finalContainer.computeSimple();
-      }
-    }
-
-    SimpleTimeSeries finalSimpleTimeSeries = (SimpleTimeSeries) super.finalizeComputation(finalResult);
-
-    return finalSimpleTimeSeries;
+    return object;
   }
 
   @Override
   public ColumnType getIntermediateType()
   {
-    return ColumnType.ofComplex("imply-ts-simple");
+    return BaseTimeSeriesAggregatorFactory.TYPE;
   }
 
   @Override
@@ -220,7 +193,6 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         getDataColumn(),
         getTimeColumn(),
         getTimeseriesColumn(),
-        getPostProcessing(),
         getTimeBucketMillis(),
         getWindow(),
         getMaxEntries()

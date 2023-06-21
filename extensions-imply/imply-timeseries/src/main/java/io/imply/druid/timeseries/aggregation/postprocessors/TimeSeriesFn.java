@@ -9,18 +9,11 @@
 
 package io.imply.druid.timeseries.aggregation.postprocessors;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "interpolation", value = InterpolatorTimeSeriesFn.class),
-    @JsonSubTypes.Type(name = "timeWeightedAverage", value = TimeWeightedAvgTimeSeriesFn.class)
-})
 public interface TimeSeriesFn
 {
-  SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries);
+  SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries);
 
-  String cacheString();
 }

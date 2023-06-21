@@ -9,10 +9,9 @@
 
 package io.imply.druid.timeseries.aggregation.postprocessors;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.interpolation.Interpolator;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -26,33 +25,17 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
   private final Long timeBucketMillis;
   private final Interpolator interpolator;
 
-  @JsonCreator
-  public TimeWeightedAvgTimeSeriesFn(
-      @JsonProperty("timeBucketMillis") @Nullable final Long timeBucketMillis,
-      @JsonProperty("interpolator") @Nullable final Interpolator interpolator
-  )
+  public TimeWeightedAvgTimeSeriesFn(@Nullable final Long timeBucketMillis, @Nullable final Interpolator interpolator)
   {
     this.timeBucketMillis = Preconditions.checkNotNull(timeBucketMillis);
     this.interpolator = Preconditions.checkNotNull(interpolator);
   }
 
-  @JsonProperty
-  public Long getTimeBucketMillis()
-  {
-    return timeBucketMillis;
-  }
-
-  @JsonProperty
-  public Interpolator getInterpolator()
-  {
-    return interpolator;
-  }
-
   @Override
-  public SimpleTimeSeries compute(SimpleTimeSeries input, int maxEntries)
+  public SimpleTimeSeriesContainer compute(SimpleTimeSeries input, int maxEntries)
   {
     if (input.size() <= 1) {
-      return input;
+      return SimpleTimeSeriesContainer.createFromInstance(input);
     }
 
     ImplyLongArrayList timestamps = input.getTimestamps();
@@ -61,9 +44,11 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
     SimpleTimeSeries computedSeries = new SimpleTimeSeries(new ImplyLongArrayList(maxEntries),
                                                            new ImplyDoubleArrayList(maxEntries),
                                                            input.getWindow(),
-                                                           input.getStart(),
-                                                           input.getEnd(),
-                                                           maxEntries);
+                                                           null,
+                                                           null,
+                                                           maxEntries,
+                                                           timeBucketMillis
+    );
     // compute initial recordings
     long currentTimestamp = timestamps.getLong(0);
     long currentBucketStart = durationGranularity.bucketStart(currentTimestamp);
@@ -129,12 +114,7 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
       }
     }
     computedSeries.addDataPoint(prevBucketStart, currentBucketTimeWeightedCount > 0 ? currentBucketTimeWeightedSum / currentBucketTimeWeightedCount : 0);
-    return computedSeries;
+    return SimpleTimeSeriesContainer.createFromInstance(computedSeries);
   }
 
-  @Override
-  public String cacheString()
-  {
-    return String.join(",", "timeWeightedAverage", String.valueOf(timeBucketMillis), interpolator.toString());
-  }
 }

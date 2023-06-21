@@ -7,11 +7,12 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.aggregation;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
@@ -21,7 +22,6 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Optionality;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -42,10 +42,11 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
+public class SumTimeSeriesObjectSqlAggregator implements SqlAggregator
 {
-  private static final SqlAggFunction FUNCTION_INSTANCE = new SimpleTimeSeriesSqlAggFunction();
-  private static final String NAME = "TIMESERIES";
+  private static final SqlAggFunction FUNCTION_INSTANCE = new SumTimeSeriesSqlAggFunction();
+  private static final String NAME = "SUM_TIMESERIES";
+  public static final int SQL_DEFAULT_MAX_ENTRIES = 260_000;
 
   @Override
   public SqlAggFunction calciteFunction()
@@ -67,13 +68,13 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
       boolean finalizeAggregations
   )
   {
-    if (aggregateCall.getArgList().size() < 3) {
+    if (aggregateCall.getArgList().size() < 2) {
       return null;
     }
 
-    String timeColumnName, dataColumnName;
-    // fetch time column name
-    DruidExpression timeColumn = Aggregations.toDruidExpressionForNumericAggregator(
+    String timeSeriesColumnName;
+    // fetch time series column name
+    DruidExpression timeSeriesColumn = Aggregations.toDruidExpressionForNumericAggregator(
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
@@ -83,87 +84,78 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
             aggregateCall.getArgList().get(0)
         )
     );
-    if (timeColumn == null) {
+    if (timeSeriesColumn == null) {
       return null;
     }
-    if (timeColumn.isDirectColumnAccess()) {
-      timeColumnName = timeColumn.getDirectColumn();
+    if (timeSeriesColumn.isDirectColumnAccess()) {
+      timeSeriesColumnName = timeSeriesColumn.getDirectColumn();
     } else {
       VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
           plannerContext,
-          timeColumn,
+          timeSeriesColumn,
           ColumnType.LONG
       );
-      timeColumnName = virtualColumn.getOutputName();
+      timeSeriesColumnName = virtualColumn.getOutputName();
     }
 
-    // fetch data column name
-    DruidExpression dataColumn = Aggregations.toDruidExpressionForNumericAggregator(
-        plannerContext,
-        rowSignature,
-        Expressions.fromFieldAccess(
-            rexBuilder.getTypeFactory(),
-            rowSignature,
-            project,
-            aggregateCall.getArgList().get(1)
-        )
-    );
-    if (dataColumn == null) {
-      return null;
-    }
-    if (dataColumn.isDirectColumnAccess()) {
-      dataColumnName = dataColumn.getDirectColumn();
-    } else {
-      VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
-          plannerContext,
-          dataColumn,
-          ColumnType.DOUBLE
-      );
-      dataColumnName = virtualColumn.getOutputName();
-    }
-
-    // fetch time window
-    final RexNode timeWindow = Expressions.fromFieldAccess(
+    Interval window;
+    final RexNode timeWindowArg = Expressions.fromFieldAccess(
         rexBuilder.getTypeFactory(),
         rowSignature,
         project,
-        aggregateCall.getArgList().get(2)
+        aggregateCall.getArgList().get(1)
     );
-    Interval window = Intervals.of(RexLiteral.stringValue(timeWindow));
+    if (!timeWindowArg.isA(SqlKind.LITERAL)) {
+      // In some cases, even if the maxEntries parameter is
+      // present as a literal, the child node of an aggregate may not be a LogicalProject through which the constant can
+      // be extracted. In such cases, the parameter becomes an RexInputRef for the aggreate leading to query planning
+      // failure.
+      return null;
+    } else {
+      window = Intervals.of(RexLiteral.stringValue(timeWindowArg));
+    }
 
     // check if maxEntries is provided
     int maxEntries;
-    if (aggregateCall.getArgList().size() == 4) {
+    if (aggregateCall.getArgList().size() == 3) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
           rexBuilder.getTypeFactory(),
           rowSignature,
           project,
-          aggregateCall.getArgList().get(3)
+          aggregateCall.getArgList().get(2)
       );
-      maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
+      if (!maxEntriesArg.isA(SqlKind.LITERAL)) {
+        // In some cases, even if the maxEntries parameter is
+        // present as a literal, the child node of an aggregate may not be a LogicalProject through which the constant can
+        // be extracted. In such cases, the parameter becomes an RexInputRef for the aggreate leading to query planning
+        // failure.
+        return null;
+      } else {
+        maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
+      }
     } else {
-      maxEntries = SimpleTimeSeriesAggregatorFactory.DEFAULT_MAX_ENTRIES;
+      // keeping the default as a large number due to the above problem where sometimes the maxEntries parameters is
+      // unprocessable due to the current integration with Calcite
+      maxEntries = SQL_DEFAULT_MAX_ENTRIES;
     }
 
     // create the factory
-    AggregatorFactory aggregatorFactory = SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+    AggregatorFactory aggregatorFactory = SumTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
         StringUtils.format("%s:agg", name),
-        dataColumnName,
-        timeColumnName,
-        null,
-        null,
-        window,
-        maxEntries);
+        timeSeriesColumnName,
+        maxEntries,
+        window
+    );
 
     return Aggregation.create(ImmutableList.of(aggregatorFactory), null);
   }
 
-  private static class SimpleTimeSeriesSqlAggFunction extends SqlAggFunction
+  private static class SumTimeSeriesSqlAggFunction extends SqlAggFunction
   {
-    private static final String SIGNATURE1 = "'" + NAME + "'(timeColumn, dataColumn, window)";
-    private static final String SIGNATURE2 = "'" + NAME + "'(timeColumn, dataColumn, window, maxEntries)";
+    private static final String SIGNATURE = "'" + NAME + "'(timeSeriesColumn, window)";
+    private static final String SIGNATURE2 = "'" + NAME + "'(timeSeriesColumn, window, maxEntries)";
 
-    SimpleTimeSeriesSqlAggFunction()
+    SumTimeSeriesSqlAggFunction()
     {
       super(
           NAME,
@@ -171,17 +163,21 @@ public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
           SqlKind.OTHER_FUNCTION,
           opBinding -> RowSignatures.makeComplexType(
               opBinding.getTypeFactory(),
-              BaseTimeSeriesAggregatorFactory.TYPE,
+              SumTimeSeriesAggregatorFactory.TYPE,
               true
           ),
           null,
           OperandTypes.or(
-              OperandTypes.and(
-                  OperandTypes.sequence(SIGNATURE1, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.LITERAL),
-                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.STRING)),
-              OperandTypes.and(
-                  OperandTypes.sequence(SIGNATURE2, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.LITERAL, OperandTypes.POSITIVE_INTEGER_LITERAL),
-                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.STRING, SqlTypeFamily.EXACT_NUMERIC)
+              OperandTypes.sequence(
+                  SIGNATURE,
+                  TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                  OperandTypes.STRING
+              ),
+              OperandTypes.sequence(
+                  SIGNATURE2,
+                  TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
+                  OperandTypes.STRING,
+                  OperandTypes.POSITIVE_INTEGER_LITERAL
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,

@@ -9,10 +9,10 @@
 
 package io.imply.druid.timeseries;
 
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.DateTimes;
+import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -30,7 +30,9 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
                                               new ImplyDoubleArrayList(),
                                               window,
                                               seriesList[i].getStart(),
-                                              seriesList[i].getEnd(), MAX_ENTRIES);
+                                              seriesList[i].getEnd(), MAX_ENTRIES,
+                                              1L
+      );
       for (int j = 0; j < seriesList[i].size(); j++) {
         seriesToMerge[i].addDataPoint(seriesList[i].getTimestamps().getLong(j), seriesList[i].getDataPoints().getDouble(j));
       }
@@ -55,7 +57,7 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
   public void testSorted()
   {
     DateTime startDateTime = DateTimes.of("2020-01-01");
-    SimpleTimeSeries timeSeries = new SimpleTimeSeries(SimpleTimeSeriesComplexMetricSerde.ALL_TIME_WINDOW, 100);
+    SimpleTimeSeries timeSeries = new SimpleTimeSeries(Intervals.ETERNITY, 100);
 
     // create a list of timestamps in descending order
     for (int i = 50; i >= 0; i--) {

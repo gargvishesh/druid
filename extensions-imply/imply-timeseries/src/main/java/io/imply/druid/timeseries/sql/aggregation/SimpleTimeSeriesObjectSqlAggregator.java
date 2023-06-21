@@ -7,12 +7,11 @@
  * of the license agreement you entered into with Imply.
  */
 
-package io.imply.druid.timeseries.sql;
+package io.imply.druid.timeseries.sql.aggregation;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.DeltaTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
@@ -39,87 +38,19 @@ import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.rel.VirtualColumnRegistry;
 import org.apache.druid.sql.calcite.table.RowSignatures;
 import org.joda.time.Interval;
-import org.joda.time.Period;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
+public class SimpleTimeSeriesObjectSqlAggregator implements SqlAggregator
 {
-  public static final SqlAggregator MEAN_TIMESERIES = new MeanDeltaTimeSeriesObjectSqlAggregator(AggregatorType.MEAN_TIMESERIES);
-  public static final SqlAggregator DELTA_TIMESERIES = new MeanDeltaTimeSeriesObjectSqlAggregator(AggregatorType.DELTA_TIMESERIES);
-
-  enum AggregatorType
-  {
-    MEAN_TIMESERIES {
-      @Override
-      AggregatorFactory createAggregatorFactory(
-          String name,
-          String dataColumnName,
-          String timeColumnName,
-          long timeBucketMillis,
-          Interval window,
-          Integer maxEntries
-      )
-      {
-        return MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
-            StringUtils.format("%s:agg", name),
-            dataColumnName,
-            timeColumnName,
-            null,
-            null,
-            timeBucketMillis,
-            window,
-            maxEntries);
-      }
-    },
-
-    DELTA_TIMESERIES {
-      @Override
-      AggregatorFactory createAggregatorFactory(
-          String name,
-          String dataColumnName,
-          String timeColumnName,
-          long timeBucketMillis,
-          Interval window,
-          Integer maxEntries
-      )
-      {
-        return DeltaTimeSeriesAggregatorFactory.getDeltaTimeSeriesAggregationFactory(
-            StringUtils.format("%s:agg", name),
-            dataColumnName,
-            timeColumnName,
-            null,
-            null,
-            timeBucketMillis,
-            window,
-            maxEntries);
-      }
-    };
-
-    abstract AggregatorFactory createAggregatorFactory(
-        String name,
-        String dataColumnName,
-        String timeColumnName,
-        long timeBucketMillis,
-        Interval window,
-        Integer maxEntries
-    );
-  }
-
-  private final MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType aggregatorType;
-  private final SqlAggFunction function;
-
-  public MeanDeltaTimeSeriesObjectSqlAggregator(final MeanDeltaTimeSeriesObjectSqlAggregator.AggregatorType aggregatorType)
-  {
-    this.aggregatorType = aggregatorType;
-    this.function = new MeanDeltaTimeSeriesSqlAggFunction(aggregatorType);
-  }
+  private static final SqlAggFunction FUNCTION_INSTANCE = new SimpleTimeSeriesSqlAggFunction();
+  private static final String NAME = "TIMESERIES";
 
   @Override
   public SqlAggFunction calciteFunction()
   {
-    return function;
+    return FUNCTION_INSTANCE;
   }
 
   @Nullable
@@ -136,7 +67,7 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
       boolean finalizeAggregations
   )
   {
-    if (aggregateCall.getArgList().size() < 4) {
+    if (aggregateCall.getArgList().size() < 3) {
       return null;
     }
 
@@ -200,45 +131,41 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
     );
     Interval window = Intervals.of(RexLiteral.stringValue(timeWindow));
 
-    final RexNode timeBucketMillisArg = Expressions.fromFieldAccess(
-        rexBuilder.getTypeFactory(),
-        rowSignature,
-        project,
-        aggregateCall.getArgList().get(3)
-    );
-    long timeBucketMillis = new Period(RexLiteral.stringValue(timeBucketMillisArg)).toStandardDuration().getMillis();
-
     // check if maxEntries is provided
-    Integer maxEntries = null;
-    if (aggregateCall.getArgList().size() == 5) {
+    int maxEntries;
+    if (aggregateCall.getArgList().size() == 4) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
           rexBuilder.getTypeFactory(),
           rowSignature,
           project,
-          aggregateCall.getArgList().get(4)
+          aggregateCall.getArgList().get(3)
       );
       maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
+    } else {
+      maxEntries = SimpleTimeSeriesAggregatorFactory.DEFAULT_MAX_ENTRIES;
     }
 
     // create the factory
-    AggregatorFactory aggregatorFactory = aggregatorType.createAggregatorFactory(
-        name,
+    AggregatorFactory aggregatorFactory = SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+        StringUtils.format("%s:agg", name),
         dataColumnName,
         timeColumnName,
-        timeBucketMillis,
+        null,
         window,
-        maxEntries
-    );
+        maxEntries);
 
     return Aggregation.create(ImmutableList.of(aggregatorFactory), null);
   }
 
-  private static class MeanDeltaTimeSeriesSqlAggFunction extends SqlAggFunction
+  private static class SimpleTimeSeriesSqlAggFunction extends SqlAggFunction
   {
-    MeanDeltaTimeSeriesSqlAggFunction(AggregatorType aggregatorType)
+    private static final String SIGNATURE1 = "'" + NAME + "'(timeColumn, dataColumn, window)";
+    private static final String SIGNATURE2 = "'" + NAME + "'(timeColumn, dataColumn, window, maxEntries)";
+
+    SimpleTimeSeriesSqlAggFunction()
     {
       super(
-          aggregatorType.name(),
+          NAME,
           null,
           SqlKind.OTHER_FUNCTION,
           opBinding -> RowSignatures.makeComplexType(
@@ -249,36 +176,11 @@ public class MeanDeltaTimeSeriesObjectSqlAggregator implements SqlAggregator
           null,
           OperandTypes.or(
               OperandTypes.and(
-                  OperandTypes.sequence(
-                      "'" + aggregatorType.name() + "'(timeColumn, dataColumn, window, bucketPeriod)",
-                      OperandTypes.ANY,
-                      OperandTypes.ANY,
-                      OperandTypes.LITERAL,
-                      OperandTypes.LITERAL
-                  ),
-                  OperandTypes.family(
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.STRING
-                  )
-              ),
+                  OperandTypes.sequence(SIGNATURE1, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.LITERAL),
+                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.STRING)),
               OperandTypes.and(
-                  OperandTypes.sequence(
-                      "'" + aggregatorType.name() + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
-                      OperandTypes.ANY,
-                      OperandTypes.ANY,
-                      OperandTypes.LITERAL,
-                      OperandTypes.LITERAL,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL
-                  ),
-                  OperandTypes.family(
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.EXACT_NUMERIC
-                  )
+                  OperandTypes.sequence(SIGNATURE2, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.LITERAL, OperandTypes.POSITIVE_INTEGER_LITERAL),
+                  OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.STRING, SqlTypeFamily.EXACT_NUMERIC)
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,

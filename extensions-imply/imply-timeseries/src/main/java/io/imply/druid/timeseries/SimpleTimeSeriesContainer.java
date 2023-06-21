@@ -11,6 +11,7 @@ package io.imply.druid.timeseries;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -103,7 +104,8 @@ public class SimpleTimeSeriesContainer
         window,
         edgePointStart,
         edgePointEnd,
-        maxEntries
+        maxEntries,
+        1L
     );
 
     return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
@@ -156,6 +158,11 @@ public class SimpleTimeSeriesContainer
     return isBuffered ? simpleTimeSeriesBuffer.getSimpleTimeSeries() : simpleTimeSeries;
   }
 
+  public Long getBucketMillis()
+  {
+    return getSimpleTimeSeries().getBucketMillis();
+  }
+
   public SimpleTimeSeries computeSimple()
   {
     if (isNull()) {
@@ -194,10 +201,37 @@ public class SimpleTimeSeriesContainer
       Interval window
   )
   {
-    // apply query window to properly filter data points and compute edges
-    SimpleTimeSeries windowFilteredTimeSeries = getSimpleTimeSeries().withWindow(window);
+    Preconditions.checkNotNull(simpleByteBufferTimeSeries, "simple time series is null");
+    Preconditions.checkNotNull(window, "window is null");
+    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().copyWithWindow(window));
+  }
 
-    simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, windowFilteredTimeSeries);
+  public SimpleByteBufferTimeSeries initAndPushInto(
+      WritableMemory writableMemory,
+      int pos,
+      @Nullable Interval window,
+      int maxEntries
+  )
+  {
+    // apply query window to properly filter data points and compute edges
+    SimpleTimeSeries windowFilteredTimeSeries;
+    if (window == null) {
+      windowFilteredTimeSeries = getSimpleTimeSeries();
+    } else {
+      windowFilteredTimeSeries = getSimpleTimeSeries().copyWithWindow(window);
+    }
+
+    SimpleByteBufferTimeSeries simpleByteBufferTimeSeries =
+        new SimpleByteBufferTimeSeries(windowFilteredTimeSeries.getWindow(), maxEntries);
+
+    pushInto(simpleByteBufferTimeSeries, writableMemory, pos, windowFilteredTimeSeries.getWindow());
+
+    simpleByteBufferTimeSeries.setBucketMillis(
+        writableMemory,
+        pos,
+        getBucketMillis() == null ? -1 : getBucketMillis()
+    );
+    return simpleByteBufferTimeSeries;
   }
 
   public void pushInto(SimpleTimeSeriesContainer simpleTimeSeriesContainer)
@@ -233,7 +267,7 @@ public class SimpleTimeSeriesContainer
       return false;
     }
     SimpleTimeSeriesContainer that = (SimpleTimeSeriesContainer) o;
-    return Objects.equal(getSimpleTimeSeries(), that.getSimpleTimeSeries());
+    return Objects.equal(computeSimple(), that.computeSimple());
   }
 
   @Override
