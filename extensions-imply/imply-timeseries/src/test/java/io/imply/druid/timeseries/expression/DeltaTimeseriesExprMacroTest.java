@@ -9,46 +9,81 @@
 
 package io.imply.druid.timeseries.expression;
 
+import com.google.common.collect.ImmutableMap;
 import io.imply.druid.timeseries.SimpleTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
+import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.math.expr.Expr;
+import org.apache.druid.math.expr.ExprEval;
+import org.apache.druid.math.expr.ExprMacroTable;
+import org.apache.druid.math.expr.ExpressionType;
+import org.apache.druid.math.expr.InputBindings;
+import org.apache.druid.math.expr.Parser;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
+
 public class DeltaTimeseriesExprMacroTest
 {
+  static {
+    NullHandling.initializeForTests();
+  }
+
+  public static final ExprMacroTable MACRO_TABLE = new ExprMacroTable(
+      Collections.singletonList(new DeltaTimeseriesExprMacro())
+  );
+
   @Test
   public void testSimpleDeltaTimeseries()
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
-        Intervals.ETERNITY,
-        100
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.001s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
+                Intervals.ETERNITY,
+                100
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 1L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{1, 2, 3}),
         new ImplyDoubleArrayList(new double[]{1, 1, 1}),
         Intervals.ETERNITY,
         100
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithBucketMillis()
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
-        Intervals.ETERNITY,
-        100
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.010s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
+                Intervals.ETERNITY,
+                100
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 10L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{0}),
         new ImplyDoubleArrayList(new double[]{3}),
@@ -58,36 +93,47 @@ public class DeltaTimeseriesExprMacroTest
         100,
         10L
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithBucketMillis2()
   {
-    // bucket start comes out to 0, but since the window is [1, 5), the delta timeseries will throw an error
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
-        Intervals.utc(1, 5),
-        100
-    );
-    Assert.assertThrows(IAE.class, () -> DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 10L));
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.010s')", MACRO_TABLE);
+
+    Assert.assertThrows(IAE.class, () -> expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
+                Intervals.utc(1, 5),
+                100
+            )
+        )
+    ));
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithEndPoint()
   {
-    // have an end point in the input series, so the delta series should compute delta from
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
-        Intervals.utc(1, 5),
-        null,
-        new TimeSeries.EdgePoint(5, 5),
-        100,
-        null
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.001s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
+                Intervals.utc(1, 5),
+                null,
+                new TimeSeries.EdgePoint(5, 5),
+                100,
+                null
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 1L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
         new ImplyDoubleArrayList(new double[]{1, 1, 1, 1}),
@@ -97,38 +143,52 @@ public class DeltaTimeseriesExprMacroTest
         100,
         1L
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithUnsortedValues()
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 4, 3}),
-        Intervals.ETERNITY,
-        100
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.001s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 3, 4}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 4, 3}),
+                Intervals.ETERNITY,
+                100
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 1L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{1, 2}),
         new ImplyDoubleArrayList(new double[]{1, 2}),
         Intervals.ETERNITY,
         100
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithLongApartDataPoints()
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 33, 44}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
-        Intervals.ETERNITY,
-        100
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.005s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 33, 44}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 3, 4}),
+                Intervals.ETERNITY,
+                100
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 5L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{0, 30}),
         new ImplyDoubleArrayList(new double[]{2, 1}),
@@ -138,19 +198,26 @@ public class DeltaTimeseriesExprMacroTest
         100,
         5L
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
   }
 
   @Test
   public void testSimpleDeltaTimeseries_WithLongApartDataPointsAndUnsorted()
   {
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(new long[]{1, 2, 33, 44}),
-        new ImplyDoubleArrayList(new double[]{1, 2, 1.5, 3}),
-        Intervals.ETERNITY,
-        100
+    final Expr expr = Parser.parse("delta_timeseries(ts, 'PT0.005s')", MACRO_TABLE);
+
+    final ExprEval<?> result = expr.eval(
+        makeBinding(
+            "ts",
+            new SimpleTimeSeries(
+                new ImplyLongArrayList(new long[]{1, 2, 33, 44}),
+                new ImplyDoubleArrayList(new double[]{1, 2, 1.5, 3}),
+                Intervals.ETERNITY,
+                100
+            )
+        )
     );
-    SimpleTimeSeries deltaTimeseries = DeltaTimeseriesExprMacro.buildDeltaSeries(simpleTimeSeries, 5L);
+
     SimpleTimeSeries expectedDeltaTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(new long[]{0}),
         new ImplyDoubleArrayList(new double[]{2.5}),
@@ -160,6 +227,31 @@ public class DeltaTimeseriesExprMacroTest
         100,
         5L
     );
-    Assert.assertEquals(expectedDeltaTimeSeries, deltaTimeseries);
+    expectSimpleTimeseries(result, expectedDeltaTimeSeries);
+  }
+
+  @SuppressWarnings("ConstantConditions")
+  private static void expectSimpleTimeseries(ExprEval<?> result, SimpleTimeSeries expectedDeltaTimeSeries)
+  {
+    Assert.assertEquals(expectedDeltaTimeSeries, ((SimpleTimeSeriesContainer) result.value()).computeSimple());
+  }
+
+  private static Expr.ObjectBinding makeBinding(String field, SimpleTimeSeries ts)
+  {
+    return makeBinding(field, new AtomicReference<>(SimpleTimeSeriesContainer.createFromInstance(ts)));
+  }
+
+  @SuppressWarnings("ConstantConditions")
+  private static Expr.ObjectBinding makeBinding(String field, AtomicReference<SimpleTimeSeriesContainer> ref)
+  {
+    return InputBindings.forInputSuppliers(
+        ImmutableMap.of(
+            field,
+            InputBindings.inputSupplier(
+                ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE),
+                ref::get
+            )
+        )
+    );
   }
 }
