@@ -38,12 +38,17 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     validationHelperCheckArgumentRange(args, 1, 2);
 
     Expr arg = args.get(0);
-    long bucketMillis = 1;
+
+    final Period bucketPeriod;
     if (args.size() == 2) {
-      bucketMillis = new Period(Utils.expectLiteral(args.get(1), NAME, 2)).toStandardDuration().getMillis();
+      bucketPeriod = new Period(Utils.expectLiteral(args.get(1), NAME, 2));
+    } else {
+      bucketPeriod = Period.millis(1);
     }
 
-    long finalBucketMillis = bucketMillis;
+    long finalBucketMillis = bucketPeriod.toStandardDuration().getMillis();
+    final DurationGranularity durationGranularity = new DurationGranularity(finalBucketMillis, 0);
+
     class DeltaTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
     {
 
@@ -79,7 +84,7 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         return ExprEval.ofComplex(
             OUTPUT_TYPE,
             SimpleTimeSeriesContainer.createFromInstance(
-                buildDeltaSeries(simpleTimeSeriesContainer.computeSimple(), finalBucketMillis)
+                buildDeltaSeries(simpleTimeSeriesContainer.computeSimple())
             )
         );
       }
@@ -95,6 +100,104 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       {
         return OUTPUT_TYPE;
       }
+
+      private SimpleTimeSeries buildDeltaSeries(SimpleTimeSeries simpleTimeSeries)
+      {
+        ImplyLongArrayList simpleTimeSeriesTimestamps = simpleTimeSeries.getTimestamps();
+        ImplyDoubleArrayList simpleTimeSeriesDataPoints = simpleTimeSeries.getDataPoints();
+        if (simpleTimeSeriesDataPoints.size() == 0) {
+          return simpleTimeSeries;
+        }
+        ImplyLongArrayList deltaSeriesTimestamps = new ImplyLongArrayList();
+        ImplyDoubleArrayList deltaSeriesDataPoints = new ImplyDoubleArrayList();
+
+        long prevBucketStart = durationGranularity.bucketStart(simpleTimeSeriesTimestamps.getLong(0));
+        double prevValue = simpleTimeSeriesDataPoints.getDouble(0);
+        double runningSum = 0;
+        boolean bucketInitialized = false;
+        for (int i = 1; i < simpleTimeSeries.size(); i++) {
+          double currValue = simpleTimeSeriesDataPoints.getDouble(i);
+          if (currValue > prevValue) {
+            long currTimestamp = simpleTimeSeriesTimestamps.getLong(i);
+            long currBucketStart = durationGranularity.bucketStart(currTimestamp);
+            runningSum += currValue - prevValue;
+            if (currBucketStart > prevBucketStart) {
+              tryAddToTimeseries(
+                  deltaSeriesTimestamps,
+                  deltaSeriesDataPoints,
+                  simpleTimeSeriesTimestamps.getLong(i - 1),
+                  prevBucketStart,
+                  runningSum,
+                  simpleTimeSeries
+              );
+              runningSum = 0;
+              prevBucketStart = currBucketStart;
+              bucketInitialized = false;
+            } else {
+              bucketInitialized = true;
+            }
+          }
+          prevValue = currValue;
+        }
+        if (simpleTimeSeries.getEnd().getTimestamp() != -1 && simpleTimeSeries.getEnd().getData() > prevValue) {
+          // if end exists and is a greater value than the last value in the timeseries, then add the delta
+          runningSum += simpleTimeSeries.getEnd().getData() - prevValue;
+          tryAddToTimeseries(
+              deltaSeriesTimestamps,
+              deltaSeriesDataPoints,
+              simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
+              prevBucketStart,
+              runningSum,
+              simpleTimeSeries
+          );
+        } else if (bucketInitialized) {
+          // this means that the end is not a valid data point, so add to the series only if there's any delta to be collected
+          tryAddToTimeseries(
+              deltaSeriesTimestamps,
+              deltaSeriesDataPoints,
+              simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
+              prevBucketStart,
+              runningSum,
+              simpleTimeSeries
+          );
+        }
+        return new SimpleTimeSeries(
+            deltaSeriesTimestamps,
+            deltaSeriesDataPoints,
+            simpleTimeSeries.getWindow(),
+            null,
+            null,
+            simpleTimeSeries.getMaxEntries(),
+            finalBucketMillis
+        );
+      }
+
+      private void tryAddToTimeseries(
+          ImplyLongArrayList timestamps,
+          ImplyDoubleArrayList dataPoints,
+          long currTimestamp,
+          long currBucketStart,
+          double dataPoint,
+          SimpleTimeSeries inputSeries
+      )
+      {
+        if (inputSeries.getWindow().contains(currBucketStart)) {
+          timestamps.add(currBucketStart);
+          dataPoints.add(dataPoint);
+        } else {
+          throw new IAE(
+              "Found a delta recording (input timestamp : [%s], timestamp bucket : [%s]) outside the "
+              + "window parameter of the resultant series. "
+              + "Please align the bucketPeriod [%s] of delta timeseries and the window parameter [%s] of "
+              + "input series such that the delta recordings are not outside the "
+              + "input series' window period.",
+              DateTimes.utc(currTimestamp),
+              DateTimes.utc(currBucketStart),
+              bucketPeriod,
+              inputSeries.getWindow()
+          );
+        }
+      }
     }
     return new DeltaTimeseriesExpr(arg);
   }
@@ -103,107 +206,5 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
   public String name()
   {
     return NAME;
-  }
-
-  public static SimpleTimeSeries buildDeltaSeries(SimpleTimeSeries simpleTimeSeries, long bucketMillis)
-  {
-    ImplyLongArrayList simpleTimeSeriesTimestamps = simpleTimeSeries.getTimestamps();
-    ImplyDoubleArrayList simpleTimeSeriesDataPoints = simpleTimeSeries.getDataPoints();
-    if (simpleTimeSeriesDataPoints.size() == 0) {
-      return simpleTimeSeries;
-    }
-    ImplyLongArrayList deltaSeriesTimestamps = new ImplyLongArrayList();
-    ImplyDoubleArrayList deltaSeriesDataPoints = new ImplyDoubleArrayList();
-    DurationGranularity durationGranularity = new DurationGranularity(bucketMillis, 0);
-    long prevBucketStart = durationGranularity.bucketStart(simpleTimeSeriesTimestamps.getLong(0));
-    double prevValue = simpleTimeSeriesDataPoints.getDouble(0);
-    double runningSum = 0;
-    boolean bucketInitialized = false;
-    for (int i = 1; i < simpleTimeSeries.size(); i++) {
-      double currValue = simpleTimeSeriesDataPoints.getDouble(i);
-      if (currValue > prevValue) {
-        long currTimestamp = simpleTimeSeriesTimestamps.getLong(i);
-        long currBucketStart = durationGranularity.bucketStart(currTimestamp);
-        runningSum += currValue - prevValue;
-        if (currBucketStart > prevBucketStart) {
-          tryAddToTimeseries(
-              deltaSeriesTimestamps,
-              deltaSeriesDataPoints,
-              simpleTimeSeriesTimestamps.getLong(i - 1),
-              prevBucketStart,
-              runningSum,
-              bucketMillis,
-              simpleTimeSeries
-          );
-          runningSum = 0;
-          prevBucketStart = currBucketStart;
-          bucketInitialized = false;
-        } else {
-          bucketInitialized = true;
-        }
-      }
-      prevValue = currValue;
-    }
-    if (simpleTimeSeries.getEnd().getTimestamp() != -1 && simpleTimeSeries.getEnd().getData() > prevValue) {
-      // if end exists and is a greater value than the last value in the timeseries, then add the delta
-      runningSum += simpleTimeSeries.getEnd().getData() - prevValue;
-      tryAddToTimeseries(
-          deltaSeriesTimestamps,
-          deltaSeriesDataPoints,
-          simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
-          prevBucketStart,
-          runningSum,
-          bucketMillis,
-          simpleTimeSeries
-      );
-    } else if (bucketInitialized) {
-      // this means that the end is not a valid data point, so add to the series only if there's any delta to be collected
-      tryAddToTimeseries(
-          deltaSeriesTimestamps,
-          deltaSeriesDataPoints,
-          simpleTimeSeriesTimestamps.getLong(simpleTimeSeriesTimestamps.size() - 1),
-          prevBucketStart,
-          runningSum,
-          bucketMillis,
-          simpleTimeSeries
-      );
-    }
-    return new SimpleTimeSeries(
-        deltaSeriesTimestamps,
-        deltaSeriesDataPoints,
-        simpleTimeSeries.getWindow(),
-        null,
-        null,
-        simpleTimeSeries.getMaxEntries(),
-        bucketMillis
-    );
-  }
-
-  private static void tryAddToTimeseries(
-      ImplyLongArrayList timestamps,
-      ImplyDoubleArrayList dataPoints,
-      long currTimestamp,
-      long currBucketStart,
-      double dataPoint,
-      long bucketMillis,
-      SimpleTimeSeries inputSeries
-  )
-  {
-    if (inputSeries.getWindow().contains(currBucketStart)) {
-      timestamps.add(currBucketStart);
-      dataPoints.add(dataPoint);
-    } else {
-      throw new IAE(
-          "Found a delta recording (input timestamp : [%s], timestamp bucket : [%s]) outside the "
-          + "window parameter of the resultant series. "
-          + "Please align the bucketPeriod [%s] of delta timeseries and the window parameter [%s] of "
-          + "input series such that the delta recordings are not outside the "
-          + "input series' window period.",
-          DateTimes.utc(currTimestamp),
-          DateTimes.utc(currBucketStart),
-          new Period(bucketMillis),
-          inputSeries.getWindow()
-      );
-    }
   }
 }
