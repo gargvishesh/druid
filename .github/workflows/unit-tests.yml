@@ -31,17 +31,47 @@ on:
         description: 'Flag to decide if next tests need to run incase coverage issue failures'
         value: |
           ${{
-            (jobs.indexing_modules_test.result == 'success' || fromJson(jobs.indexing_modules_test.outputs.coverage_failure)) &&
-            (jobs.processing_modules_test.result == 'success' || fromJson(jobs.processing_modules_test.outputs.coverage_failure)) &&
-            (jobs.server_modules_test.result == 'success' || fromJson(jobs.server_modules_test.outputs.coverage_failure)) &&
-            (jobs.other_modules_test.result == 'success' || fromJson(jobs.other_modules_test.outputs.coverage_failure))
+            (jobs.indexing_modules_test.result == 'success' || jobs.indexing_modules_test.result == 'skipped' || 
+          fromJson(jobs.indexing_modules_test.outputs.coverage_failure)) &&
+            (jobs.processing_modules_test.result == 'success' || jobs.processing_modules_test.result == 'skipped' || 
+          fromJson(jobs.processing_modules_test.outputs.coverage_failure)) &&
+            (jobs.server_modules_test.result == 'success' || jobs.server_modules_test.result == 'skipped' || fromJson
+          (jobs.server_modules_test.outputs.coverage_failure)) &&
+            (jobs.other_modules_test.result == 'success' || jobs.other_modules_test.result == 'skipped' || fromJson(jobs
+          .other_modules_test.outputs.coverage_failure))
           }}
     secrets:
       MVN_SETTINGS_XML:
         required: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    # Required permissions
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    outputs:
+      kafka: ${{ steps.filter.outputs.kafka }}
+      kinesis: ${{ steps.filter.outputs.kinesis }}
+      # run everything if not a PR
+      core: ${{ steps.filter.outputs.core  || github.event_name != 'pull_request'}}
+    steps:
+      - uses: dorny/paths-filter@v2
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          filters: |
+            core:
+              - '!extension*/**'
+            kafka:
+              - 'extensions-core/kafka-indexing-service/**'
+            kinesis:
+              - 'extensions-core/kinesis-indexing-service/**'
+
   indexing_modules_test:
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.kafka == 'true' || needs.changes.outputs.kinesis == 'true'}}
     uses: ./.github/workflows/reusable-unit-tests.yml
     with:
       jdk: ${{ inputs.jdk }}
@@ -52,6 +82,8 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   processing_modules_test:
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     uses: ./.github/workflows/reusable-unit-tests.yml
     with:
       jdk: ${{ inputs.jdk }}
@@ -62,6 +94,8 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   server_modules_test:
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     uses: ./.github/workflows/reusable-unit-tests.yml
     with:
       jdk: ${{ inputs.jdk }}

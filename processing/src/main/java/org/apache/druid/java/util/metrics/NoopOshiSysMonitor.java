@@ -17,27 +17,20 @@
  * under the License.
  */
 
-package org.apache.druid.query;
+package org.apache.druid.java.util.metrics;
 
-/**
- * An abstract class for all query exceptions that should return a bad request status code (400).
- *
- * See {@code BadRequestException} for non-query requests.
- */
-public abstract class BadQueryException extends QueryException
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+
+public class NoopOshiSysMonitor extends OshiSysMonitor
 {
-  protected BadQueryException(String errorCode, String errorMessage, String errorClass)
+  public NoopOshiSysMonitor()
   {
-    this(errorCode, errorMessage, errorClass, null);
+    super();
   }
 
-  protected BadQueryException(String errorCode, String errorMessage, String errorClass, String host)
+  @Override
+  public boolean doMonitor(ServiceEmitter emitter)
   {
-    this(null, errorCode, errorMessage, errorClass, host);
-  }
-
-  protected BadQueryException(Throwable cause, String errorCode, String errorMessage, String errorClass, String host)
-  {
-    super(cause, errorCode, errorMessage, errorClass, host);
+    return false;
   }
 }
