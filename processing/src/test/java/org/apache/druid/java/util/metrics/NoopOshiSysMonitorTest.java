@@ -17,27 +17,22 @@
  * under the License.
  */
 
-package org.apache.druid.query;
+package org.apache.druid.java.util.metrics;
 
-/**
- * An abstract class for all query exceptions that should return a bad request status code (400).
- *
- * See {@code BadRequestException} for non-query requests.
- */
-public abstract class BadQueryException extends QueryException
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.junit.Assert;
+import org.junit.Test;
+import org.mockito.Mockito;
+
+public class NoopOshiSysMonitorTest
 {
-  protected BadQueryException(String errorCode, String errorMessage, String errorClass)
+  @Test
+  public void testDoMonitor()
   {
-    this(errorCode, errorMessage, errorClass, null);
-  }
 
-  protected BadQueryException(String errorCode, String errorMessage, String errorClass, String host)
-  {
-    this(null, errorCode, errorMessage, errorClass, host);
-  }
+    ServiceEmitter serviceEmitter = Mockito.mock(ServiceEmitter.class);
+    NoopOshiSysMonitor noopOshiSysMonitor = new NoopOshiSysMonitor();
 
-  protected BadQueryException(Throwable cause, String errorCode, String errorMessage, String errorClass, String host)
-  {
-    super(cause, errorCode, errorMessage, errorClass, host);
+    Assert.assertFalse(noopOshiSysMonitor.doMonitor(serviceEmitter));
   }
 }

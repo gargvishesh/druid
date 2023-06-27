@@ -19,7 +19,6 @@ import io.imply.druid.sql.async.result.SqlAsyncResults;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
-import org.apache.druid.query.BadQueryException;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.QueryCapacityExceededException;
 import org.apache.druid.query.QueryUnsupportedException;
@@ -106,7 +105,7 @@ public class BrokerAsyncQueryDriver extends AbstractAsyncQueryDriver
       return buildImmediateErrorResponse(
           asyncResultId,
           resultFormat,
-          BadQueryException.STATUS_CODE,
+          Response.Status.BAD_REQUEST.getStatusCode(),
           e
       );
     }

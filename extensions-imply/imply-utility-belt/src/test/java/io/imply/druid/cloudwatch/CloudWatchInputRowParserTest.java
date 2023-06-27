@@ -9,7 +9,6 @@ package io.imply.druid.cloudwatch;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import org.apache.druid.common.config.NullHandlingTest;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DelimitedParseSpec;
@@ -21,13 +20,14 @@ import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class CloudWatchInputRowParserTest extends NullHandlingTest
+public class CloudWatchInputRowParserTest extends InitializedNullHandlingTest
 {
   @Test
   public void testWithFlowLogs()
