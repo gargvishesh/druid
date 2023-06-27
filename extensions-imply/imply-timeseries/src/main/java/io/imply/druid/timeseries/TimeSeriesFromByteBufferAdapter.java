@@ -14,7 +14,7 @@ import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.UOE;
 import org.joda.time.Interval;
 
-public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
+public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
 {
   // 4 bytes TS size + 8 bytes bucket millis + 2 X (edge timestamp + edge data point)
   public static final int DATA_OFFSET = Integer.BYTES + Long.BYTES + 2 * (Long.BYTES + Double.BYTES);
@@ -24,7 +24,7 @@ public abstract class ByteBufferTimeSeries<T extends TimeSeries<T>>
   private final int maxEntries;
   private final Interval window;
 
-  public ByteBufferTimeSeries(Interval window, int maxEntries)
+  public TimeSeriesFromByteBufferAdapter(Interval window, int maxEntries)
   {
     this.window = Preconditions.checkNotNull(window, "window is null");
     this.maxEntries = maxEntries;

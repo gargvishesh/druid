@@ -67,7 +67,7 @@ public class ITVirtualSegmentQueryTest extends AbstractIndexerTest
       // add load rule for cold tier
       coordinatorClient.postLoadRules(
           DATASOURCE,
-          ImmutableList.of(new IntervalLoadRule(Intervals.ETERNITY, ImmutableMap.of("__cold-tier", 1, DruidServer.DEFAULT_TIER, 0)))
+          ImmutableList.of(new IntervalLoadRule(Intervals.ETERNITY, ImmutableMap.of("__cold-tier", 1, DruidServer.DEFAULT_TIER, 0), null))
       );
 
       // each segment is of 8385 bytes size. We submit task request for 4 segments

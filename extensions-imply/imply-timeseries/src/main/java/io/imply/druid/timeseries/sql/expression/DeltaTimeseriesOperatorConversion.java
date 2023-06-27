@@ -48,7 +48,7 @@ public class DeltaTimeseriesOperatorConversion implements SqlOperatorConversion
             BaseTimeSeriesAggregatorFactory.TYPE,
             true
         ))
-                        .build();
+        .build();
   }
 
   @Nullable

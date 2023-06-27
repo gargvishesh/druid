@@ -24,12 +24,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    # Required permissions
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    outputs:
+      # run everything if not a PR
+      core: ${{ steps.filter.outputs.core || github.event_name != 'pull_request'}}
+      common-extensions: ${{ steps.filter.outputs.common-extensions }}
+    steps:
+      - uses: dorny/paths-filter@v2
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          filters: |
+            common-extensions:
+              - 'extension-core/(mysql-metadata-storage|druid-basic-security|simple-client-sslcontext|druid-testing-tools|druid-lookups-cached-global|druid-histogram|druid-datasketches|druid-parquet-extensions|druid-avro-extensions|druid-protobuf-extensions|druid-orc-extensions|druid-kafka-indexing-service|druid-s3-extensions)/**'
+            core:
+              - '!extension*/**'
+
   integration-index-tests-middleManager:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
         testing_group: [batch-index, input-format, input-source, perfect-rollup-parallel-batch-index, kafka-index, kafka-index-slow, kafka-transactional-index, kafka-transactional-index-slow, kafka-data-format, ldap-security, realtime-index, append-ingestion, compaction]
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: 8
@@ -40,11 +63,13 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-index-tests-indexer:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
-        testing_group: [input-source, perfect-rollup-parallel-batch-index, kafka-index, kafka-transactional-index, kafka-index-slow, kafka-transactional-index-slow, kafka-data-format, append-ingestion, compaction]
+        testing_group: [input-source, perfect-rollup-parallel-batch-index, kafka-index, append-ingestion, compaction]
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: 8
@@ -55,11 +80,13 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-query-tests-middleManager:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
         testing_group: [query, query-retry, query-error, security, high-availability]
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: 8
@@ -71,11 +98,13 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-query-tests-middleManager-mariaDB:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
         jdk: [8, 11]
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: ${{ matrix.jdk }}
@@ -88,11 +117,13 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-shuffle-deep-store-tests:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
         indexer: [indexer, middleManager]
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: 8
@@ -104,7 +135,9 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-custom-coordinator-duties-tests:
+    needs: changes
     uses: ./.github/workflows/reusable-standard-its.yml
+    if: ${{ needs.changes.outputs.core == 'true' || needs.changes.outputs.common-extensions == 'true' }}
     with:
       build_jdk: 8
       runtime_jdk: 8
@@ -116,6 +149,7 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   integration-k8s-leadership-tests:
+    needs: changes
     name: (Compile=openjdk8, Run=openjdk8, Cluster Build On K8s) ITNestedQueryPushDownTest integration test
     runs-on: imply-ubuntu-latest
     if: ${{ false }} # Imply doesn't support kubernetes-overlord extension
@@ -146,7 +180,7 @@ jobs:
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
           MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
-        run: | 
+        run: |
           mkdir ~/.m2 || true
           echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
 

@@ -9,7 +9,7 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.MeanByteBufferTimeSeries;
+import io.imply.druid.timeseries.MeanTimeSeriesFromByteBufferAdapter;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -23,7 +23,7 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
 {
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
-  private final MeanByteBufferTimeSeries meanByteBufferTimeSeries;
+  private final MeanTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public MeanTimeSeriesBuildBufferAggregator(final BaseLongColumnValueSelector timeSelector,
@@ -34,7 +34,7 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
   {
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
-    this.meanByteBufferTimeSeries = new MeanByteBufferTimeSeries(durationGranularity, window, maxEntries);
+    this.meanByteBufferTimeSeries = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 

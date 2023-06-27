@@ -11,6 +11,7 @@ package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.SimpleTimeSeriesUtils;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.druid.java.util.common.ISE;
@@ -73,13 +74,7 @@ public class SumTimeSeriesAggregator implements Aggregator
 
   public static SimpleTimeSeries combineTimeSeries(SimpleTimeSeries timeSeries, SimpleTimeSeries simpleTimeSeries)
   {
-    if (!timeSeries.getWindow().equals(simpleTimeSeries.getWindow())) {
-      throw new ISE(
-          "SumSeries aggregator expects the windows of input time series to be same, but found (%s, %s)",
-          timeSeries.getWindow(),
-          simpleTimeSeries.getWindow()
-      );
-    }
+    SimpleTimeSeriesUtils.checkMatchingWindows(timeSeries, simpleTimeSeries, "sum_timeseries");
     if (timeSeries.getBucketMillis() != null &&
         !simpleTimeSeries.getBucketMillis().equals(timeSeries.getBucketMillis())) {
       timeSeries.setBucketMillis(null);

@@ -10,28 +10,28 @@
 package io.imply.druid.timeseries;
 
 import org.apache.datasketches.memory.WritableMemory;
-import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
 
-public class SimpleByteBufferTimeSeriesTest extends SimpleTimeSeriesBaseTest
-{
-  public static final Interval VISIBLE_WINDOW = Intervals.utc(0, 1000);
+import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
+public class MeanTimeSeriesFromByteBufferAdapaterTest extends MeanTimeSeriesBaseTest
+{
   @Override
-  public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window)
+  public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window, DurationGranularity durationGranularity)
   {
     WritableMemory mem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600)); // simulate the real deal
     WritableMemory finalMem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600));
     int buffStartPosition = 0;
-    SimpleByteBufferTimeSeries timeSeries = new SimpleByteBufferTimeSeries(window, MAX_ENTRIES);
+    MeanTimeSeriesFromByteBufferAdapter timeSeries = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
     timeSeries.init(finalMem, buffStartPosition);
 
-    SimpleTimeSeries[] seriesToMerge = new SimpleTimeSeries[seriesList.length];
-    SimpleByteBufferTimeSeries[] bufferSeriesList = new SimpleByteBufferTimeSeries[seriesList.length];
+    MeanTimeSeries[] seriesToMerge = new MeanTimeSeries[seriesList.length];
+    MeanTimeSeriesFromByteBufferAdapter[] bufferSeriesList = new MeanTimeSeriesFromByteBufferAdapter[seriesList.length];
     for (int i = 0; i < seriesList.length; i++) {
-      bufferSeriesList[i] = new SimpleByteBufferTimeSeries(window, MAX_ENTRIES);
+      bufferSeriesList[i] = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
       bufferSeriesList[i].init(mem, buffStartPosition);
       bufferSeriesList[i].setStartBuffered(mem, buffStartPosition, seriesList[i].getStart());
       bufferSeriesList[i].setEndBuffered(mem, buffStartPosition, seriesList[i].getEnd());
@@ -41,11 +41,11 @@ public class SimpleByteBufferTimeSeriesTest extends SimpleTimeSeriesBaseTest
                                                  seriesList[i].getTimestamps().getLong(j),
                                                  seriesList[i].getDataPoints().getDouble(j));
       }
-      seriesToMerge[i] = bufferSeriesList[i].computeSimpleBuffered(mem, buffStartPosition);
+      seriesToMerge[i] = bufferSeriesList[i].computeMeanBuffered(mem, buffStartPosition);
     }
 
-    for (SimpleTimeSeries simpleTimeSeries : seriesToMerge) {
-      timeSeries.mergeSeriesBuffered(finalMem, buffStartPosition, simpleTimeSeries);
+    for (MeanTimeSeries meanTimeSeries : seriesToMerge) {
+      timeSeries.mergeSeriesBuffered(finalMem, buffStartPosition, meanTimeSeries);
     }
 
     return timeSeries.computeSimpleBuffered(finalMem, buffStartPosition);

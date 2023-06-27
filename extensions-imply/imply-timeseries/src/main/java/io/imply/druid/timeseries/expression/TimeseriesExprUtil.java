@@ -12,7 +12,7 @@ package io.imply.druid.timeseries.expression;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.math.expr.Expr;
 
-public class Utils
+public class TimeseriesExprUtil
 {
   public static Object expectLiteral(Expr arg, String fnName, int index)
   {

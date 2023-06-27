@@ -9,9 +9,9 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.SimpleTimeSeriesFromByteBufferAdapter;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.joda.time.Interval;
@@ -23,7 +23,7 @@ public class SimpleTimeSeriesMergeBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector;
   private final Interval window;
-  private final SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
+  private final SimpleTimeSeriesFromByteBufferAdapter simpleByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public SimpleTimeSeriesMergeBufferAggregator(
@@ -34,7 +34,7 @@ public class SimpleTimeSeriesMergeBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.window = window;
-    this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(window, maxEntries);
+    this.simpleByteBufferTimeSeries = new SimpleTimeSeriesFromByteBufferAdapter(window, maxEntries);
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 

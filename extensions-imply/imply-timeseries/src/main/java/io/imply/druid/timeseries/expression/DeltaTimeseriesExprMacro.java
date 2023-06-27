@@ -41,7 +41,7 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 
     final Period bucketPeriod;
     if (args.size() == 2) {
-      bucketPeriod = new Period(Utils.expectLiteral(args.get(1), NAME, 2));
+      bucketPeriod = new Period(TimeseriesExprUtil.expectLiteral(args.get(1), NAME, 2));
     } else {
       bucketPeriod = Period.millis(1);
     }

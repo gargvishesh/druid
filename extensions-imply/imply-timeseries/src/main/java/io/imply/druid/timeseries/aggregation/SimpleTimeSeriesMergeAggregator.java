@@ -19,8 +19,10 @@ import javax.annotation.Nullable;
 
 public class SimpleTimeSeriesMergeAggregator implements Aggregator
 {
-  private final SimpleTimeSeries timeSeries;
+  private SimpleTimeSeries timeSeries;
   private final BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector;
+  private final Interval window;
+  private final int maxEntries;
 
   public SimpleTimeSeriesMergeAggregator(
       BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector,
@@ -29,7 +31,8 @@ public class SimpleTimeSeriesMergeAggregator implements Aggregator
   )
   {
     this.selector = selector;
-    this.timeSeries = new SimpleTimeSeries(window, maxEntries);
+    this.window = window;
+    this.maxEntries = maxEntries;
   }
 
   @Override
@@ -41,6 +44,9 @@ public class SimpleTimeSeriesMergeAggregator implements Aggregator
       return;
     }
 
+    if (timeSeries == null) {
+      timeSeries = new SimpleTimeSeries(window, maxEntries);
+    }
     timeSeriesContainer.pushInto(timeSeries);
   }
 
@@ -48,6 +54,9 @@ public class SimpleTimeSeriesMergeAggregator implements Aggregator
   @Override
   public Object get()
   {
+    if (timeSeries == null) {
+      return SimpleTimeSeriesContainer.createFromInstance(null);
+    }
     return SimpleTimeSeriesContainer.createFromInstance(timeSeries.computeSimple());
   }
 

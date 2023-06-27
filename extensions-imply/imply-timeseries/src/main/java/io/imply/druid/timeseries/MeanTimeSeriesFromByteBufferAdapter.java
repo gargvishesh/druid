@@ -15,13 +15,13 @@ import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
-public class MeanByteBufferTimeSeries extends ByteBufferTimeSeries<MeanTimeSeries>
+public class MeanTimeSeriesFromByteBufferAdapter extends TimeSeriesFromByteBufferAdapter<MeanTimeSeries>
 {
   private final DurationGranularity timeBucketGranularity;
   private final long windowStartBucket;
   private final int countRelOffset;
 
-  public MeanByteBufferTimeSeries(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
+  public MeanTimeSeriesFromByteBufferAdapter(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
   {
     super(window, maxEntries);
     this.timeBucketGranularity = timeBucketGranularity;

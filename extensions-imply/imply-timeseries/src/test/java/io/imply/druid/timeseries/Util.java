@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries;
 
 import com.google.common.collect.ImmutableList;
+import io.imply.druid.timeseries.expression.ArithmeticOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
@@ -19,8 +20,8 @@ import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.math.expr.ExprMacroTable;
 
-import static io.imply.druid.timeseries.SimpleByteBufferTimeSeriesTest.VISIBLE_WINDOW;
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
+import static io.imply.druid.timeseries.SimpleTimeSeriesFromByteBufferAdapaterTest.VISIBLE_WINDOW;
 
 public class Util
 {
@@ -42,7 +43,8 @@ public class Util
                          new TimeWeightedAverageTimeseriesExprMacro(),
                          new DeltaTimeseriesExprMacro()
                      )
-                     .addAll(InterpolationTimeseriesExprMacro.getMacros());
+                     .addAll(InterpolationTimeseriesExprMacro.getMacros())
+                     .addAll(ArithmeticOverTimeseriesExprMacro.getMacros());
     return new ExprMacroTable(macros.build());
   }
 }

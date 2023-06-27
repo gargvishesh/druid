@@ -22,7 +22,9 @@ public class SimpleTimeSeriesBuildAggregator implements Aggregator
 {
   private final BaseDoubleColumnValueSelector dataSelector;
   private final BaseLongColumnValueSelector timeSelector;
-  private final SimpleTimeSeries timeSeries;
+  private SimpleTimeSeries timeSeries;
+  private final Interval window;
+  private final int maxEntries;
 
   public SimpleTimeSeriesBuildAggregator(final BaseLongColumnValueSelector timeSelector,
                                          final BaseDoubleColumnValueSelector dataSelector,
@@ -31,7 +33,8 @@ public class SimpleTimeSeriesBuildAggregator implements Aggregator
   {
     this.dataSelector = dataSelector;
     this.timeSelector = timeSelector;
-    this.timeSeries = new SimpleTimeSeries(window, maxEntries);
+    this.window = window;
+    this.maxEntries = maxEntries;
   }
 
   @Override
@@ -40,6 +43,9 @@ public class SimpleTimeSeriesBuildAggregator implements Aggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
+    if (timeSeries == null) {
+      timeSeries = new SimpleTimeSeries(window, maxEntries);
+    }
     timeSeries.addDataPoint(timeSelector.getLong(), dataSelector.getDouble());
   }
 
@@ -47,6 +53,9 @@ public class SimpleTimeSeriesBuildAggregator implements Aggregator
   @Override
   public Object get()
   {
+    if (timeSeries == null) {
+      return SimpleTimeSeriesContainer.createFromInstance(null);
+    }
     return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
   }
 

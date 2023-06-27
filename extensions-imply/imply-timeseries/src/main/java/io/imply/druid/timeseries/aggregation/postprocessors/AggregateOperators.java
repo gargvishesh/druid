@@ -34,7 +34,7 @@ public class AggregateOperators
       if (fromTS[i] != toTS[i]) {
         throw new ISE(
             "Addition requires all combining time series "
-            + "to have same time values : [%d, %d]. Timestamps differ at index : %d",
+            + "to have same time values : [%d, %d]. Timestamps differ at index : [%d]",
             fromTS[i],
             toTS[i],
             i

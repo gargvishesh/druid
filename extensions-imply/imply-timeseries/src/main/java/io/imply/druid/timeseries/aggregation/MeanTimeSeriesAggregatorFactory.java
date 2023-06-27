@@ -12,11 +12,11 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
-import io.imply.druid.timeseries.ByteBufferTimeSeries;
 import io.imply.druid.timeseries.MeanTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
+import io.imply.druid.timeseries.TimeSeriesFromByteBufferAdapter;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
@@ -203,7 +203,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   @Override
   public int getMaxIntermediateSize()
   {
-    return maxEntries * (Long.BYTES + Double.BYTES) + ByteBufferTimeSeries.DATA_OFFSET;
+    return maxEntries * (Long.BYTES + Double.BYTES) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET;
   }
 
   @Override
