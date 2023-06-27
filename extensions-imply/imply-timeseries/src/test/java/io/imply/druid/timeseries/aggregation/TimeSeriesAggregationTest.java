@@ -35,12 +35,14 @@ import org.apache.druid.segment.TestHelper;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -286,6 +288,43 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
             )
     );
     TestHelper.assertExpectedResults(ImmutableList.of(expectedResult), results);
+  }
+
+  @Test
+  public void testBufferedAndHeapSumAggregator_emptyAggregation()
+  {
+    ByteBuffer buffer = ByteBuffer.allocate(1_000_000);
+    SimpleTimeSeriesBuildAggregator simpleTimeSeriesBuildAggregator = new SimpleTimeSeriesBuildAggregator(
+        null,
+        null,
+        Intervals.ETERNITY,
+        100
+    );
+    Assert.assertNull(((SimpleTimeSeriesContainer) simpleTimeSeriesBuildAggregator.get()).computeSimple());
+
+    SimpleTimeSeriesMergeAggregator simpleTimeSeriesMergeAggregator = new SimpleTimeSeriesMergeAggregator(
+        null,
+        Intervals.ETERNITY,
+        100
+    );
+    Assert.assertNull(((SimpleTimeSeriesContainer) simpleTimeSeriesMergeAggregator.get()).computeSimple());
+
+    SimpleTimeSeriesBuildBufferAggregator simpleTimeSeriesBuildBufferAggregator = new SimpleTimeSeriesBuildBufferAggregator(
+        null,
+        null,
+        Intervals.ETERNITY,
+        100
+    );
+    simpleTimeSeriesBuildBufferAggregator.init(buffer, 0);
+    Assert.assertNull(((SimpleTimeSeriesContainer) simpleTimeSeriesBuildBufferAggregator.get(buffer, 0)).computeSimple());
+
+    SimpleTimeSeriesMergeBufferAggregator simpleTimeSeriesMergeBufferAggregator = new SimpleTimeSeriesMergeBufferAggregator(
+        null,
+        Intervals.ETERNITY,
+        100
+    );
+    simpleTimeSeriesMergeBufferAggregator.init(buffer, 0);
+    Assert.assertNull(((SimpleTimeSeriesContainer) simpleTimeSeriesBuildBufferAggregator.get(buffer, 0)).computeSimple());
   }
 
   private static File fromCp(String filename)

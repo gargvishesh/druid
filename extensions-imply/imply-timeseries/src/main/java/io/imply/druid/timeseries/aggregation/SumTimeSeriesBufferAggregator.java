@@ -9,9 +9,9 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.SimpleByteBufferTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
+import io.imply.druid.timeseries.SimpleTimeSeriesFromByteBufferAdapter;
 import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.aggregation.postprocessors.AggregateOperators;
 import org.apache.datasketches.memory.WritableMemory;
@@ -29,7 +29,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector selector;
   private final Interval window;
-  private SimpleByteBufferTimeSeries simpleByteBufferTimeSeries;
+  private SimpleTimeSeriesFromByteBufferAdapter simpleByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
   private final int maxEntries;
   private long[] tempTimestamps;
@@ -45,7 +45,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
     this.window = window;
     this.maxEntries = maxEntries;
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
-    this.simpleByteBufferTimeSeries = new SimpleByteBufferTimeSeries(Intervals.ETERNITY, maxEntries);
+    this.simpleByteBufferTimeSeries = new SimpleTimeSeriesFromByteBufferAdapter(Intervals.ETERNITY, maxEntries);
   }
 
   @Override
@@ -88,7 +88,7 @@ public class SumTimeSeriesBufferAggregator implements BufferAggregator
 
       if (!simpleByteBufferTimeSeries.getWindow().equals(simpleTimeSeries.getWindow())) {
         throw new ISE(
-            "SumSeries aggregator expects the windows of input time series to be same, but found (%s, %s)",
+            "sum_timeseries expects the windows of input time series to be same, but found [%s, %s]",
             simpleByteBufferTimeSeries.getWindow(),
             simpleTimeSeries.getWindow()
         );

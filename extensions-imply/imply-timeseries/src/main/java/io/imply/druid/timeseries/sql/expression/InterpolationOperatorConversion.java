@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries.sql.expression;
 
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
@@ -23,6 +24,7 @@ import org.apache.druid.sql.calcite.planner.PlannerContext;
 import org.apache.druid.sql.calcite.table.RowSignatures;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 public abstract class InterpolationOperatorConversion implements SqlOperatorConversion
 {
@@ -106,5 +108,17 @@ public abstract class InterpolationOperatorConversion implements SqlOperatorConv
     {
       super("backfill_boundary");
     }
+  }
+
+  public static List<SqlOperatorConversion> sqlOperatorConversionList()
+  {
+    return ImmutableList.of(
+        new LinearInterpolationOperatorConversion(),
+        new LinearInterpolationWithOnlyBoundariesOperatorConversion(),
+        new PaddingInterpolationOperatorConversion(),
+        new PaddingInterpolationWithOnlyBoundariesOperatorConversion(),
+        new BackfillInterpolationOperatorConversion(),
+        new BackfillInterpolationWithOnlyBoundariesOperatorConversion()
+    );
   }
 }

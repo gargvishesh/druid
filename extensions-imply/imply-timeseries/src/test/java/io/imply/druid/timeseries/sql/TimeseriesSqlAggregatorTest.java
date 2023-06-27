@@ -29,8 +29,10 @@ import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
+import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -468,6 +470,168 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
             }
         )
+    );
+  }
+
+  @Test
+  public void testArithmeticOverTimeseriesExpressions()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT\n"
+        + "  timeseries_to_json(add_timeseries(ts, ts)), "
+        + "  timeseries_to_json(subtract_timeseries(ts, ts)), "
+        + "  timeseries_to_json(multiply_timeseries(ts, ts)), "
+        + "  timeseries_to_json(divide_timeseries(ts, ts)) "
+        + "FROM foo where m1 = 1",
+        Collections.singletonList(
+            Druids.newScanQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
+                  .virtualColumns(
+                      new ExpressionVirtualColumn(
+                          "v0",
+                          "timeseries_to_json(add_timeseries(\"ts\",\"ts\"))",
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionVirtualColumn(
+                          "v1",
+                          "timeseries_to_json(subtract_timeseries(\"ts\",\"ts\"))",
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionVirtualColumn(
+                          "v2",
+                          "timeseries_to_json(multiply_timeseries(\"ts\",\"ts\"))",
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionVirtualColumn(
+                          "v3",
+                          "timeseries_to_json(divide_timeseries(\"ts\",\"ts\"))",
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      )
+                  )
+                  .filters(new SelectorDimFilter("m1", "1", null))
+                  .columns("v0", "v1", "v2", "v3")
+                  .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .legacy(false)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":1,\"dataPoints\":[2.0],\"timestamps\":[1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":1,\"dataPoints\":[0.0],\"timestamps\":[1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":1,\"dataPoints\":[1.0],\"timestamps\":[1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":1,\"dataPoints\":[1.0],\"timestamps\":[1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
+            }
+        )
+    );
+  }
+
+  @Test
+  public void testArithmeticOverTimeseriesExpressions2()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT timeseries_to_json(add_timeseries(ts, ts1)), timeseries_to_json(add_timeseries(ts, ts2)), timeseries_to_json(add_timeseries(ts, ts2, 'true')) FROM ( \n" +
+        "SELECT timeseries('0', m1, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z') FILTER (where m1 = 1) as ts, \n" +
+        "timeseries('0', m1, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z') FILTER (where m1 = 2) as ts1, \n" +
+        "timeseries('0', m1, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z') FILTER (where m1 = -1) as ts2 \n"
+        + "FROM foo"
+        + ")",
+        Collections.singletonList(
+            Druids.newTimeseriesQueryBuilder()
+                .dataSource(CalciteTests.DATASOURCE1)
+                .intervals(querySegmentSpec(Filtration.eternity()))
+                .granularity(Granularities.ALL)
+                .virtualColumns(
+                    new ExpressionVirtualColumn(
+                        "v0",
+                        "'0'",
+                        ColumnType.LONG,
+                        ExprMacroTable.nil()
+                    )
+                )
+                //filters(new InDimFilter("m1", ImmutableSet.of("1", "2")))
+                .aggregators(aggregators(
+                    new FilteredAggregatorFactory(
+                        SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                            "a0:agg",
+                            "m1",
+                            "v0",
+                            null,
+                            Intervals.ETERNITY,
+                            null
+                        ),
+                        new SelectorDimFilter("m1", "1", null)
+                    ),
+                    new FilteredAggregatorFactory(
+                        SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                            "a1:agg",
+                            "m1",
+                            "v0",
+                            null,
+                            Intervals.ETERNITY,
+                            null
+                        ),
+                        new SelectorDimFilter("m1", "2", null)
+                    ),
+                    new FilteredAggregatorFactory(
+                        SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                            "a2:agg",
+                            "m1",
+                            "v0",
+                            null,
+                            Intervals.ETERNITY,
+                            null
+                        ),
+                        new SelectorDimFilter("m1", "-1", null)
+                    )
+                ))
+                .postAggregators(ImmutableList.of(
+                    new ExpressionPostAggregator(
+                        "p0",
+                        "timeseries_to_json(add_timeseries(\"a0:agg\",\"a1:agg\"))",
+                        null,
+                        Util.makeTimeSeriesMacroTable()
+                    ),
+                    new ExpressionPostAggregator(
+                        "p1",
+                        "timeseries_to_json(add_timeseries(\"a0:agg\",\"a2:agg\"))",
+                        null,
+                        Util.makeTimeSeriesMacroTable()
+                    ),
+                    new ExpressionPostAggregator(
+                        "p2",
+                        "timeseries_to_json(add_timeseries(\"a0:agg\",\"a2:agg\",'true'))",
+                        null,
+                        Util.makeTimeSeriesMacroTable()
+                    )
+                ))
+                .context(QUERY_CONTEXT_DEFAULT)
+                .build()
+        ),
+        ImmutableList.of(new Object[]{
+            "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[3.0],\"timestamps\":[0],"
+              + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[1.0],\"timestamps\":[0],"
+              + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+            null
+        })
     );
   }
 }

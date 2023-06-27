@@ -195,7 +195,7 @@ public class SimpleTimeSeriesContainer
   }
 
   public void pushInto(
-      SimpleByteBufferTimeSeries simpleByteBufferTimeSeries,
+      SimpleTimeSeriesFromByteBufferAdapter simpleByteBufferTimeSeries,
       WritableMemory writableMemory,
       int pos,
       Interval window
@@ -206,7 +206,7 @@ public class SimpleTimeSeriesContainer
     simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().copyWithWindow(window));
   }
 
-  public SimpleByteBufferTimeSeries initAndPushInto(
+  public SimpleTimeSeriesFromByteBufferAdapter initAndPushInto(
       WritableMemory writableMemory,
       int pos,
       @Nullable Interval window,
@@ -221,8 +221,8 @@ public class SimpleTimeSeriesContainer
       windowFilteredTimeSeries = getSimpleTimeSeries().copyWithWindow(window);
     }
 
-    SimpleByteBufferTimeSeries simpleByteBufferTimeSeries =
-        new SimpleByteBufferTimeSeries(windowFilteredTimeSeries.getWindow(), maxEntries);
+    SimpleTimeSeriesFromByteBufferAdapter simpleByteBufferTimeSeries =
+        new SimpleTimeSeriesFromByteBufferAdapter(windowFilteredTimeSeries.getWindow(), maxEntries);
 
     pushInto(simpleByteBufferTimeSeries, writableMemory, pos, windowFilteredTimeSeries.getWindow());
 

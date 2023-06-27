@@ -298,7 +298,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     return Objects.equals(timestamps, that.timestamps) && Objects.equals(dataPoints, that.dataPoints) && Objects.equals(
         timeSeriesList,
         that.timeSeriesList
-    ) && getBucketMillis().equals(that.getBucketMillis()) && super.equals(o);
+    ) && Objects.equals(getBucketMillis(), that.getBucketMillis()) && super.equals(o);
   }
 
   @Override

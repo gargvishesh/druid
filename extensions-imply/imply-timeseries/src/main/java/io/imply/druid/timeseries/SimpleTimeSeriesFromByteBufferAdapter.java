@@ -16,12 +16,13 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.RE;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Comparator;
 
-public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeSeries>
+public class SimpleTimeSeriesFromByteBufferAdapter extends TimeSeriesFromByteBufferAdapter<SimpleTimeSeries>
 {
-  public SimpleByteBufferTimeSeries(Interval window, int maxEntries)
+  public SimpleTimeSeriesFromByteBufferAdapter(Interval window, int maxEntries)
   {
     super(window, maxEntries);
   }
@@ -70,9 +71,13 @@ public class SimpleByteBufferTimeSeries extends ByteBufferTimeSeries<SimpleTimeS
     mem.putInt(buffStartPosition, currSize + mergeSeries.size());
   }
 
+  @Nullable
   @Override
   public SimpleTimeSeries computeSimpleBuffered(WritableMemory mem, int buffStartPosition)
   {
+    if (isNull(mem, buffStartPosition)) {
+      return null;
+    }
     // create a simple time series and sort it
     Integer[] indices = new Integer[size(mem, buffStartPosition)];
     for (int i = 0; i < indices.length; i++) {

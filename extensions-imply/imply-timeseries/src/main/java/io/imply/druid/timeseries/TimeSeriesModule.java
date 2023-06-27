@@ -18,6 +18,7 @@ import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetr
 import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expression.ArithmeticOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
@@ -26,6 +27,7 @@ import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.sql.aggregation.MeanTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.expression.ArithmeticOverTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.DeltaTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.InterpolationOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.MaxOverTimeseriesOperatorConversion;
@@ -35,6 +37,7 @@ import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.serde.ComplexMetrics;
+import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.guice.SqlBindings;
 
 import java.util.List;
@@ -46,8 +49,6 @@ public class TimeSeriesModule implements DruidModule
   private static final String DELTA_TIMESERIES = "deltaTimeseries";
 
   public static final String SUM_TIMESERIES = "sumTimeseries";
-  private static final String INTERPOLATION_POST_AGG = "interpolation_timeseries";
-  private static final String TIME_WEIGHTED_AVERAGE_POST_AGG = "time_weighted_average_timeseries";
   private final Logger log = new Logger(TimeSeriesModule.class);
 
   @Override
@@ -81,35 +82,18 @@ public class TimeSeriesModule implements DruidModule
     SqlBindings.addAggregator(binder, SumTimeSeriesObjectSqlAggregator.class);
     SqlBindings.addAggregator(binder, MeanTimeSeriesObjectSqlAggregator.class);
 
-    // add post processing bindings
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.LinearInterpolationOperatorConversion.class
-    );
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.PaddingInterpolationOperatorConversion.class
-    );
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.BackfillInterpolationOperatorConversion.class
-    );
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.LinearInterpolationWithOnlyBoundariesOperatorConversion.class
-    );
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.PaddingInterpolationWithOnlyBoundariesOperatorConversion.class
-    );
-    SqlBindings.addOperatorConversion(
-        binder,
-        InterpolationOperatorConversion.BackfillInterpolationWithOnlyBoundariesOperatorConversion.class
-    );
+    // add post-processing bindings
+    for (SqlOperatorConversion sqlOperatorConversion : InterpolationOperatorConversion.sqlOperatorConversionList()) {
+      SqlBindings.addOperatorConversion(binder, sqlOperatorConversion.getClass());
+    }
     SqlBindings.addOperatorConversion(binder, TimeWeightedAverageOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, MaxOverTimeseriesOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, TimeseriesToJSONOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, DeltaTimeseriesOperatorConversion.class);
+    for (SqlOperatorConversion sqlOperatorConversion :
+        ArithmeticOverTimeseriesOperatorConversion.sqlOperatorConversionList()) {
+      SqlBindings.addOperatorConversion(binder, sqlOperatorConversion.getClass());
+    }
 
     // add expressions
     ExpressionModule.addExprMacro(binder, MaxOverTimeseriesExprMacro.class);
@@ -119,6 +103,9 @@ public class TimeSeriesModule implements DruidModule
     }
     ExpressionModule.addExprMacro(binder, TimeWeightedAverageTimeseriesExprMacro.class);
     ExpressionModule.addExprMacro(binder, DeltaTimeseriesExprMacro.class);
+    for (ArithmeticOverTimeseriesExprMacro arithmeticOverTimeseriesExprMacro : ArithmeticOverTimeseriesExprMacro.getMacros()) {
+      ExpressionModule.addExprMacro(binder, arithmeticOverTimeseriesExprMacro.getClass());
+    }
   }
 
   public static void registerSerde()

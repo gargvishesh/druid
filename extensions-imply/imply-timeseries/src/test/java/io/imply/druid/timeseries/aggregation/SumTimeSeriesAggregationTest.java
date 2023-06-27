@@ -201,6 +201,29 @@ public class SumTimeSeriesAggregationTest extends InitializedNullHandlingTest
     Assert.assertEquals(Long.valueOf(100), resultSeries.getBucketMillis());
   }
 
+  @Test
+  public void testBufferedAndHeapSumAggregator_emptyAggregation()
+  {
+    ByteBuffer buffer = ByteBuffer.allocate(1_000_000);
+    SimpleTimeSeriesContainerObjectSelector selector = new SimpleTimeSeriesContainerObjectSelector();
+    SumTimeSeriesBufferAggregator sumTimeSeriesAggregator = new SumTimeSeriesBufferAggregator(
+        selector,
+        Intervals.utc(2, 5),
+        100
+    );
+    sumTimeSeriesAggregator.init(buffer, 0);
+    SimpleTimeSeriesContainer container = (SimpleTimeSeriesContainer) sumTimeSeriesAggregator.get(buffer, 0);
+    Assert.assertNull(container.getSimpleTimeSeries());
+
+    SumTimeSeriesAggregator heapSumTimeSeriesAggregator = new SumTimeSeriesAggregator(
+        selector,
+        Intervals.utc(2, 5),
+        100
+    );
+    container = (SimpleTimeSeriesContainer) heapSumTimeSeriesAggregator.get();
+    Assert.assertNull(container.getSimpleTimeSeries());
+  }
+
   private static class SimpleTimeSeriesContainerObjectSelector implements BaseObjectColumnValueSelector<SimpleTimeSeriesContainer>
   {
     private final SimpleTimeSeries[] simpleTimeSeriesList = new SimpleTimeSeries[]{

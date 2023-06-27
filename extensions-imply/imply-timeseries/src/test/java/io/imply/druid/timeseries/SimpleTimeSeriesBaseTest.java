@@ -16,7 +16,7 @@ import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static io.imply.druid.timeseries.SimpleByteBufferTimeSeriesTest.VISIBLE_WINDOW;
+import static io.imply.druid.timeseries.SimpleTimeSeriesFromByteBufferAdapaterTest.VISIBLE_WINDOW;
 
 public abstract class SimpleTimeSeriesBaseTest
 {
