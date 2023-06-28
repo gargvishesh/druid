@@ -256,7 +256,7 @@ public class IpAddressSqlOperatorConversions
 
       final boolean compact;
       if (druidExpressions.size() == 2) {
-        Expr compactExpr = Parser.parse(druidExpressions.get(1).getExpression(), plannerContext.getExprMacroTable());
+        Expr compactExpr = Parser.parse(druidExpressions.get(1).getExpression(), plannerContext.getPlannerToolbox().exprMacroTable());
         if (!compactExpr.isLiteral()) {
           return null;
         }
