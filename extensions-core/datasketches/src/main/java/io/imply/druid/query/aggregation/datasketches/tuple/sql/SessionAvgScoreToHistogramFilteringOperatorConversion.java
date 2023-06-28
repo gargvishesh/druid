@@ -93,8 +93,8 @@ public class SessionAvgScoreToHistogramFilteringOperatorConversion implements Sq
       return null;
     }
 
-    final Expr splitPointsExpr = Parser.parse(druidExpressions.get(0).getExpression(), plannerContext.getExprMacroTable());
-    final Expr filterBucketExpr = Parser.parse(druidExpressions.get(1).getExpression(), plannerContext.getExprMacroTable());
+    final Expr splitPointsExpr = Parser.parse(druidExpressions.get(0).getExpression(), plannerContext.getPlannerToolbox().exprMacroTable());
+    final Expr filterBucketExpr = Parser.parse(druidExpressions.get(1).getExpression(), plannerContext.getPlannerToolbox().exprMacroTable());
 
     if (!splitPointsExpr.isLiteral() || !filterBucketExpr.isLiteral()) {
       return null;
