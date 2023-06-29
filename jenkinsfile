@@ -827,7 +827,7 @@ pipeline {
                                         fi
 
                                         # Remove unsupported open-source extensions
-                                        for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
+                                        for extension in druid-ranger-security materialized-view-maintenance materialized-view-selection; do
                                             rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
                                         done
 
