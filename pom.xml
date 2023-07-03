@@ -232,7 +232,7 @@
                <enabled>false</enabled>
             </snapshots>
         </repository>
-        
+
         <!-- Only used by core, but moved to root for parallel build dependency resolution -->
         <repository>
             <id>sigar</id>
@@ -247,7 +247,7 @@
           <url>https://repo.cnc.imply.io/artifactory/libs-release-local</url>
         </repository>
     </repositories>
-    
+
     <pluginRepositories>
         <pluginRepository>
             <id>${repoOrgId}</id>
