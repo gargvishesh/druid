@@ -39,7 +39,7 @@ import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
 import org.apache.druid.segment.column.StringValueSetIndex;
-import org.apache.druid.segment.serde.DictionaryEncodedStringIndexSupplier;
+import org.apache.druid.segment.serde.StringUtf8ColumnIndexSupplier;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -163,7 +163,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
           field
       );
     }
-    if (!(underlyingIndexes instanceof DictionaryEncodedStringIndexSupplier)) {
+    if (!(underlyingIndexes instanceof StringUtf8ColumnIndexSupplier)) {
       throw new UOE("Column %s is not a dictionary encoded string column", field);
     }
 

@@ -46,7 +46,6 @@ import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.SegmentLazyLoadFailCallback;
 import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.TestHelper;
-import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.loading.LoadSpec;
 import org.apache.druid.segment.loading.RandomStorageLocationSelectorStrategy;
 import org.apache.druid.segment.loading.SegmentLoaderConfig;
@@ -318,7 +317,6 @@ public class ITVirtualSegmentLoaderTest
       bind(QuerySegmentWalker.class).toInstance(Mockito.mock(QuerySegmentWalker.class));
       bind(Validator.class).toInstance(Validation.buildDefaultValidatorFactory().getValidator());
       bind(StorageLocationSelectorStrategy.class).toInstance(new RandomStorageLocationSelectorStrategy(locations));
-      bind(ColumnConfig.class).toInstance(() -> 1024);
       bind(SegmentManager.class).in(LazySingleton.class);
       bind(QueryProcessingPool.class).toInstance(DirectQueryProcessingPool.INSTANCE);
       bindScope(LazySingleton.class, Scopes.SINGLETON);
