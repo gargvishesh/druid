@@ -33,6 +33,7 @@ import org.apache.druid.segment.QueryableIndexSegment;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.SegmentLazyLoadFailCallback;
 import org.apache.druid.segment.TestIndex;
+import org.apache.druid.segment.column.ColumnConfig;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.join.table.IndexedTable;
 import org.apache.druid.segment.loading.SegmentLoadingException;
@@ -84,7 +85,7 @@ public class IndexedTableSegmentizerFactoryTest extends InitializedNullHandlingT
     final ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerModule(new SegmentizerModule());
     mapper.registerModules(new ArrayBasedIndexedTableDruidModule().getJacksonModules());
-    final IndexIO indexIO = new IndexIO(mapper, () -> 0);
+    final IndexIO indexIO = new IndexIO(mapper, ColumnConfig.DEFAULT);
     final IndexedTableManager manager = new IndexedTableManager();
     mapper.setInjectableValues(
         new InjectableValues.Std()
