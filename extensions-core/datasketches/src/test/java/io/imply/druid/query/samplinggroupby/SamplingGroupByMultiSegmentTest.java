@@ -105,17 +105,7 @@ public class SamplingGroupByMultiSegmentTest extends InitializedNullHandlingTest
             ExprMacroTable.nil()
         )
     );
-    INDEX_IO = new IndexIO(
-        JSON_MAPPER,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
-    );
+    INDEX_IO = new IndexIO(JSON_MAPPER, ColumnConfig.DEFAULT);
     INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO, OffHeapMemorySegmentWriteOutMediumFactory.instance());
   }
 
