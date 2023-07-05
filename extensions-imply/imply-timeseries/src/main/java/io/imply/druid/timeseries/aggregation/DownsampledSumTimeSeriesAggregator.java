@@ -9,7 +9,7 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.MeanTimeSeries;
+import io.imply.druid.timeseries.DownsampledSumTimeSeries;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -18,21 +18,23 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 
-public class MeanTimeSeriesAggregator implements Aggregator
+public class DownsampledSumTimeSeriesAggregator implements Aggregator
 {
   private final BaseDoubleColumnValueSelector dataSelector;
   private final BaseLongColumnValueSelector timeSelector;
-  private final MeanTimeSeries meanTimeSeriesBuilder;
+  private final DownsampledSumTimeSeries downsampledSumTimeSeriesBuilder;
 
-  public MeanTimeSeriesAggregator(final BaseLongColumnValueSelector timeSelector,
-                                  final BaseDoubleColumnValueSelector dataSelector,
-                                  final DurationGranularity durationGranularity,
-                                  final Interval window,
-                                  final int maxEntries)
+  public DownsampledSumTimeSeriesAggregator(
+      final BaseLongColumnValueSelector timeSelector,
+      final BaseDoubleColumnValueSelector dataSelector,
+      final DurationGranularity durationGranularity,
+      final Interval window,
+      final int maxEntries
+  )
   {
     this.dataSelector = dataSelector;
     this.timeSelector = timeSelector;
-    this.meanTimeSeriesBuilder = new MeanTimeSeries(durationGranularity, window, maxEntries);
+    this.downsampledSumTimeSeriesBuilder = new DownsampledSumTimeSeries(durationGranularity, window, maxEntries);
   }
 
   @Override
@@ -41,14 +43,14 @@ public class MeanTimeSeriesAggregator implements Aggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    meanTimeSeriesBuilder.addDataPoint(timeSelector.getLong(), dataSelector.getDouble());
+    downsampledSumTimeSeriesBuilder.addDataPoint(timeSelector.getLong(), dataSelector.getDouble());
   }
 
   @Nullable
   @Override
   public Object get()
   {
-    return meanTimeSeriesBuilder;
+    return downsampledSumTimeSeriesBuilder;
   }
 
   @Override

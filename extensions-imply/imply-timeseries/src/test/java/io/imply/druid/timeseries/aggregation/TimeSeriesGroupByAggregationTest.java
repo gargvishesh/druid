@@ -110,7 +110,7 @@ public class TimeSeriesGroupByAggregationTest
         + "  \"aggregations\": ["
         + "  {\"type\": \"timeseries\", \"name\": \"timeseries\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
         + " \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
-        + "  {\"type\": \"avgTimeseries\", \"name\": \"avgTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
+        + "  {\"type\": \"downsampledSumTimeseries\", \"name\": \"downsampledSumTS\", \"timeColumn\": \"__time\", \"dataColumn\" : \"dataPoints\","
         + " \"timeBucketMillis\" : 7200000, \"window\" : \"2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z\"},"
         + "  {\"type\": \"sumTimeseries\", \"name\": \"sumTS\", \"timeseriesColumn\": \"fuu\", "
         + " \"window\" : \"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}"
@@ -133,17 +133,17 @@ public class TimeSeriesGroupByAggregationTest
         DEFAULT_MAX_ENTRIES
     );
 
-    long[] expectedMeanTimestamps = new long[]{
+    long[] expectedDownsampledSumTimestamps = new long[]{
         1413763200000L,
         1413770400000L,
         1413777600000L,
         1413784800000L,
         1413792000000L
     };
-    double[] expectedMeanDataPoints = new double[]{2.5, 12.5, 22.5, 32.5, 42.5};
-    SimpleTimeSeries expectedAvgTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedMeanTimestamps),
-        new ImplyDoubleArrayList(expectedMeanDataPoints),
+    double[] expectedDownsampledSumDataPoints = new double[]{5, 25, 45, 65, 85};
+    SimpleTimeSeries expectedDownsampledSumTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(expectedDownsampledSumTimestamps),
+        new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         Intervals.of("2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z"),
         30684
     );
@@ -157,7 +157,7 @@ public class TimeSeriesGroupByAggregationTest
         DEFAULT_MAX_ENTRIES
     );
     Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries), resultRow.get(0));
-    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries), resultRow.get(1));
+    Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedDownsampledSumTimeSeries), resultRow.get(1));
     Assert.assertEquals(SimpleTimeSeriesContainer.createFromInstance(expectedSumTimeSeries), resultRow.get(2));
   }
 

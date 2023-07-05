@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
 
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
-public class MeanTimeSeriesFromByteBufferAdapaterTest extends MeanTimeSeriesBaseTest
+public class DownsampledSumTimeSeriesFromByteBufferAdapaterTest extends DownsampledSumTimeSeriesBaseTest
 {
   @Override
   public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window, DurationGranularity durationGranularity)
@@ -25,27 +25,29 @@ public class MeanTimeSeriesFromByteBufferAdapaterTest extends MeanTimeSeriesBase
     WritableMemory mem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600)); // simulate the real deal
     WritableMemory finalMem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600));
     int buffStartPosition = 0;
-    MeanTimeSeriesFromByteBufferAdapter timeSeries = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
+    DownsampledSumTimeSeriesFromByteBufferAdapter timeSeries = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
     timeSeries.init(finalMem, buffStartPosition);
 
-    MeanTimeSeries[] seriesToMerge = new MeanTimeSeries[seriesList.length];
-    MeanTimeSeriesFromByteBufferAdapter[] bufferSeriesList = new MeanTimeSeriesFromByteBufferAdapter[seriesList.length];
+    DownsampledSumTimeSeries[] seriesToMerge = new DownsampledSumTimeSeries[seriesList.length];
+    DownsampledSumTimeSeriesFromByteBufferAdapter[] bufferSeriesList = new DownsampledSumTimeSeriesFromByteBufferAdapter[seriesList.length];
     for (int i = 0; i < seriesList.length; i++) {
-      bufferSeriesList[i] = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
+      bufferSeriesList[i] = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
       bufferSeriesList[i].init(mem, buffStartPosition);
       bufferSeriesList[i].setStartBuffered(mem, buffStartPosition, seriesList[i].getStart());
       bufferSeriesList[i].setEndBuffered(mem, buffStartPosition, seriesList[i].getEnd());
       for (int j = 0; j < seriesList[i].size(); j++) {
-        bufferSeriesList[i].addDataPointBuffered(mem,
-                                                 buffStartPosition,
-                                                 seriesList[i].getTimestamps().getLong(j),
-                                                 seriesList[i].getDataPoints().getDouble(j));
+        bufferSeriesList[i].addDataPointBuffered(
+            mem,
+            buffStartPosition,
+            seriesList[i].getTimestamps().getLong(j),
+            seriesList[i].getDataPoints().getDouble(j)
+        );
       }
       seriesToMerge[i] = bufferSeriesList[i].computeMeanBuffered(mem, buffStartPosition);
     }
 
-    for (MeanTimeSeries meanTimeSeries : seriesToMerge) {
-      timeSeries.mergeSeriesBuffered(finalMem, buffStartPosition, meanTimeSeries);
+    for (DownsampledSumTimeSeries downsampledSumTimeSeries : seriesToMerge) {
+      timeSeries.mergeSeriesBuffered(finalMem, buffStartPosition, downsampledSumTimeSeries);
     }
 
     return timeSeries.computeSimpleBuffered(finalMem, buffStartPosition);

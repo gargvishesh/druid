@@ -9,7 +9,7 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.MeanTimeSeriesFromByteBufferAdapter;
+import io.imply.druid.timeseries.DownsampledSumTimeSeriesFromByteBufferAdapter;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -19,22 +19,24 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
-public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
+public class DownsampledSumTimeSeriesBuildBufferAggregator implements BufferAggregator
 {
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
-  private final MeanTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
+  private final DownsampledSumTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
-  public MeanTimeSeriesBuildBufferAggregator(final BaseLongColumnValueSelector timeSelector,
-                                             final BaseDoubleColumnValueSelector dataSelector,
-                                             final DurationGranularity durationGranularity,
-                                             final Interval window,
-                                             final int maxEntries)
+  public DownsampledSumTimeSeriesBuildBufferAggregator(
+      final BaseLongColumnValueSelector timeSelector,
+      final BaseDoubleColumnValueSelector dataSelector,
+      final DurationGranularity durationGranularity,
+      final Interval window,
+      final int maxEntries
+  )
   {
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
-    this.meanByteBufferTimeSeries = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
+    this.meanByteBufferTimeSeries = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
@@ -50,7 +52,12 @@ public class MeanTimeSeriesBuildBufferAggregator implements BufferAggregator
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    meanByteBufferTimeSeries.addDataPointBuffered(bufferToWritableMemoryCache.getMemory(buf), position, timeSelector.getLong(), dataSelector.getDouble());
+    meanByteBufferTimeSeries.addDataPointBuffered(
+        bufferToWritableMemoryCache.getMemory(buf),
+        position,
+        timeSelector.getLong(),
+        dataSelector.getDouble()
+    );
   }
 
   @Nullable
