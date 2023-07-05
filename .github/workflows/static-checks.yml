@@ -136,7 +136,7 @@ jobs:
   intellij-inspections:
     strategy:
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - name: checkout branch
         uses: actions/checkout@v3
