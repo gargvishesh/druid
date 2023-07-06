@@ -17,26 +17,26 @@ import org.apache.druid.server.coordinator.stats.CoordinatorStat;
 class Stats
 {
   static final CoordinatorStat METADATA_CLEANUP_SUCCESS
-      = new CoordinatorStat("metadataCleanupSuccess", "async/cleanup/metadata/removed/count");
+      = CoordinatorStat.toDebugAndEmit("metadataCleanupSuccess", "async/cleanup/metadata/removed/count");
   static final CoordinatorStat METADATA_CLEANUP_FAILED
-      = new CoordinatorStat("metadataCleanupFailed", "async/cleanup/metadata/failed/count");
+      = CoordinatorStat.toDebugAndEmit("metadataCleanupFailed", "async/cleanup/metadata/failed/count");
   static final CoordinatorStat METADATA_CLEANUP_SKIPPED
-      = new CoordinatorStat("metadataCleanupSkipped", "async/cleanup/metadata/skipped/count");
+      = CoordinatorStat.toDebugAndEmit("metadataCleanupSkipped", "async/cleanup/metadata/skipped/count");
 
   static final CoordinatorStat RESULT_CLEANUP_SUCCESS_COUNT
-      = new CoordinatorStat("resultCleanupSuccessCount", "async/cleanup/result/removed/count");
+      = CoordinatorStat.toDebugAndEmit("resultCleanupSuccessCount", "async/cleanup/result/removed/count");
   static final CoordinatorStat RESULT_CLEANUP_SUCCESS_BYTES
-      = new CoordinatorStat("resultCleanupSuccessBytes", "async/cleanup/result/removed/bytes");
+      = CoordinatorStat.toDebugAndEmit("resultCleanupSuccessBytes", "async/cleanup/result/removed/bytes");
   static final CoordinatorStat RESULT_CLEANUP_FAILED_COUNT
-      = new CoordinatorStat("resultRemovalFailedCount", "async/cleanup/result/failed/count");
+      = CoordinatorStat.toDebugAndEmit("resultRemovalFailedCount", "async/cleanup/result/failed/count");
   static final CoordinatorStat RESULT_CLEANUP_FAILED_BYTES
-      = new CoordinatorStat("resultRemovedFailedSize", "async/cleanup/result/failed/bytes");
+      = CoordinatorStat.toDebugAndEmit("resultRemovedFailedSize", "async/cleanup/result/failed/bytes");
 
   static final CoordinatorStat UNDETERMINED_QUERIES
-      = new CoordinatorStat("queryUndetermined", "async/query/undetermined/count");
+      = CoordinatorStat.toDebugAndEmit("queryUndetermined", "async/query/undetermined/count");
 
   static final CoordinatorStat TRACKED_RESULTS
-      = new CoordinatorStat("trackedResults", "async/result/tracked/count");
+      = CoordinatorStat.toDebugAndEmit("trackedResults", "async/result/tracked/count");
   static final CoordinatorStat TRACKED_RESULT_BYTES
-      = new CoordinatorStat("trackedResultBytes", "async/result/tracked/bytes");
+      = CoordinatorStat.toDebugAndEmit("trackedResultBytes", "async/result/tracked/bytes");
 }
