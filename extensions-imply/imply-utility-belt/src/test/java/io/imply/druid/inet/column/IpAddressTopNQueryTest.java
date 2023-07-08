@@ -6,7 +6,7 @@
  * Information and shall use it only in accordance with the terms
  * of the license agreement you entered into with Imply.
  */
- 
+
 package io.imply.druid.inet.column;
 
 import com.google.common.collect.ImmutableList;
@@ -63,6 +63,9 @@ public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
   private final List<Segment> segments;
   private final boolean useRealtimeSegments;
 
+  private final Map<String, Object> expectedNullMap;
+
+
   public IpAddressTopNQueryTest(String vectorize, boolean useRealtimeSegments) throws Exception
   {
     IpAddressModule.registerHandlersAndSerde();
@@ -78,6 +81,10 @@ public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
       tempFolder.create();
       this.segments = IpAddressTestUtils.createIpAddressDefaultHourlySegments(helper, tempFolder);
     }
+
+    expectedNullMap = new HashMap<>();
+    expectedNullMap.put("count", 2);
+    expectedNullMap.put("v0", null);
   }
 
   public Map<String, Object> getContext()
@@ -166,15 +173,14 @@ public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
         .build();
 
     List rows = helper.runQueryOnSegmentsObjs(segments, query).toList();
+
+
     List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
-                    new HashMap<String, Object>() {{
-                      put("count", 2);
-                      put("v0", null);
-                    }},
+                    expectedNullMap,
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "1.2.3.4"
@@ -325,15 +331,13 @@ public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
         .build();
 
     List rows = helper.runQueryOnSegmentsObjs(segments, query).toList();
+
     List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
-                    new HashMap<String, Object>() {{
-                      put("count", 2);
-                      put("v0", null);
-                    }},
+                    expectedNullMap,
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "::ffff:102:304"
@@ -429,10 +433,7 @@ public class IpAddressTopNQueryTest extends InitializedNullHandlingTest
             DateTimes.of("2014-10-20T00:00:00.000Z"),
             new TopNResultValue(
                 Arrays.<Map<String, Object>>asList(
-                    new HashMap<String, Object>() {{
-                      put("count", 2);
-                      put("v0", null);
-                    }},
+                    expectedNullMap,
                     ImmutableMap.of(
                         "count", 2,
                         "v0", "1.2.3.4"
