@@ -11,6 +11,8 @@ package io.imply.druid.resource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Injector;
@@ -42,10 +44,8 @@ import org.mockito.Mockito;
 
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,12 +104,7 @@ public class VirtualSegmentResourceTest
     ListenableFuture<Void> future = virtualSegmentHolder.queue(firstSegment, closer);
     virtualSegmentHolder.downloaded(firstSegment);
 
-    Mockito.when(segmentManager.getDataSourceNames()).thenReturn(new HashSet<String>()
-    {
-      {
-        add(firstSegment.getId().getDataSource());
-      }
-    });
+    Mockito.when(segmentManager.getDataSourceNames()).thenReturn(ImmutableSet.of(firstSegment.getId().getDataSource()));
 
     //Closing the reference so that segment can be evicted.
     closer.close();
@@ -132,12 +127,7 @@ public class VirtualSegmentResourceTest
     Assert.assertEquals(Response.Status.ACCEPTED.getStatusCode(), response.getStatus());
     Assert.assertEquals(1, virtualSegmentStats.getNumSegmentsEvicted());
     final Map<String, List<String>> expectedResult = new HashMap();
-    expectedResult.put(firstSegment.getId().getDataSource(), new ArrayList<String>()
-    {
-      {
-        add(firstSegment.getId().toString());
-      }
-    });
+    expectedResult.put(firstSegment.getId().getDataSource(), ImmutableList.of(firstSegment.getId().toString()));
     Assert.assertEquals(expectedResult, jsonMapper.readValue(response.getEntity().toString(), HashMap.class));
   }
 
@@ -162,12 +152,7 @@ public class VirtualSegmentResourceTest
     virtualSegmentHolder.downloaded(firstSegment);
 
     Mockito.when(segmentManager.getDataSourceNames()).thenReturn(
-        new HashSet<String>()
-        {
-          {
-            add(firstSegment.getId().getDataSource());
-          }
-        });
+        ImmutableSet.of(firstSegment.getId().getDataSource()));
 
 
     VersionedIntervalTimeline<String, ReferenceCountingSegment> versionedIntervalTimeline = new VersionedIntervalTimeline(
