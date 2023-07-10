@@ -29,7 +29,7 @@ on:
 
 jobs:
   build:
-    if: github.event_name == 'schedule'
+    if: (github.event_name == 'schedule' && github.repository == 'apache/druid')
     name: build (jdk8)
     runs-on: ubuntu-latest
     steps:
@@ -117,10 +117,12 @@ jobs:
       MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
 
   security_vulnerabilities:
+    if: github.repository == 'apache/druid'
     name: security vulnerabilities
     strategy:
+      fail-fast: false
       matrix:
-        HADOOP_PROFILE: [ '', '-Phadoop3' ]
+        HADOOP_PROFILE: [ '', '-Phadoop2' ]
     runs-on: imply-ubuntu-latest
     steps:
       - name: Checkout branch
@@ -133,9 +135,11 @@ jobs:
           distribution: 'zulu'
           cache: maven
 
+      - name: maven build # needed to rebuild incase of maven snapshot resolution fails
+        run: mvn clean install dependency:go-offline -P dist -P skip-static-checks,skip-tests -Dmaven.javadoc.skip=true -Dcyclonedx.skip=true -Dweb.console.skip=true
+
       - name: security vulnerabilities check
         env:
-          MVN: mvn --no-snapshot-updates
           HADOOP_PROFILE: ${{ matrix.HADOOP_PROFILE }}
         run: |
           mvn dependency-check:purge dependency-check:check ${HADOOP_PROFILE} || { echo "
