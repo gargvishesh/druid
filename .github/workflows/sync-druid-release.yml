@@ -1,0 +1,48 @@
+name: Update implydata/druid 27.0.0 from apache/druid 27.0.0
+on:
+  schedule:
+    - cron:  '0 */2 * * *' #Every 2 hours
+jobs:
+  updateBranch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: implydata/druid
+          ref: 27.0.0
+          fetch-depth: 0
+          token: ${{ secrets.PAT_FOR_GITHUB_ACTION}}
+      - name: rebase implydata/druid with apache/druid
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git remote add upstream https://github.com/apache/druid.git
+          git fetch upstream
+          git checkout 27.0.0
+          git merge upstream/27.0.0
+          git push
+      - name: Files causing merge conflict
+        if: ${{ failure() }}
+        run: |
+          echo "HOUR_NOW=$(date +'%H')" >> $GITHUB_ENV
+          echo "FILE=$(git diff --name-only --diff-filter=U |head -1)"  >> $GITHUB_ENV
+          echo ALL_FILES=$(git diff --name-only --diff-filter=U)  >> $GITHUB_ENV
+      - name: Details of first file causing conflict
+        if: ${{ failure() }}
+        run: |
+          echo "IMPLY_COMMIT=$(git log 27.0.0 -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "IMPLY_COMMITER=$(git log 27.0.0 -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "APACHE_COMMIT=$(git log upstream/27.0.0 -n 1 --pretty=format:'%h' -- ${{ env.FILE }})" >> $GITHUB_ENV
+          echo "APACHE_COMMITER=$(git log upstream/27.0.0 -n 1 --pretty=format:'%an' -- ${{ env.FILE }})" >> $GITHUB_ENV
+      - name: Slack Notification for job failed
+        # Adding condition that checking current hour is between 0 and 2 or 12 and 14 to post slack update.
+        # This is done to reduce the noise on slack.
+        if: ${{ failure() && ((env.HOUR_NOW>=0 && env.HOUR_NOW<2) || (env.HOUR_NOW>=12 && env.HOUR_NOW<14 )) }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_USERNAME: "barista bob"
+          SLACK_ICON_EMOJI: ":barista:"
+          SLACK_MESSAGE: "Automatic sync failed possibly due to merge conflicts. Manual merge required. `${{ env.FILE }}` caused the conflict. `${{ env.FILE }}` and was last updated in `imply/druid` by ${{ env.IMPLY_COMMITER }} with commit [${{ env.IMPLY_COMMIT }}](https://github.com/implydata/druid/commit/${{ env.IMPLY_COMMIT }}) and in `apache/druid` by ${{ env.APACHE_COMMITER }} with commit [${{ env.APACHE_COMMIT }}](https://github.com/apache/druid/commit/${{ env.APACHE_COMMIT }}). Please resolve conflicts of all the files. See https://implydata.atlassian.net/wiki/spaces/ENG/pages/1461060101/Automatic+backport+PR+for+Druid+repo#Merge-conflicts for tips on resolving merge conflicts. The other files that are conflicted are as follows - \n ``` ${{ env.ALL_FILES }} ```"
+          SLACK_TITLE: "[FAILED] Update implydata/druid 27.0.0 from apache/druid 27.0.0"
+          SLACK_COLOR: "danger"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
