@@ -18,6 +18,7 @@ import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.server.emitter.ExtraServiceDimensions;
+import org.apache.druid.server.metrics.DataSourceTaskIdHolder;
 
 import java.util.Set;
 
@@ -45,36 +46,37 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
         ExtraServiceDimensions.class
     );
 
+
     // add information related to tasks for peons
     if (nodeRoles.contains(NodeRole.PEON)) {
       extraDims.addBinding("polaris_task_id").toProvider(new Provider<String>()
       {
         @Inject
-        private Task task;
+        private DataSourceTaskIdHolder dataSourceTaskIdHolderProvider;
 
         @Override
         public String get()
         {
-          return task.getId();
+          return dataSourceTaskIdHolderProvider.getTaskId();
         }
       });
 
       extraDims.addBinding("polaris_group_id").toProvider(new Provider<String>()
       {
         @Inject
-        private Task task;
+        private Provider<Task> task;
 
         @Override
         public String get()
         {
-          return task.getGroupId();
+          return task.get().getGroupId();
         }
       });
 
       extraDims.addBinding("polaris_data_source").toProvider(new Provider<String>()
       {
         @Inject
-        private Task task;
+        private DataSourceTaskIdHolder task;
 
         @Override
         public String get()
