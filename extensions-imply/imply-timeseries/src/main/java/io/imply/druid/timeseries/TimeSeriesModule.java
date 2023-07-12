@@ -15,16 +15,20 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
-import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.expression.ArithmeticOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.IRRDebugOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
-import io.imply.druid.timeseries.sql.aggregation.MeanTimeSeriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.aggregation.DownsampledSumTimeSeriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.aggregation.IRRDebugOverTimeseriesObjectSqlAggregator;
+import io.imply.druid.timeseries.sql.aggregation.IRROverTimeseriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.expression.ArithmeticOverTimeseriesOperatorConversion;
@@ -45,8 +49,7 @@ import java.util.List;
 public class TimeSeriesModule implements DruidModule
 {
   private static final String SIMPLE_TIMESERIES = "timeseries";
-  private static final String AVG_TIMESERIES = "avgTimeseries";
-  private static final String DELTA_TIMESERIES = "deltaTimeseries";
+  private static final String DOWNSAMPLED_SUM_TIMESERIES = "downsampledSumTimeseries";
 
   public static final String SUM_TIMESERIES = "sumTimeseries";
   private final Logger log = new Logger(TimeSeriesModule.class);
@@ -62,8 +65,8 @@ public class TimeSeriesModule implements DruidModule
                 SIMPLE_TIMESERIES
             ),
             new NamedType(
-                MeanTimeSeriesAggregatorFactory.class,
-                AVG_TIMESERIES
+                DownsampledSumTimeSeriesAggregatorFactory.class,
+                DOWNSAMPLED_SUM_TIMESERIES
             ),
             new NamedType(
                 SumTimeSeriesAggregatorFactory.class,
@@ -80,7 +83,9 @@ public class TimeSeriesModule implements DruidModule
     // add aggregators
     SqlBindings.addAggregator(binder, SimpleTimeSeriesObjectSqlAggregator.class);
     SqlBindings.addAggregator(binder, SumTimeSeriesObjectSqlAggregator.class);
-    SqlBindings.addAggregator(binder, MeanTimeSeriesObjectSqlAggregator.class);
+    SqlBindings.addAggregator(binder, DownsampledSumTimeSeriesObjectSqlAggregator.class);
+    SqlBindings.addAggregator(binder, IRROverTimeseriesObjectSqlAggregator.class);
+    SqlBindings.addAggregator(binder, IRRDebugOverTimeseriesObjectSqlAggregator.class);
 
     // add post-processing bindings
     for (SqlOperatorConversion sqlOperatorConversion : InterpolationOperatorConversion.sqlOperatorConversionList()) {
@@ -106,6 +111,8 @@ public class TimeSeriesModule implements DruidModule
     for (ArithmeticOverTimeseriesExprMacro arithmeticOverTimeseriesExprMacro : ArithmeticOverTimeseriesExprMacro.getMacros()) {
       ExpressionModule.addExprMacro(binder, arithmeticOverTimeseriesExprMacro.getClass());
     }
+    ExpressionModule.addExprMacro(binder, IRROverTimeseriesExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IRRDebugOverTimeseriesExprMacro.class);
   }
 
   public static void registerSerde()

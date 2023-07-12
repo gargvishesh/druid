@@ -16,31 +16,32 @@ import org.joda.time.Interval;
 
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
-public class MeanTimeSeriesTest extends MeanTimeSeriesBaseTest
+public class DownsampledSumTimeSeriesTest extends DownsampledSumTimeSeriesBaseTest
 {
   @Override
   public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window, DurationGranularity durationGranularity)
   {
-    MeanTimeSeries[] seriesToMerge = new MeanTimeSeries[seriesList.length];
+    DownsampledSumTimeSeries[] seriesToMerge = new DownsampledSumTimeSeries[seriesList.length];
     for (int i = 0; i < seriesList.length; i++) {
-      seriesToMerge[i] = new MeanTimeSeries(new ImplyLongArrayList(),
-                                            new ImplyDoubleArrayList(),
-                                            new ImplyLongArrayList(),
-                                            durationGranularity,
-                                            window,
-                                            seriesList[i].getStart(),
-                                            seriesList[i].getEnd(),
-                                            MAX_ENTRIES);
+      seriesToMerge[i] = new DownsampledSumTimeSeries(
+          new ImplyLongArrayList(),
+          new ImplyDoubleArrayList(),
+          durationGranularity,
+          window,
+          seriesList[i].getStart(),
+          seriesList[i].getEnd(),
+          MAX_ENTRIES
+      );
       for (int j = 0; j < seriesList[i].size(); j++) {
         seriesToMerge[i].addDataPoint(seriesList[i].getTimestamps().getLong(j), seriesList[i].getDataPoints().getDouble(j));
       }
       seriesToMerge[i].build();
     }
 
-    MeanTimeSeries initSeries = new MeanTimeSeries(durationGranularity, window, MAX_ENTRIES);
+    DownsampledSumTimeSeries initSeries = new DownsampledSumTimeSeries(durationGranularity, window, MAX_ENTRIES);
     // add the provided timeseries
-    for (MeanTimeSeries meanTimeSeries : seriesToMerge) {
-      initSeries.addTimeSeries(meanTimeSeries);
+    for (DownsampledSumTimeSeries downsampledSumTimeSeries : seriesToMerge) {
+      initSeries.addTimeSeries(downsampledSumTimeSeries);
     }
 
     // build the whole thing

@@ -31,52 +31,46 @@ import java.util.stream.IntStream;
  * This maintains an intermediate TS for tracking the mean of all samples present per time bucket.
  * The time buckets are created on fly on the basis of the bucket duration as the data is read.
  */
-public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
+public class DownsampledSumTimeSeries extends TimeSeries<DownsampledSumTimeSeries>
 {
   private ImplyLongArrayList bucketStarts;
   private ImplyDoubleArrayList sumPoints;
-  private ImplyLongArrayList countPoints;
   private DurationGranularity timeBucketGranularity;
 
-  public MeanTimeSeries(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
+  public DownsampledSumTimeSeries(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
   {
-    this(new ImplyLongArrayList(),
-         new ImplyDoubleArrayList(),
-         new ImplyLongArrayList(),
-         timeBucketGranularity,
-         window,
-         null,
-         null,
-         maxEntries);
+    this(
+        new ImplyLongArrayList(),
+        new ImplyDoubleArrayList(),
+        timeBucketGranularity,
+        window,
+        null,
+        null,
+        maxEntries
+    );
   }
 
-  public MeanTimeSeries(ImplyLongArrayList bucketStarts,
-                        ImplyDoubleArrayList sumPoints,
-                        ImplyLongArrayList countPoints,
-                        DurationGranularity timeBucketGranularity,
-                        Interval window,
-                        @Nullable EdgePoint start,
-                        @Nullable EdgePoint end,
-                        int maxEntries)
+  public DownsampledSumTimeSeries(
+      ImplyLongArrayList bucketStarts,
+      ImplyDoubleArrayList sumPoints,
+      DurationGranularity timeBucketGranularity,
+      Interval window,
+      @Nullable EdgePoint start,
+      @Nullable EdgePoint end,
+      int maxEntries
+  )
   {
     super(window, start, end, maxEntries);
     this.bucketStarts = bucketStarts;
     this.sumPoints = sumPoints;
-    this.countPoints = countPoints;
     this.timeBucketGranularity = Objects.requireNonNull(timeBucketGranularity, "Must have a non-null duration");
   }
 
   private Iterator<BucketData> getIterator()
   {
     return IntStream.range(0, bucketStarts.size())
-                              .mapToObj(idx -> new BucketData(bucketStarts.getLong(idx), sumPoints.getDouble(idx), countPoints.getLong(idx)))
+                              .mapToObj(idx -> new BucketData(bucketStarts.getLong(idx), sumPoints.getDouble(idx)))
                               .iterator();
-  }
-
-  @JsonProperty
-  public ImplyLongArrayList getCountPoints()
-  {
-    return countPoints;
   }
 
   @JsonProperty
@@ -97,7 +91,7 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     return new DurationGranularity(timeBucketGranularity.getDuration(), timeBucketGranularity.getOrigin());
   }
 
-  public List<MeanTimeSeries> getTimeSeriesList()
+  public List<DownsampledSumTimeSeries> getTimeSeriesList()
   {
     return timeSeriesList;
   }
@@ -106,7 +100,7 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
   public int size()
   {
     build();
-    return bucketStarts.size() + timeSeriesList.stream().mapToInt(MeanTimeSeries::size).sum();
+    return bucketStarts.size() + timeSeriesList.stream().mapToInt(DownsampledSumTimeSeries::size).sum();
   }
 
   @Override
@@ -117,12 +111,10 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     if (currIndex < 0 || bucketStart > bucketStarts.getLong(currIndex)) {
       bucketStarts.add(bucketStart);
       sumPoints.add(data);
-      countPoints.add(1);
     } else if (bucketStart == bucketStarts.getLong(currIndex)) {
       sumPoints.set(currIndex, sumPoints.getDouble(currIndex) + data);
-      countPoints.set(currIndex, countPoints.getLong(currIndex) + 1);
     } else {
-      throw new RE("DeltaTimeseries data is not sorted." + "Found bucket start %d after %d (timestamp : %d)",
+      throw new RE("MeanTimeseries data is not sorted." + "Found bucket start %d after %d (timestamp : %d)",
                    bucketStart,
                    bucketStarts.getLong(currIndex),
                    timestamp);
@@ -130,18 +122,17 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
   }
 
   @Override
-  protected void internalMergeSeries(List<MeanTimeSeries> mergeSeries)
+  protected void internalMergeSeries(List<DownsampledSumTimeSeries> mergeSeries)
   {
     if (mergeSeries.isEmpty()) {
       return;
     }
 
-    mergeSeries.forEach(MeanTimeSeries::build);
+    mergeSeries.forEach(DownsampledSumTimeSeries::build);
     ImplyLongArrayList mergedBucketStarts = new ImplyLongArrayList();
     ImplyDoubleArrayList mergedSumPoints = new ImplyDoubleArrayList();
-    ImplyLongArrayList mergedCountPoints = new ImplyLongArrayList();
     Iterator<BucketData> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream().map(MeanTimeSeries::getIterator).collect(Collectors.toList()),
+        mergeSeries.stream().map(DownsampledSumTimeSeries::getIterator).collect(Collectors.toList()),
         Comparator.comparingLong(BucketData::getStart)
     );
     int currIndex = -1;
@@ -150,30 +141,29 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
       if (currIndex == -1 || (meanSeriesEntry.getStart() > mergedBucketStarts.getLong(currIndex))) {
         mergedBucketStarts.add(meanSeriesEntry.getStart());
         mergedSumPoints.add(meanSeriesEntry.getSum());
-        mergedCountPoints.add(meanSeriesEntry.getCount());
         currIndex++;
       } else if (meanSeriesEntry.getStart() == mergedBucketStarts.getLong(currIndex)) {
         mergedSumPoints.set(currIndex, mergedSumPoints.getDouble(currIndex) + meanSeriesEntry.getSum());
-        mergedCountPoints.set(currIndex, mergedCountPoints.getLong(currIndex) + meanSeriesEntry.getCount());
       } else {
-        throw new RE("DeltaTimeseries data is not sorted." + "Found bucket start %d after %d",
+        throw new RE("MeanTimeseries data is not sorted." + "Found bucket start %d after %d",
                      meanSeriesEntry.getStart(),
                      mergedBucketStarts.getLong(currIndex));
       }
     }
-    MeanTimeSeries mergedSeries = new MeanTimeSeries(mergedBucketStarts,
-                                                     mergedSumPoints,
-                                                     mergedCountPoints,
-                                                     getTimeBucketGranularity(),
-                                                     getWindow(),
-                                                     getStart(),
-                                                     getEnd(),
-                                                     getMaxEntries());
+    DownsampledSumTimeSeries mergedSeries = new DownsampledSumTimeSeries(
+        mergedBucketStarts,
+        mergedSumPoints,
+        getTimeBucketGranularity(),
+        getWindow(),
+        getStart(),
+        getEnd(),
+        getMaxEntries()
+    );
     copy(mergedSeries);
   }
 
   @Override
-  public void addTimeSeries(MeanTimeSeries timeSeries)
+  public void addTimeSeries(DownsampledSumTimeSeries timeSeries)
   {
     boolean compatibleMerge = timeSeries.getTimeBucketGranularity().equals(getTimeBucketGranularity());
     if (!compatibleMerge) {
@@ -190,7 +180,7 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     if (timeSeriesList.isEmpty()) {
       return;
     }
-    List<MeanTimeSeries> mergeList = new ArrayList<>(timeSeriesList);
+    List<DownsampledSumTimeSeries> mergeList = new ArrayList<>(timeSeriesList);
     timeSeriesList.clear();
     mergeList.add(this);
     mergeSeries(mergeList);
@@ -201,27 +191,27 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
   {
     build();
     int simpleSeriesSize = bucketStarts.size();
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(new ImplyLongArrayList(simpleSeriesSize),
-                                                             new ImplyDoubleArrayList(simpleSeriesSize),
-                                                             getWindow(),
-                                                             getStart(),
-                                                             getEnd(),
-                                                             getMaxEntries(),
-                                                             1L
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(simpleSeriesSize),
+        new ImplyDoubleArrayList(simpleSeriesSize),
+        getWindow(),
+        getStart(),
+        getEnd(),
+        getMaxEntries(),
+        1L
     );
     for (int i = 0; i < simpleSeriesSize; i++) {
-      simpleTimeSeries.addDataPoint(bucketStarts.getLong(i), sumPoints.getDouble(i) / countPoints.getLong(i));
+      simpleTimeSeries.addDataPoint(bucketStarts.getLong(i), sumPoints.getDouble(i));
     }
     simpleTimeSeries.build();
     return simpleTimeSeries;
   }
 
   @Override
-  protected void internalCopy(MeanTimeSeries copySeries)
+  protected void internalCopy(DownsampledSumTimeSeries copySeries)
   {
     this.bucketStarts = copySeries.getBucketStarts();
     this.sumPoints = copySeries.getSumPoints();
-    this.countPoints = copySeries.getCountPoints();
     this.timeSeriesList = copySeries.getTimeSeriesList();
     this.timeBucketGranularity = copySeries.getTimeBucketGranularity();
   }
@@ -230,13 +220,11 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
   {
     private final long start;
     private final double sum;
-    private final long count;
 
-    public BucketData(long start, double sum, long count)
+    public BucketData(long start, double sum)
     {
       this.start = start;
       this.sum = sum;
-      this.count = count;
     }
 
     public long getStart()
@@ -247,11 +235,6 @@ public class MeanTimeSeries extends TimeSeries<MeanTimeSeries>
     public double getSum()
     {
       return sum;
-    }
-
-    public long getCount()
-    {
-      return count;
     }
   }
 }

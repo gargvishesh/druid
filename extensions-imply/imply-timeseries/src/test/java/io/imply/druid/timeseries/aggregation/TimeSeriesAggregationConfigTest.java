@@ -18,14 +18,14 @@ public class TimeSeriesAggregationConfigTest
   @Test
   public void testMaxEntriesMeanTimeSeries()
   {
-    MeanTimeSeriesAggregatorFactory meanTimeSeriesAggregationFactory =
-        MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory("",
-                                                                            "",
-                                                                            "",
-                                                                            null,
-                                                                            2L,
-                                                                            Intervals.utc(3, 7),
-                                                                            null);
+    DownsampledSumTimeSeriesAggregatorFactory meanTimeSeriesAggregationFactory =
+        DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory("",
+                                                                                                "",
+                                                                                                "",
+                                                                                                null,
+                                                                                                2L,
+                                                                                                Intervals.utc(3, 7),
+                                                                                                null);
     Assert.assertEquals(3, meanTimeSeriesAggregationFactory.getMaxEntries());
   }
 }

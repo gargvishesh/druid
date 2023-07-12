@@ -12,7 +12,7 @@ package io.imply.druid.timeseries.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
-import io.imply.druid.timeseries.MeanTimeSeries;
+import io.imply.druid.timeseries.DownsampledSumTimeSeries;
 import io.imply.druid.timeseries.SerdeUtils;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeries;
@@ -37,9 +37,9 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
-public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
+public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
 {
-  private MeanTimeSeriesAggregatorFactory(
+  private DownsampledSumTimeSeriesAggregatorFactory(
       String name,
       @Nullable String dataColumn,
       @Nullable String timeColumn,
@@ -53,7 +53,7 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   }
 
   @JsonCreator
-  public static MeanTimeSeriesAggregatorFactory getMeanTimeSeriesAggregationFactory(
+  public static DownsampledSumTimeSeriesAggregatorFactory getDownsampledSumTimeSeriesAggregationFactory(
       @JsonProperty("name") final String name,
       @JsonProperty("dataColumn") @Nullable final String dataColumn,
       @JsonProperty("timeColumn") @Nullable final String timeColumn,
@@ -81,13 +81,15 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
     if (maxEntries != null && maxEntries > finalMaxEntries) {
       finalMaxEntries = maxEntries;
     }
-    return new MeanTimeSeriesAggregatorFactory(name,
-                                               dataColumn,
-                                               timeColumn,
-                                               timeseriesColumn,
-                                               timeBucketMillis,
-                                               window,
-                                               finalMaxEntries);
+    return new DownsampledSumTimeSeriesAggregatorFactory(
+        name,
+        dataColumn,
+        timeColumn,
+        timeseriesColumn,
+        timeBucketMillis,
+        window,
+        finalMaxEntries
+    );
   }
 
   @Override
@@ -98,11 +100,13 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
-      return new MeanTimeSeriesAggregator(timeSelector,
-                                          dataSelector,
-                                          new DurationGranularity(getTimeBucketMillis(), 0),
-                                          getWindow(),
-                                          getMaxEntries());
+      return new DownsampledSumTimeSeriesAggregator(
+          timeSelector,
+          dataSelector,
+          new DurationGranularity(getTimeBucketMillis(), 0),
+          getWindow(),
+          getMaxEntries()
+      );
     }
   }
 
@@ -110,26 +114,30 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     if (getTimeseriesColumn() != null) {
-      BaseObjectColumnValueSelector<MeanTimeSeries> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
-      return new MeanTimeSeriesMergeBufferAggregator(selector,
-                                                     new DurationGranularity(getTimeBucketMillis(), 0),
-                                                     getWindow(),
-                                                     getMaxEntries());
+      BaseObjectColumnValueSelector<DownsampledSumTimeSeries> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
+      return new DownsampledSumTimeSeriesMergeBufferAggregator(
+          selector,
+          new DurationGranularity(getTimeBucketMillis(), 0),
+          getWindow(),
+          getMaxEntries()
+      );
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
-      return new MeanTimeSeriesBuildBufferAggregator(timeSelector,
-                                                     dataSelector,
-                                                     new DurationGranularity(getTimeBucketMillis(), 0),
-                                                     getWindow(),
-                                                     getMaxEntries());
+      return new DownsampledSumTimeSeriesBuildBufferAggregator(
+          timeSelector,
+          dataSelector,
+          new DurationGranularity(getTimeBucketMillis(), 0),
+          getWindow(),
+          getMaxEntries()
+      );
     }
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    final CacheKeyBuilder builder = new CacheKeyBuilder(ImplyAggregationUtil.AVG_TIMESERIES_CACHE_ID);
+    final CacheKeyBuilder builder = new CacheKeyBuilder(ImplyAggregationUtil.DOWNSAMPLED_SUM_TIMESERIES_CACHE_ID);
     super.addCacheKeys(builder);
     return builder.build();
   }
@@ -138,8 +146,8 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    MeanTimeSeries leftSeries = (MeanTimeSeries) lhs;
-    MeanTimeSeries rightSeries = (MeanTimeSeries) rhs;
+    DownsampledSumTimeSeries leftSeries = (DownsampledSumTimeSeries) lhs;
+    DownsampledSumTimeSeries rightSeries = (DownsampledSumTimeSeries) rhs;
     if (rightSeries != null && leftSeries != null) {
       leftSeries.addTimeSeries(rightSeries);
     } else if (rightSeries != null) {
@@ -151,34 +159,36 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new MeanTimeSeriesAggregatorFactory(getName(),
-                                               null,
-                                               null,
-                                               getName(),
-                                               getTimeBucketMillis(),
-                                               getWindow(),
-                                               getMaxEntries());
+    return new DownsampledSumTimeSeriesAggregatorFactory(
+        getName(),
+        null,
+        null,
+        getName(),
+        getTimeBucketMillis(),
+        getWindow(),
+        getMaxEntries()
+    );
   }
 
   @Override
   public Object deserialize(Object object)
   {
-    if (object instanceof MeanTimeSeries) {
+    if (object instanceof DownsampledSumTimeSeries) {
       return object;
     }
     Map<String, Object> timeseriesKeys = (Map<String, Object>) object;
     ImplyLongArrayList bucketStarts = new ImplyLongArrayList((List<Long>) timeseriesKeys.get("bucketStarts"));
     ImplyDoubleArrayList sumPoints = new ImplyDoubleArrayList((List<Double>) timeseriesKeys.get("sumPoints"));
-    ImplyLongArrayList countPoints = new ImplyLongArrayList((List<Number>) timeseriesKeys.get("countPoints"));
     NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> bounds = SerdeUtils.getBounds(timeseriesKeys);
-    return new MeanTimeSeries(bucketStarts,
-                              sumPoints,
-                              countPoints,
-                              new DurationGranularity(getTimeBucketMillis(), 0),
-                              getWindow(),
-                              bounds.lhs,
-                              bounds.rhs,
-                              getMaxEntries());
+    return new DownsampledSumTimeSeries(
+        bucketStarts,
+        sumPoints,
+        new DurationGranularity(getTimeBucketMillis(), 0),
+        getWindow(),
+        bounds.lhs,
+        bounds.rhs,
+        getMaxEntries()
+    );
   }
 
   @Nullable
@@ -189,27 +199,27 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
       return null;
     }
 
-    MeanTimeSeries meanTimeSeries = (MeanTimeSeries) object;
-    meanTimeSeries.build();
-    return SimpleTimeSeriesContainer.createFromInstance(meanTimeSeries.computeSimple());
+    DownsampledSumTimeSeries downsampledSumTimeSeries = (DownsampledSumTimeSeries) object;
+    downsampledSumTimeSeries.build();
+    return SimpleTimeSeriesContainer.createFromInstance(downsampledSumTimeSeries.computeSimple());
   }
 
   @Override
   public ColumnType getIntermediateType()
   {
-    return ColumnType.ofComplex("imply-ts-avg");
+    return ColumnType.ofComplex("imply-ts-downsampled-sum");
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return maxEntries * (Long.BYTES + Double.BYTES) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET;
+    return (int) (maxEntries * Double.BYTES + Math.ceil((double) maxEntries / Byte.SIZE) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET);
   }
 
   @Override
   public AggregatorFactory withName(String newName)
   {
-    return new MeanTimeSeriesAggregatorFactory(
+    return new DownsampledSumTimeSeriesAggregatorFactory(
         newName,
         getDataColumn(),
         getTimeColumn(),
@@ -218,5 +228,19 @@ public class MeanTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFac
         getWindow(),
         getMaxEntries()
     );
+  }
+
+  @Override
+  public String toString()
+  {
+    return "DownsampledSumTimeSeriesAggregatorFactory{" +
+           "name='" + name + '\'' +
+           ", dataColumn='" + dataColumn + '\'' +
+           ", timeColumn='" + timeColumn + '\'' +
+           ", timeseriesColumn='" + timeseriesColumn + '\'' +
+           ", timeBucketMillis=" + timeBucketMillis +
+           ", window=" + window +
+           ", maxEntries=" + maxEntries +
+           '}';
   }
 }
