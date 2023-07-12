@@ -64,12 +64,12 @@ public class ImplyExtraServiceDimensionsDruidModule implements DruidModule
       extraDims.addBinding("polaris_group_id").toProvider(new Provider<String>()
       {
         @Inject
-        private Provider<Task> task;
+        private Task task;
 
         @Override
         public String get()
         {
-          return task.get().getGroupId();
+          return task.getGroupId();
         }
       });
 
