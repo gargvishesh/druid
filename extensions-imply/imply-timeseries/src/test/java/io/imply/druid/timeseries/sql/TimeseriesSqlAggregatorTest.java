@@ -16,7 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import io.imply.druid.timeseries.TimeSeriesModule;
 import io.imply.druid.timeseries.Util;
-import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
@@ -135,10 +135,10 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
     testQuery(
         "SELECT\n"
         + "  timeseries_to_json(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')),\n"
-        + "  timeseries_to_json(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
+        + "  timeseries_to_json(downsampled_sum_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D')),\n"
         + "  timeseries_to_json(delta_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'P1D')),\n"
         + "  timeseries_to_json(linear_interpolation(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')),\n"
-        + "  timeseries_to_json(padding_interpolation(mean_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H')),\n"
+        + "  timeseries_to_json(padding_interpolation(downsampled_sum_timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 'P1D', 100), 'PT12H')),\n"
         + "  timeseries_to_json(time_weighted_average(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'linear', 'P1D')), \n"
         + "  timeseries_to_json(time_weighted_average(backfill_interpolation(delta_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z', 100), 'P1D'), 'PT12H'), 'linear', 'P1D')), \n"
         + "  timeseries_to_json(linear_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
@@ -161,7 +161,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           null
                       ),
-                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+                      DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
                           "a1:agg",
                           "m1",
                           "__time",
@@ -170,7 +170,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
                           null
                       ),
-                      MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+                      DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
                           "a2:agg",
                           "m1",
                           "__time",
@@ -564,7 +564,6 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                         ExprMacroTable.nil()
                     )
                 )
-                //filters(new InDimFilter("m1", ImmutableSet.of("1", "2")))
                 .aggregators(aggregators(
                     new FilteredAggregatorFactory(
                         SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
@@ -632,6 +631,114 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
               + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
             null
         })
+    );
+  }
+
+  @Test
+  public void testIRRExpressions()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT IRR_DEBUG(__time, m1, m1, '2000-01-01T00:00:00Z/2000-01-03T00:00:00Z', 'P1D'),"
+        + "  IRR(__time, m1, m1, '2000-01-01T00:00:00Z/2000-01-03T00:00:00Z', 'P1D') FROM foo",
+        Collections.singletonList(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .intervals(querySegmentSpec(Filtration.eternity()))
+                  .granularity(Granularities.ALL)
+                  .virtualColumns(
+                      new ExpressionVirtualColumn(
+                          "v0",
+                          "timestamp_floor(\"__time\",'P1D')",
+                          ColumnType.LONG,
+                          Util.makeTimeSeriesMacroTable()
+                      )
+                  )
+                  .aggregators(aggregators(
+                      DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
+                          "a0:downsampledSum",
+                          "m1",
+                          "__time",
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-03T00:00:00Z"),
+                          2
+                      ),
+                      new FilteredAggregatorFactory(
+                          new DoubleSumAggregatorFactory(
+                              "a0:startInvestmentInternal",
+                              "m1"
+                          ),
+                          new SelectorDimFilter("v0", "946684800000", null),
+                          "a0:startInvestment"
+                      ),
+                      new FilteredAggregatorFactory(
+                          new DoubleSumAggregatorFactory(
+                              "a0:endInvestmentInternal",
+                              "m1"
+                          ),
+                          new SelectorDimFilter("v0", "946857600000", null),
+                          "a0:endInvestment"
+                      ),
+                      DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
+                          "a1:downsampledSum",
+                          "m1",
+                          "__time",
+                          null,
+                          86400000L,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-03T00:00:00Z"),
+                          2
+                      ),
+                      new FilteredAggregatorFactory(
+                          new DoubleSumAggregatorFactory(
+                              "a1:startInvestmentInternal",
+                              "m1"
+                          ),
+                          new SelectorDimFilter("v0", "946684800000", null),
+                          "a1:startInvestment"
+                      ),
+                      new FilteredAggregatorFactory(
+                          new DoubleSumAggregatorFactory(
+                              "a1:endInvestmentInternal",
+                              "m1"
+                          ),
+                          new SelectorDimFilter("v0", "946857600000", null),
+                          "a1:endInvestment"
+                      )
+                  ))
+                  .postAggregators(ImmutableList.of(
+                      new ExpressionPostAggregator(
+                          "a0",
+                          "IRR_DEBUG(\"a0:downsampledSum\",\"a0:startInvestment\",\"a0:endInvestment\",'2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z')",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "a1",
+                          "IRR(\"a1:downsampledSum\",\"a1:startInvestment\",\"a1:endInvestment\",'2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z')",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      )
+                  ))
+                  .context(QUERY_CONTEXT_DEFAULT)
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{
+                "{\"cashFlows\":\"SimpleTimeSeries{timestamps=[946684800000, 946771200000], dataPoints=[1.0, 2.0], "
+                  + "maxEntries=2, start=EdgePoint{timestamp=-1, data=-1.0}, end=EdgePoint{timestamp=946857600000, data=3.0}, "
+                  + "bucketMillis=1}\",\"endValue\":\"3.0\","
+                  + "\"iterations\":[{\"estimate\":\"-0.631542609054844\",\"iteration\":\"1\",\"npv\":\"1.1796524512184576\",\"npvDerivative\":\"1.612554670933759\"},"
+                  + "{\"estimate\":\"-0.47001347181852526\",\"iteration\":\"2\",\"npv\":\"-2.847198672998438\",\"npvDerivative\":\"17.6265330312076\"},"
+                  + "{\"estimate\":\"-0.35710585080926505\",\"iteration\":\"3\",\"npv\":\"-0.9132750459247614\",\"npvDerivative\":\"8.088692665394646\"},"
+                  + "{\"estimate\":\"-0.3247598000634898\",\"iteration\":\"4\",\"npv\":\"-0.1720315792891718\",\"npvDerivative\":\"5.3184724355149005\"},"
+                  + "{\"estimate\":\"-0.3228813920483182\",\"iteration\":\"5\",\"npv\":\"-0.00897397928101018\",\"npvDerivative\":\"4.777438771837062\"},"
+                  + "{\"estimate\":\"-0.3228756555854865\",\"iteration\":\"6\",\"npv\":\"-2.723946764771057E-5\",\"npvDerivative\":\"4.7484780162460245\"},"
+                  + "{\"estimate\":\"-0.32287565553229536\",\"iteration\":\"7\",\"npv\":\"-2.525721853885443E-10\",\"npvDerivative\":\"4.7483899579802475\"}],"
+                  + "\"startEstimate\":\"0.1\",\"startValue\":\"1.0\",\"window\":\"2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z\"}",
+                -0.32287565553229536D
+            }
+        )
     );
   }
 }

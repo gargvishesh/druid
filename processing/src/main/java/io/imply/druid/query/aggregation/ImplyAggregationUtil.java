@@ -13,7 +13,7 @@ public class ImplyAggregationUtil
 {
   // Timeseries
   public static final byte SIMPLE_TIMESERIES_CACHE_ID = (byte) -4;
-  public static final byte AVG_TIMESERIES_CACHE_ID = (byte) -5;
+  public static final byte DOWNSAMPLED_SUM_TIMESERIES_CACHE_ID = (byte) -5;
 
   // Sessionization
   public static final byte SESSION_AVG_SCORE_TO_HISTOGRAM_FILTERING_CACHE_ID = (byte) -9;

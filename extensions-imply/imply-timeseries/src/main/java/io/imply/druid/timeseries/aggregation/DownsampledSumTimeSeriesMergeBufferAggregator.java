@@ -9,8 +9,8 @@
 
 package io.imply.druid.timeseries.aggregation;
 
-import io.imply.druid.timeseries.MeanTimeSeries;
-import io.imply.druid.timeseries.MeanTimeSeriesFromByteBufferAdapter;
+import io.imply.druid.timeseries.DownsampledSumTimeSeries;
+import io.imply.druid.timeseries.DownsampledSumTimeSeriesFromByteBufferAdapter;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
@@ -19,19 +19,21 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
-public class MeanTimeSeriesMergeBufferAggregator implements BufferAggregator
+public class DownsampledSumTimeSeriesMergeBufferAggregator implements BufferAggregator
 {
-  private final BaseObjectColumnValueSelector<MeanTimeSeries> selector;
-  private final MeanTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
+  private final BaseObjectColumnValueSelector<DownsampledSumTimeSeries> selector;
+  private final DownsampledSumTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
-  public MeanTimeSeriesMergeBufferAggregator(final BaseObjectColumnValueSelector<MeanTimeSeries> selector,
-                                             final DurationGranularity durationGranularity,
-                                             final Interval window,
-                                             final int maxEntries)
+  public DownsampledSumTimeSeriesMergeBufferAggregator(
+      final BaseObjectColumnValueSelector<DownsampledSumTimeSeries> selector,
+      final DurationGranularity durationGranularity,
+      final Interval window,
+      final int maxEntries
+  )
   {
     this.selector = selector;
-    this.meanByteBufferTimeSeries = new MeanTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
+    this.meanByteBufferTimeSeries = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
@@ -44,7 +46,7 @@ public class MeanTimeSeriesMergeBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    final MeanTimeSeries mergeSeries = selector.getObject();
+    final DownsampledSumTimeSeries mergeSeries = selector.getObject();
     if (mergeSeries == null) {
       return;
     }

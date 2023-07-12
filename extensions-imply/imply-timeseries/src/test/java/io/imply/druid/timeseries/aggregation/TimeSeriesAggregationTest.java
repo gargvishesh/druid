@@ -112,8 +112,8 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     FULL_ON_INTERVAL,
                     MAX_ENTRIES
                 ),
-                MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
-                    "avgTimeseries",
+                DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
+                    "downsampledSumTimeseries",
                     "dataPoints",
                     "__time",
                     null,
@@ -140,17 +140,17 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         MAX_ENTRIES
     );
 
-    long[] expectedMeanTimestamps = new long[]{
+    long[] expectedDownsampledSumTimestamps = new long[]{
         1413763200000L,
         1413770400000L,
         1413777600000L,
         1413784800000L,
         1413792000000L
     };
-    double[] expectedMeanDataPoints = new double[]{2.5, 12.5, 22.5, 32.5, 42.5};
-    SimpleTimeSeries expectedAvgTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(expectedMeanTimestamps),
-        new ImplyDoubleArrayList(expectedMeanDataPoints),
+    double[] expectedDownsampledSumDataPoints = new double[]{5, 25, 45, 65, 85};
+    SimpleTimeSeries expectedDownsampledSumTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(expectedDownsampledSumTimestamps),
+        new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         FULL_ON_INTERVAL,
         219144
     );
@@ -159,7 +159,7 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         DAY1,
         new TimeseriesResultValue(ImmutableMap.of(
             "timeseries", SimpleTimeSeriesContainer.createFromInstance(expectedTimeSeries),
-            "avgTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries)
+            "downsampledSumTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedDownsampledSumTimeSeries)
         ))
     );
     TestHelper.assertExpectedResults(ImmutableList.of(expectedResult), results);
@@ -185,8 +185,8 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                     window,
                     2 * MAX_ENTRIES
                 ),
-                MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
-                    "avgTimeseries",
+                DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
+                    "downsampledSumTimeseries",
                     "dataPoints",
                     "__time",
                     null,
@@ -210,8 +210,8 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                 Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
-                "avgTimeseries-interpolation",
-                "padding_interpolation(\"avgTimeseries\", 'PT30M')",
+                "downsampledSumTimeseries-interpolation",
+                "padding_interpolation(\"downsampledSumTimeseries\", 'PT30M')",
                 null,
                 Util.makeTimeSeriesMacroTable()
             )
@@ -233,10 +233,10 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         2 * MAX_ENTRIES
     );
 
-    double[] expectedMeanDataPoints = new double[]{0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0};
-    SimpleTimeSeries expectedAvgTimeSeries = new SimpleTimeSeries(
+    double[] expectedDownsampledSumDataPoints = new double[]{0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0};
+    SimpleTimeSeries expectedDownsampledSumTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestamps),
-        new ImplyDoubleArrayList(expectedMeanDataPoints),
+        new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         window,
         19
     );
@@ -258,13 +258,13 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         2 * MAX_ENTRIES
     );
 
-    double[] expectedInterpolatedMeanDataPoints = new double[]{
+    double[] expectedInterpolatedDownsampledSumDataPoints = new double[]{
         0.0, 0.0, 5.0, 5.0, 10.0, 10.0, 15.0, 15.0, 20.0, 20.0,
         25.0, 25.0, 30.0, 30.0, 35.0, 35.0, 40.0, 40.0, 45.0
     };
-    SimpleTimeSeries expectedInterpolatedAvgTimeSeries = new SimpleTimeSeries(
+    SimpleTimeSeries expectedInterpolatedDownsampledSumTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedInterpolatedTimestamps),
-        new ImplyDoubleArrayList(expectedInterpolatedMeanDataPoints),
+        new ImplyDoubleArrayList(expectedInterpolatedDownsampledSumDataPoints),
         window,
         19
     );
@@ -279,10 +279,10 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                             SimpleTimeSeriesContainer.createFromInstance(expectedInterpolatedTimeSeries)
                         )
                         .put("timeseries-pa", expectedTimeSeries)
-                        .put("avgTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedAvgTimeSeries))
+                        .put("downsampledSumTimeseries", SimpleTimeSeriesContainer.createFromInstance(expectedDownsampledSumTimeSeries))
                         .put(
-                            "avgTimeseries-interpolation",
-                            SimpleTimeSeriesContainer.createFromInstance(expectedInterpolatedAvgTimeSeries)
+                            "downsampledSumTimeseries-interpolation",
+                            SimpleTimeSeriesContainer.createFromInstance(expectedInterpolatedDownsampledSumTimeSeries)
                         )
                         .build()
             )

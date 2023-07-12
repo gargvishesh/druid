@@ -10,7 +10,7 @@
 package io.imply.druid.timeseries.sql.aggregation;
 
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.aggregation.MeanTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
@@ -41,11 +41,11 @@ import org.joda.time.Period;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
+public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregator
 {
-  public static final String MEAN_TIMESERIES_NAME = "MEAN_TIMESERIES";
+  public static final String DOWNSAMPLED_SUM_TIMESERIES = "DOWNSAMPLED_SUM_TIMESERIES";
 
-  private static final SqlAggFunction FUNCTION = new MeanTimeSeriesSqlAggFunction();
+  private static final SqlAggFunction FUNCTION = new DownsampledSumTimeSeriesSqlAggFunction();
 
   @Override
   public SqlAggFunction calciteFunction()
@@ -153,7 +153,7 @@ public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
 
     // create the factory
     return Aggregation.create(
-        MeanTimeSeriesAggregatorFactory.getMeanTimeSeriesAggregationFactory(
+        DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
             StringUtils.format("%s:agg", name),
             dataColumnName,
             timeColumnName,
@@ -165,12 +165,12 @@ public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
     );
   }
 
-  private static class MeanTimeSeriesSqlAggFunction extends SqlAggFunction
+  private static class DownsampledSumTimeSeriesSqlAggFunction extends SqlAggFunction
   {
-    MeanTimeSeriesSqlAggFunction()
+    DownsampledSumTimeSeriesSqlAggFunction()
     {
       super(
-          MEAN_TIMESERIES_NAME,
+          DOWNSAMPLED_SUM_TIMESERIES,
           null,
           SqlKind.OTHER_FUNCTION,
           opBinding -> RowSignatures.makeComplexType(
@@ -182,7 +182,7 @@ public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
           OperandTypes.or(
               OperandTypes.and(
                   OperandTypes.sequence(
-                      "'" + MEAN_TIMESERIES_NAME + "'(timeColumn, dataColumn, window, bucketPeriod)",
+                      "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod)",
                       OperandTypes.ANY,
                       OperandTypes.ANY,
                       OperandTypes.LITERAL,
@@ -197,7 +197,7 @@ public class MeanTimeSeriesObjectSqlAggregator implements SqlAggregator
               ),
               OperandTypes.and(
                   OperandTypes.sequence(
-                      "'" + MEAN_TIMESERIES_NAME + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
+                      "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
                       OperandTypes.ANY,
                       OperandTypes.ANY,
                       OperandTypes.LITERAL,
