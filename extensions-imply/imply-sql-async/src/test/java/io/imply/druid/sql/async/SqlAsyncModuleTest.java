@@ -28,10 +28,12 @@ import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.metadata.MetadataStorageConnectorConfig;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.query.DefaultQueryConfig;
+import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.sql.guice.SqlModule;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -128,6 +130,7 @@ public class SqlAsyncModuleTest
           binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>() {})
                 .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
           binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
+          binder.bind(ServiceEmitter.class).toInstance(new NoopServiceEmitter());
         },
         new SqlAsyncMetadataModule(),
         new SqlAsyncCoreModule(),

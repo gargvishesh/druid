@@ -30,10 +30,12 @@ import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
 import org.apache.druid.jackson.JacksonModule;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.metadata.MetadataStorageConnectorConfig;
 import org.apache.druid.metadata.SQLMetadataConnector;
 import org.apache.druid.metadata.TestDerbyConnector.DerbyConnectorRule;
 import org.apache.druid.server.coordinator.duty.CoordinatorCustomDuty;
+import org.apache.druid.server.metrics.NoopServiceEmitter;
 import org.apache.druid.sql.guice.SqlModule;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -157,6 +159,7 @@ public class SqlAsyncCleanupModuleTest
           binder.bind(new TypeLiteral<Supplier<MetadataStorageConnectorConfig>>(){})
                 .toInstance(Suppliers.ofInstance(new MetadataStorageConnectorConfig()));
           binder.bind(SQLMetadataConnector.class).toInstance(connectorRule.getConnector());
+          binder.bind(ServiceEmitter.class).toInstance(new NoopServiceEmitter());
         },
         new SqlAsyncMetadataModule(),
         cleanupModule
