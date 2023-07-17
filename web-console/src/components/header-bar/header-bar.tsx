@@ -32,10 +32,12 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Popover2 } from '@blueprintjs/popover2';
+import type { JSX } from 'react';
 import React, { useState } from 'react';
 
 import {
   AboutDialog,
+  CompactionDynamicConfigDialog,
   CoordinatorDynamicConfigDialog,
   DoctorDialog,
   OverlordDynamicConfigDialog,
@@ -242,6 +244,7 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
   const [coordinatorDynamicConfigDialogOpen, setCoordinatorDynamicConfigDialogOpen] =
     useState(false);
   const [overlordDynamicConfigDialogOpen, setOverlordDynamicConfigDialogOpen] = useState(false);
+  const [compactionDynamicConfigDialogOpen, setCompactionDynamicConfigDialogOpen] = useState(false);
 
   const showSplitDataLoaderMenu = capabilities.hasMultiStageQuery();
 
@@ -359,6 +362,12 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         text="Overlord dynamic config"
         onClick={() => setOverlordDynamicConfigDialogOpen(true)}
         disabled={!capabilities.hasOverlordAccess()}
+      />
+      <MenuItem
+        icon={IconNames.COMPRESSED}
+        text="Compaction dynamic config"
+        onClick={() => setCompactionDynamicConfigDialogOpen(true)}
+        disabled={!capabilities.hasCoordinatorAccess()}
       />
 
       <MenuDivider />
@@ -512,6 +521,11 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
       )}
       {overlordDynamicConfigDialogOpen && (
         <OverlordDynamicConfigDialog onClose={() => setOverlordDynamicConfigDialogOpen(false)} />
+      )}
+      {compactionDynamicConfigDialogOpen && (
+        <CompactionDynamicConfigDialog
+          onClose={() => setCompactionDynamicConfigDialogOpen(false)}
+        />
       )}
     </Navbar>
   );
