@@ -421,7 +421,7 @@ export class ConsoleApplication extends React.PureComponent<
     );
   };
 
-  render(): JSX.Element {
+  render() {
     const { capabilities, capabilitiesLoading } = this.state;
 
     if (capabilitiesLoading) {
