@@ -762,7 +762,7 @@ pipeline {
                                             HADOOP_VERSION="2.8.5"
                                             HADOOP_PROFILE="hadoop2"
                                         else
-                                            HADOOP_VERSION="3.3.5"
+                                            HADOOP_VERSION="3.3.6"
                                             HADOOP_PROFILE="hadoop3"
                                         fi
 
