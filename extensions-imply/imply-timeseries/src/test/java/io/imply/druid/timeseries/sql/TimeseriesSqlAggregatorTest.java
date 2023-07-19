@@ -20,6 +20,7 @@ import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorF
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -513,7 +514,10 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           Util.makeTimeSeriesMacroTable()
                       )
                   )
-                  .filters(equality("m1", 1.0, ColumnType.DOUBLE))
+                  .filters(
+                      NullHandling.replaceWithDefault()
+                      ? selector("m1", "1")
+                      : equality("m1", 1.0, ColumnType.DOUBLE))
                   .columns("v0", "v1", "v2", "v3")
                   .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                   .context(QUERY_CONTEXT_DEFAULT)
@@ -573,7 +577,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        equality("m1", 1.0, ColumnType.DOUBLE)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "1")
+                        : equality("m1", 1.0, ColumnType.DOUBLE)
                     ),
                     new FilteredAggregatorFactory(
                         SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
@@ -584,7 +590,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        equality("m1", 2.0, ColumnType.DOUBLE)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "2")
+                        : equality("m1", 2.0, ColumnType.DOUBLE)
                     ),
                     new FilteredAggregatorFactory(
                         SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
@@ -595,7 +603,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        equality("m1", -1.0, ColumnType.DOUBLE)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "-1")
+                        : equality("m1", -1.0, ColumnType.DOUBLE)
                     )
                 ))
                 .postAggregators(ImmutableList.of(
