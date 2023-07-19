@@ -88,7 +88,8 @@ public class HashingColumnProcessorFactory implements ColumnProcessorFactory<Has
   }
 
   @Override
-  public HashSupplier makeArrayProcessor(BaseObjectColumnValueSelector<?> selector, @Nullable ColumnCapabilities columnCapabilities) {
+  public HashSupplier makeArrayProcessor(BaseObjectColumnValueSelector<?> selector, @Nullable ColumnCapabilities columnCapabilities)
+  {
     throw new UnsupportedOperationException("Grouping on ARRAY columns or expressions which are " +
         "not STRING type is unsupported");
   }

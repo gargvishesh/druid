@@ -38,7 +38,6 @@ import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketc
 import org.apache.druid.query.aggregation.datasketches.tuple.ArrayOfDoublesSketchToEstimatePostAggregator;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.expression.TestExprMacroTable;
-import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
 import org.apache.druid.segment.IndexBuilder;
@@ -486,7 +485,7 @@ public class SessionAvgScoreTest extends BaseCalciteQueryTest
                   .virtualColumns(virtualColumn)
                   .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
                   .columns("dim1")
-                  .filters(new SelectorDimFilter("v0", "ZauJNuxDxpB9JU1IDrmw8QnDIUw7B9NV", null))
+                  .filters(equality("v0", "ZauJNuxDxpB9JU1IDrmw8QnDIUw7B9NV", ColumnType.STRING))
                   .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                   .legacy(false)
                   .context(QUERY_CONTEXT_DEFAULT)
