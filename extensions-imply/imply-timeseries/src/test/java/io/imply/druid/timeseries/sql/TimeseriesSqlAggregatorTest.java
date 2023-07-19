@@ -20,6 +20,7 @@ import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorF
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
@@ -32,7 +33,6 @@ import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
-import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -514,7 +514,10 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           Util.makeTimeSeriesMacroTable()
                       )
                   )
-                  .filters(new SelectorDimFilter("m1", "1", null))
+                  .filters(
+                      NullHandling.replaceWithDefault()
+                      ? selector("m1", "1")
+                      : equality("m1", 1.0, ColumnType.DOUBLE))
                   .columns("v0", "v1", "v2", "v3")
                   .resultFormat(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)
                   .context(QUERY_CONTEXT_DEFAULT)
@@ -574,7 +577,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        new SelectorDimFilter("m1", "1", null)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "1")
+                        : equality("m1", 1.0, ColumnType.DOUBLE)
                     ),
                     new FilteredAggregatorFactory(
                         SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
@@ -585,7 +590,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        new SelectorDimFilter("m1", "2", null)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "2")
+                        : equality("m1", 2.0, ColumnType.DOUBLE)
                     ),
                     new FilteredAggregatorFactory(
                         SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
@@ -596,7 +603,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                             Intervals.ETERNITY,
                             null
                         ),
-                        new SelectorDimFilter("m1", "-1", null)
+                        NullHandling.replaceWithDefault()
+                        ? selector("m1", "-1")
+                        : equality("m1", -1.0, ColumnType.DOUBLE)
                     )
                 ))
                 .postAggregators(ImmutableList.of(
@@ -669,7 +678,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "a0:startInvestmentInternal",
                               "m1"
                           ),
-                          new SelectorDimFilter("v0", "946684800000", null),
+                          equality("v0", 946684800000L, ColumnType.LONG),
                           "a0:startInvestment"
                       ),
                       new FilteredAggregatorFactory(
@@ -677,7 +686,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "a0:endInvestmentInternal",
                               "m1"
                           ),
-                          new SelectorDimFilter("v0", "946857600000", null),
+                          equality("v0", 946857600000L, ColumnType.LONG),
                           "a0:endInvestment"
                       ),
                       DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
@@ -694,7 +703,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "a1:startInvestmentInternal",
                               "m1"
                           ),
-                          new SelectorDimFilter("v0", "946684800000", null),
+                          equality("v0", 946684800000L, ColumnType.LONG),
                           "a1:startInvestment"
                       ),
                       new FilteredAggregatorFactory(
@@ -702,7 +711,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "a1:endInvestmentInternal",
                               "m1"
                           ),
-                          new SelectorDimFilter("v0", "946857600000", null),
+                          equality("v0", 946857600000L, ColumnType.LONG),
                           "a1:endInvestment"
                       )
                   ))

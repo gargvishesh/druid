@@ -20,6 +20,8 @@ import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
+import org.apache.druid.math.expr.ExprEval;
+import org.apache.druid.math.expr.ExpressionType;
 import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
@@ -29,16 +31,19 @@ import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexCapabilities;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
-import org.apache.druid.segment.column.StringValueSetIndex;
+import org.apache.druid.segment.column.TypeSignature;
+import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.segment.index.BitmapColumnIndex;
+import org.apache.druid.segment.index.semantic.DictionaryEncodedStringValueIndex;
+import org.apache.druid.segment.index.semantic.StringValueSetIndexes;
+import org.apache.druid.segment.index.semantic.ValueIndexes;
 import org.apache.druid.segment.serde.StringUtf8ColumnIndexSupplier;
 
 import javax.annotation.Nullable;
@@ -174,8 +179,8 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
       @Override
       public <T> T as(Class<T> clazz)
       {
-        if (clazz.equals(StringValueSetIndex.class)) {
-          return (T) new SessionFilteringStringValueSetIndex(delegate);
+        if (clazz.equals(StringValueSetIndexes.class) || clazz.equals(ValueIndexes.class)) {
+          return (T) new SessionFilteringStringValueSetIndexes(delegate);
         }
         throw new UOE("Session filtering doesn't support index %s", clazz);
       }
@@ -211,11 +216,11 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private class SessionFilteringStringValueSetIndex implements StringValueSetIndex
+  private class SessionFilteringStringValueSetIndexes implements StringValueSetIndexes, ValueIndexes
   {
     private final DictionaryEncodedStringValueIndex delegate;
 
-    private SessionFilteringStringValueSetIndex(DictionaryEncodedStringValueIndex delegate)
+    private SessionFilteringStringValueSetIndexes(DictionaryEncodedStringValueIndex delegate)
     {
       this.delegate = delegate;
     }
@@ -243,6 +248,17 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
           return bitmapResultFactory.wrapDimensionValue(getBitmap(getIndex(value)));
         }
       };
+    }
+
+
+    @Nullable
+    @Override
+    public BitmapColumnIndex forValue(Object value, TypeSignature<ValueType> valueType)
+    {
+      final String string = ExprEval.ofType(ExpressionType.fromColumnTypeStrict(valueType), value)
+                                    .castTo(ExpressionType.STRING)
+                                    .asString();
+      return forValue(string);
     }
 
     @Override

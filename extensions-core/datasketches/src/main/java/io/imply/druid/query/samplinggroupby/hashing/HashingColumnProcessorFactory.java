@@ -19,7 +19,10 @@ import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.apache.druid.segment.ColumnProcessorFactory;
 import org.apache.druid.segment.DimensionDictionarySelector;
 import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnType;
+
+import javax.annotation.Nullable;
 
 /**
  * This factory provides an interface to hash the values of a column of any type. For string columns, it is also tried
@@ -82,6 +85,13 @@ public class HashingColumnProcessorFactory implements ColumnProcessorFactory<Has
   public HashSupplier makeLongProcessor(BaseLongColumnValueSelector selector)
   {
     return () -> MurmurHash3.hash(selector.getLong(), ThetaUtil.DEFAULT_UPDATE_SEED)[0] >>> 1;
+  }
+
+  @Override
+  public HashSupplier makeArrayProcessor(BaseObjectColumnValueSelector<?> selector, @Nullable ColumnCapabilities columnCapabilities)
+  {
+    throw new UnsupportedOperationException("Grouping on ARRAY columns or expressions which are " +
+        "not STRING type is unsupported");
   }
 
   @Override

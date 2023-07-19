@@ -72,7 +72,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   private static final IpPrefixBlob V6_PREFIX_BLOB = IpPrefixBlob.ofString(CIDR_V6_STRING);
 
   Expr.ObjectBinding inputBindings = InputBindings.forInputSuppliers(
-      new ImmutableMap.Builder<String, InputBindings.InputSupplier>()
+      new ImmutableMap.Builder<String, InputBindings.InputSupplier<?>>()
           .put("ipv4", InputBindings.inputSupplier(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V4_BLOB))
           .put("ipv6", InputBindings.inputSupplier(IpAddressExpressions.IP_ADDRESS_TYPE, () -> V6_BLOB))
           .put("ipv4_string", InputBindings.inputSupplier(ExpressionType.STRING, () -> V4_STRING))
