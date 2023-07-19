@@ -166,7 +166,6 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
       builder.setDictionaryEncodedColumnSupplier(supplier);
       builder.setType(ValueType.COMPLEX);
       builder.setComplexTypeName(IpAddressModule.PREFIX_TYPE_NAME);
-      builder.setFilterable(true);
     }
     catch (IOException ex) {
       throw new RuntimeException(ex);

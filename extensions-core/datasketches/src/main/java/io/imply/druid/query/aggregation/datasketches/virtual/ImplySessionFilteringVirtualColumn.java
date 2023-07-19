@@ -29,16 +29,16 @@ import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.VirtualColumn;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexCapabilities;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.ColumnType;
-import org.apache.druid.segment.column.DictionaryEncodedStringValueIndex;
 import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
-import org.apache.druid.segment.column.StringValueSetIndex;
+import org.apache.druid.segment.index.BitmapColumnIndex;
+import org.apache.druid.segment.index.semantic.DictionaryEncodedStringValueIndex;
+import org.apache.druid.segment.index.semantic.StringValueSetIndexes;
 import org.apache.druid.segment.serde.StringUtf8ColumnIndexSupplier;
 
 import javax.annotation.Nullable;
@@ -174,8 +174,8 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
       @Override
       public <T> T as(Class<T> clazz)
       {
-        if (clazz.equals(StringValueSetIndex.class)) {
-          return (T) new SessionFilteringStringValueSetIndex(delegate);
+        if (clazz.equals(StringValueSetIndexes.class)) {
+          return (T) new SessionFilteringStringValueSetIndexes(delegate);
         }
         throw new UOE("Session filtering doesn't support index %s", clazz);
       }
@@ -211,11 +211,11 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private class SessionFilteringStringValueSetIndex implements StringValueSetIndex
+  private class SessionFilteringStringValueSetIndexes implements StringValueSetIndexes
   {
     private final DictionaryEncodedStringValueIndex delegate;
 
-    private SessionFilteringStringValueSetIndex(DictionaryEncodedStringValueIndex delegate)
+    private SessionFilteringStringValueSetIndexes(DictionaryEncodedStringValueIndex delegate)
     {
       this.delegate = delegate;
     }

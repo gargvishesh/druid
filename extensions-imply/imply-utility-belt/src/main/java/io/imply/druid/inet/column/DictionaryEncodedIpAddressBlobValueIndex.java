@@ -13,8 +13,8 @@ import com.google.common.base.Predicate;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.query.filter.DruidPredicateFactory;
-import org.apache.druid.segment.column.DictionaryEncodedValueIndex;
 import org.apache.druid.segment.data.GenericIndexed;
+import org.apache.druid.segment.index.semantic.DictionaryEncodedValueIndex;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;

@@ -38,7 +38,7 @@ import org.apache.druid.segment.column.BaseColumn;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
 import org.apache.druid.segment.column.DictionaryEncodedColumn;
-import org.apache.druid.segment.column.StringValueSetIndex;
+import org.apache.druid.segment.index.semantic.StringValueSetIndexes;
 import org.apache.druid.server.SegmentManager;
 import org.apache.druid.timeline.TimelineObjectHolder;
 import org.apache.druid.timeline.VersionedIntervalTimeline;
@@ -238,13 +238,13 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
 
         ImmutableBitmap filterBitmapM = null;
         for (int i = 0; i < filterColumns.size(); ++i) {
-          final StringValueSetIndex dictIndex = lookupHolder.getAsStringValueSetIndex(filterColumns.get(i));
+          final StringValueSetIndexes dictIndexes = lookupHolder.getAsStringValueSetIndexes(filterColumns.get(i));
           final String specPartValue = specParts[2 + i];
           if (filterBitmapM == null) {
-            filterBitmapM = dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory);
+            filterBitmapM = dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory);
           } else {
             filterBitmapM = filterBitmapM.intersection(
-                dictIndex.forValue(specPartValue).computeBitmapResult(bitmapResultFactory)
+                dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory)
             );
           }
         }
@@ -354,7 +354,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       return new DefaultBitmapResultFactory(index.getBitmapFactoryForDimensions());
     }
 
-    public StringValueSetIndex getAsStringValueSetIndex(String keyColumn)
+    public StringValueSetIndexes getAsStringValueSetIndexes(String keyColumn)
     {
       final ColumnHolder columnHolder = index.getColumnHolder(keyColumn);
       if (columnHolder == null) {
@@ -364,7 +364,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       if (indexSupplier == null) {
         throw new ISE("Column [%s] does not have indexes, cannot be used in lookup.", keyColumn);
       }
-      final StringValueSetIndex retVal = indexSupplier.as(StringValueSetIndex.class);
+      final StringValueSetIndexes retVal = indexSupplier.as(StringValueSetIndexes.class);
       if (retVal == null) {
         throw new ISE("Column [%s] is not indexed for string values, cannot be used in lookup", keyColumn);
       }
@@ -443,10 +443,10 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         final SegmentLookupHolder lookupHolder = holder.get();
 
         final BitmapResultFactory<ImmutableBitmap> bitmapResultFactory = lookupHolder.getBitmapResultFactory();
-        final StringValueSetIndex keyColumnIndex = lookupHolder.getAsStringValueSetIndex(keyColumn);
+        final StringValueSetIndexes keyColumnIndexes = lookupHolder.getAsStringValueSetIndexes(keyColumn);
         final DictionaryEncodedColumn<String> valueCol = lookupHolder.getDictionaryColumn(valueColumn);
 
-        ImmutableBitmap bitmap = keyColumnIndex.forValue(key).computeBitmapResult(bitmapResultFactory);
+        ImmutableBitmap bitmap = keyColumnIndexes.forValue(key).computeBitmapResult(bitmapResultFactory);
         if (bitmap.isEmpty()) {
           return null;
         }
@@ -479,10 +479,10 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         final SegmentLookupHolder lookupHolder = holder.get();
 
         final BitmapResultFactory<ImmutableBitmap> bitmapResultFactory = lookupHolder.getBitmapResultFactory();
-        final StringValueSetIndex valueColumnIndex = lookupHolder.getAsStringValueSetIndex(valueColumn);
+        final StringValueSetIndexes valueColumnIndexes = lookupHolder.getAsStringValueSetIndexes(valueColumn);
         final DictionaryEncodedColumn<String> keyCol = lookupHolder.getDictionaryColumn(keyColumn);
 
-        ImmutableBitmap bitmap = valueColumnIndex.forValue(value).computeBitmapResult(bitmapResultFactory);
+        ImmutableBitmap bitmap = valueColumnIndexes.forValue(value).computeBitmapResult(bitmapResultFactory);
         if (bitmap.isEmpty()) {
           return Collections.emptyList();
         }
