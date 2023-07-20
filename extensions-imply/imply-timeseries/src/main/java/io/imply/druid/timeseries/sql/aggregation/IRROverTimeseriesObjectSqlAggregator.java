@@ -228,7 +228,6 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
             timeFloorVirtualColumnName,
             ColumnType.LONG,
             window.getStartMillis(),
-            null,
             null
         ),
         startInvestmentAgg
@@ -246,7 +245,6 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
             timeFloorVirtualColumnName,
             ColumnType.LONG,
             window.getEndMillis(),
-            null,
             null
         ),
         endInvestmentAgg
