@@ -280,7 +280,13 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
     </Menu>
   );
 
-  const moreViewsMenuActive = oneOf(active, 'lookups');
+  const moreViewsMenuActive = oneOf(
+    active,
+    'lookups',
+    // BEGIN: Imply-modified code for user management
+    'user-management',
+    // END: Imply-modified code for user management
+  );
   const moreViewsMenu = (
     <Menu>
       <MenuItem
