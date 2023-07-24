@@ -15,8 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         checksum: [ {script: run-druid, checksum: 070e9573bcb2980596156121b851d5b8de848dff},
-                    {script: run-java, checksum: adcff92ea4f9626ed48c5b56a582510830f6b9fc},
-                    {script: verify-java, checksum: d3a1c1dd6c997dfb68d6756fd165b73707cf5b0e},
+                    {script: run-java, checksum: a8fde9bbed6d8a72400e0db77d466eaf2ef28413},
+                    {script: verify-java, checksum: cf623c1f60ed7869835d322fc391783bfc19d9c2},
                     {script: run-zk, checksum: 6a995c9279ebe3015598891c3896820f33a97d8f} ]
     steps:
       - uses: actions/checkout@v3
