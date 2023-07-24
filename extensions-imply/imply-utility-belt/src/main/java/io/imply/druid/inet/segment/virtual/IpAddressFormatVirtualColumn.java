@@ -37,23 +37,23 @@ import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.IdLookup;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.BaseColumn;
-import org.apache.druid.segment.column.BitmapColumnIndex;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnIndexCapabilities;
 import org.apache.druid.segment.column.ColumnIndexSupplier;
-import org.apache.druid.segment.column.DruidPredicateIndex;
-import org.apache.druid.segment.column.NullValueIndex;
 import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
-import org.apache.druid.segment.column.SimpleImmutableBitmapIndex;
-import org.apache.druid.segment.column.StringValueSetIndex;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.filter.BooleanValueMatcher;
 import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
+import org.apache.druid.segment.index.BitmapColumnIndex;
+import org.apache.druid.segment.index.SimpleImmutableBitmapIndex;
+import org.apache.druid.segment.index.semantic.DruidPredicateIndexes;
+import org.apache.druid.segment.index.semantic.NullValueIndex;
+import org.apache.druid.segment.index.semantic.StringValueSetIndexes;
 import org.apache.druid.segment.serde.NoIndexesColumnIndexSupplier;
 import org.apache.druid.segment.vector.ReadableVectorInspector;
 import org.apache.druid.segment.vector.ReadableVectorOffset;
@@ -552,8 +552,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
                                  .setHasBitmapIndexes(true)
                                  .setDictionaryEncoded(true)
                                  .setDictionaryValuesUnique(true)
-                                 .setDictionaryValuesSorted(true)
-                                 .setFilterable(true);
+                                 .setDictionaryValuesSorted(true);
   }
 
   @Override
@@ -563,8 +562,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
                                  .setHasBitmapIndexes(true)
                                  .setDictionaryEncoded(true)
                                  .setDictionaryValuesUnique(true)
-                                 .setDictionaryValuesSorted(true)
-                                 .setFilterable(true);
+                                 .setDictionaryValuesSorted(true);
   }
 
   @Override
@@ -612,9 +610,9 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
         if (clazz.equals(NullValueIndex.class)) {
           final BitmapColumnIndex nullIndex = new SimpleImmutableBitmapIndex(index.getBitmapForValue(null));
           return (T) (NullValueIndex) () -> nullIndex;
-        } else if (clazz.equals(StringValueSetIndex.class)) {
+        } else if (clazz.equals(StringValueSetIndexes.class)) {
           return (T) new IpFormatStringValueSetIndex(index);
-        } else if (clazz.equals(DruidPredicateIndex.class)) {
+        } else if (clazz.equals(DruidPredicateIndexes.class)) {
           return (T) new IpFormatPredicateIndex(index);
         }
         return null;
@@ -684,7 +682,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     }
   }
 
-  private static class IpFormatStringValueSetIndex implements StringValueSetIndex
+  private static class IpFormatStringValueSetIndex implements StringValueSetIndexes
   {
     private final DictionaryEncodedIpAddressBlobValueIndex delegate;
 
@@ -739,7 +737,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     }
   }
 
-  private static class IpFormatPredicateIndex implements DruidPredicateIndex
+  private static class IpFormatPredicateIndex implements DruidPredicateIndexes
   {
     private final DictionaryEncodedIpAddressBlobValueIndex delegate;
 

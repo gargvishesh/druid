@@ -31,6 +31,7 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
+import org.apache.druid.query.filter.EqualityFilter;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
@@ -217,9 +218,16 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
     String startInvestmentAgg = Calcites.makePrefixedName(name, "startInvestment");
     AggregatorFactory startInvestmentAggregationFactory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "startInvestmentInternal"), aumColumnName),
-        new SelectorDimFilter(
+        plannerContext.isUseBoundsAndSelectors()
+        ? new SelectorDimFilter(
             timeFloorVirtualColumnName,
             Long.toString(window.getStartMillis()),
+            null
+        )
+        : new EqualityFilter(
+            timeFloorVirtualColumnName,
+            ColumnType.LONG,
+            window.getStartMillis(),
             null
         ),
         startInvestmentAgg
@@ -227,9 +235,16 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
     String endInvestmentAgg = Calcites.makePrefixedName(name, "endInvestment");
     AggregatorFactory endInvestmentAggregationFactory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "endInvestmentInternal"), aumColumnName),
-        new SelectorDimFilter(
+        plannerContext.isUseBoundsAndSelectors()
+        ? new SelectorDimFilter(
             timeFloorVirtualColumnName,
             Long.toString(window.getEndMillis()),
+            null
+        )
+        : new EqualityFilter(
+            timeFloorVirtualColumnName,
+            ColumnType.LONG,
+            window.getEndMillis(),
             null
         ),
         endInvestmentAgg

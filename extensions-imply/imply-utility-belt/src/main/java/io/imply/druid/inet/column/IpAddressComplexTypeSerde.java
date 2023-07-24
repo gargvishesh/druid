@@ -279,7 +279,6 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
       builder.setDictionaryEncodedColumnSupplier(supplier);
       builder.setType(ValueType.COMPLEX);
       builder.setComplexTypeName(IpAddressModule.ADDRESS_TYPE_NAME);
-      builder.setFilterable(true);
     }
     catch (IOException ex) {
       throw new RuntimeException(ex);

@@ -137,6 +137,13 @@ public class HashingVectorColumnProcessorFactory implements VectorColumnProcesso
   }
 
   @Override
+  public HashVectorSupplier makeArrayProcessor(ColumnCapabilities capabilities, VectorObjectSelector selector)
+  {
+    throw new UnsupportedOperationException("Grouping on ARRAY columns or expressions which are " +
+        "not STRING type is unsupported");
+  }
+
+  @Override
   public HashVectorSupplier makeObjectProcessor(
       ColumnCapabilities capabilities,
       VectorObjectSelector selector

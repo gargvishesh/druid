@@ -52,7 +52,7 @@ public class Util
   @SuppressWarnings("ConstantConditions")
   public static Expr.ObjectBinding makeBindings(Map<String, Object> bindings)
   {
-    ImmutableMap.Builder<String, InputBindings.InputSupplier> suppliers = ImmutableMap.builder();
+    ImmutableMap.Builder<String, InputBindings.InputSupplier<?>> suppliers = ImmutableMap.builder();
     for (Map.Entry<String, Object> binding : bindings.entrySet()) {
       suppliers.put(
           binding.getKey(),
