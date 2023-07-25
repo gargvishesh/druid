@@ -73,6 +73,7 @@ export type HeaderActiveTab =
   // BEGIN: Imply-modified code for user management
   | 'user-management'
   // END: Imply-modified code for user management
+  | 'explore'
   | 'lookups';
 
 const DruidLogo = React.memo(function DruidLogo() {
@@ -305,6 +306,15 @@ export const HeaderBar = React.memo(function HeaderBar(props: HeaderBarProps) {
         disabled={!capabilities.hasCoordinatorAccess()}
       />
       {/* END: Imply-modified code for user management */}
+      <MenuDivider />
+      <MenuItem
+        icon={IconNames.COMPASS}
+        text="Explore"
+        label="(experimental)"
+        href="#explore"
+        disabled={!capabilities.hasSql()}
+        selected={active === 'explore'}
+      />
     </Menu>
   );
 
