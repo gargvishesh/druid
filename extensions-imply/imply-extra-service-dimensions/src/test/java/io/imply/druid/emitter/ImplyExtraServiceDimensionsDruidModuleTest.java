@@ -20,6 +20,7 @@ import org.apache.druid.discovery.NodeRole;
 import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.server.emitter.ExtraServiceDimensions;
+import org.apache.druid.server.metrics.DataSourceTaskIdHolder;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -51,6 +52,8 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
   private static final String ENV = "env";
   @Mock
   private Task task;
+  @Mock
+  private DataSourceTaskIdHolder dataSourceTaskIdHolder;
   private Injector injector;
   private ImplyExtraServiceDimensionsDruidModule target;
 
@@ -63,9 +66,9 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
     System.setProperty(PROJECT_NAME_SYSTEM_PROPERTY_KEY, PROJECT_NAME);
     System.setProperty(ENV_SYSTEM_PROPERTY_KEY, ENV);
 
-    Mockito.when(task.getId()).thenReturn(TASK_ID);
+    Mockito.when(dataSourceTaskIdHolder.getTaskId()).thenReturn(TASK_ID);
     Mockito.when(task.getGroupId()).thenReturn(GROUP_ID);
-    Mockito.when(task.getDataSource()).thenReturn(DATA_SOURCE);
+    Mockito.when(dataSourceTaskIdHolder.getDataSource()).thenReturn(DATA_SOURCE);
     target = new ImplyExtraServiceDimensionsDruidModule();
   }
 
@@ -171,6 +174,7 @@ public class ImplyExtraServiceDimensionsDruidModuleTest
         target,
         binder -> {
           binder.bind(Task.class).toInstance(task);
+          binder.bind(DataSourceTaskIdHolder.class).toInstance(dataSourceTaskIdHolder);
           for (NodeRole nodeRole : nodeRoles) {
             Multibinder.newSetBinder(binder, NodeRole.class, Self.class).addBinding().toInstance(nodeRole);
           }
