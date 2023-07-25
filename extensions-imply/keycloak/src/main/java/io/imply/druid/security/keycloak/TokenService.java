@@ -11,7 +11,9 @@ package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.java.util.RetryableException;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.http.HttpEntity;
@@ -139,25 +141,40 @@ public class TokenService
       UrlEncodedFormEntity form = new UrlEncodedFormEntity(formparams, "UTF-8");
       post.setEntity(form);
 
-      HttpResponse response = client.execute(post);
-      int status = response.getStatusLine().getStatusCode();
-      HttpEntity entity = response.getEntity();
-      if (status != 200) {
-        String json = getContent(entity);
-        String error = "Service token grant failed. Bad status: " + status + " response: " + json;
-        if (status == 400) {
-          throw new KeycloakSecurityBadRequestException(error);
-        }
-        throw new RuntimeException(error);
-      } else if (entity == null) {
-        throw new RuntimeException("No entity");
-      } else {
-        String json = getContent(entity);
-        return JsonSerialization.readValue(json, AccessTokenResponse.class);
-      }
+      return RetryUtils.retry(
+          () -> {
+            HttpResponse response = client.execute(post);
+            return parseTokenResponse(response);
+          },
+          (throwable) -> throwable instanceof KeycloakServerException,
+          0,
+          3,
+          null,
+          null
+      );
     }
-    catch (IOException e) {
-      throw new RE(e, "Service token grant failed. IOException occured. See server.log for details.");
+    catch (Exception e) {
+      throw new RE(e, "Service token grant failed. Exception occured. See server.log for details.");
+    }
+  }
+
+  private AccessTokenResponse parseTokenResponse(HttpResponse response) throws IOException {
+    int status = response.getStatusLine().getStatusCode();
+    HttpEntity entity = response.getEntity();
+    if (status != 200) {
+      String json = getContent(entity);
+      String error = "Service token grant failed. Bad status: " + status + " response: " + json;
+      if (status == 400) {
+        throw new KeycloakSecurityBadRequestException(error);
+      } else if (status >= 500 ) {
+        throw new KeycloakServerException(error);
+      }
+      throw new RuntimeException(error);
+    } else if (entity == null) {
+      throw new RuntimeException("No entity");
+    } else {
+      String json = getContent(entity);
+      return JsonSerialization.readValue(json, AccessTokenResponse.class);
     }
   }
 
