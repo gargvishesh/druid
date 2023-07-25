@@ -197,6 +197,7 @@
         <!-- Community extensions -->
         <module>extensions-contrib/statsd-emitter</module>
         <module>extensions-contrib/kubernetes-overlord-extensions</module>
+        <module>extensions-contrib/druid-iceberg-extensions</module>
         <!-- Imply extensions -->
         <module>extensions-imply/clarity-emitter/core</module>
         <module>extensions-imply/clarity-emitter/http</module>
