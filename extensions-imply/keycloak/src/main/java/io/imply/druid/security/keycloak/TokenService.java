@@ -51,6 +51,8 @@ public class TokenService
   private final Map<String, String> reqHeaders;
   private final Map<String, String> reqParams;
 
+  private final Integer KEYCLOAK_INTERNAL_RETRIES = 3;
+
   public TokenService(
       KeycloakDeployment deployment,
       Map<String, String> reqHeaders,
@@ -117,7 +119,7 @@ public class TokenService
           () -> new HttpPost(deployment.getTokenUrl()),
           (throwable) -> throwable instanceof Exception,
           0,
-          3,
+          KEYCLOAK_INTERNAL_RETRIES,
           null,
           null
       );
@@ -154,7 +156,7 @@ public class TokenService
           },
           (throwable) -> throwable instanceof KeycloakServerException,
           0,
-          3,
+          KEYCLOAK_INTERNAL_RETRIES,
           null,
           null
       );
