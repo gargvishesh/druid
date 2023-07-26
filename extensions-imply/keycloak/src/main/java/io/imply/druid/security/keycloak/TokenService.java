@@ -11,7 +11,6 @@ package io.imply.druid.security.keycloak;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.druid.java.util.RetryableException;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.RetryUtils;
 import org.apache.druid.java.util.common.StringUtils;
@@ -114,7 +113,14 @@ public class TokenService
     HttpClient client = deployment.getClient();
 
     try {
-      HttpPost post = new HttpPost(deployment.getTokenUrl());
+      HttpPost post = RetryUtils.retry(
+          () -> new HttpPost(deployment.getTokenUrl()),
+          (throwable) -> throwable instanceof Exception,
+          0,
+          3,
+          null,
+          null
+      );
       List<NameValuePair> formparams = new ArrayList<>();
       String requestedGrantType = reqParams.get(OAuth2Constants.GRANT_TYPE);
       if (requestedGrantType == null) {
@@ -153,12 +159,17 @@ public class TokenService
           null
       );
     }
+    catch (RuntimeException e) {
+      throw e;
+    }
     catch (Exception e) {
       throw new RE(e, "Service token grant failed. Exception occured. See server.log for details.");
     }
+
   }
 
-  private AccessTokenResponse parseTokenResponse(HttpResponse response) throws IOException {
+  private AccessTokenResponse parseTokenResponse(HttpResponse response) throws IOException
+  {
     int status = response.getStatusLine().getStatusCode();
     HttpEntity entity = response.getEntity();
     if (status != 200) {
@@ -166,7 +177,7 @@ public class TokenService
       String error = "Service token grant failed. Bad status: " + status + " response: " + json;
       if (status == 400) {
         throw new KeycloakSecurityBadRequestException(error);
-      } else if (status >= 500 ) {
+      } else if (status >= 500) {
         throw new KeycloakServerException(error);
       }
       throw new RuntimeException(error);

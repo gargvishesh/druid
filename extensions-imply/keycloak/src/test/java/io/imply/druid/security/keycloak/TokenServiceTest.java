@@ -213,7 +213,11 @@ public class TokenServiceTest
     final HttpEntity entity = Mockito.mock(HttpEntity.class);
     Mockito.when(statusLine.getStatusCode()).thenReturn(500);
     Mockito.when(entity.getContent())
-           .thenReturn(new ByteArrayInputStream(StringUtils.toUtf8("failure test")));
+        .thenReturn(
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test"))
+      );
     final HttpResponse response = Mockito.mock(HttpResponse.class);
     Mockito.when(response.getStatusLine()).thenReturn(statusLine);
     Mockito.when(response.getEntity()).thenReturn(entity);
@@ -222,6 +226,29 @@ public class TokenServiceTest
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Service token grant failed. Bad status: 500 response: failure test");
+    tokenService.grantToken();
+  }
+
+  @Test
+  public void testRequestTokenSuccessOnRetry() throws IOException
+  {
+
+    final AccessTokenResponse expectedResponse = new AccessTokenResponse();
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(500, 500, 200);
+    Mockito.when(entity.getContent())
+        .thenReturn(
+            new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+            new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+            new ByteArrayInputStream(jsonMapper.writeValueAsString(expectedResponse).getBytes(StringUtils.UTF8_STRING))
+      );
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+
     tokenService.grantToken();
   }
 
@@ -242,12 +269,12 @@ public class TokenServiceTest
   }
 
   @Test
-  public void testRequestTokenIOExceptionThrown() throws IOException
+  public void testRequestTokenExceptionThrown() throws IOException
   {
-    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new IOException("IOException test"));
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new IOException("Exception test"));
     Mockito.when(deployment.getClient()).thenReturn(client);
     expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Service token grant failed. IOException occured. See server.log for details.");
+    expectedException.expectMessage("Service token grant failed. Exception occured. See server.log for details.");
     tokenService.grantToken();
   }
 
