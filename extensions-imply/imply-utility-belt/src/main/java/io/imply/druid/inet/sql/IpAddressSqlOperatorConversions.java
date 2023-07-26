@@ -26,6 +26,7 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.segment.column.RowSignature;
+import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.Expressions;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
@@ -204,6 +205,21 @@ public class IpAddressSqlOperatorConversions
               DruidExpression.functionCall(IpAddressExpressions.PrefixTryParseExprMacro.NAME, operands)
           )
       );
+    }
+  }
+
+  public static class CompareOperatorConversion extends DirectOperatorConversion
+  {
+    private static final SqlFunction SQL_FUNCTION = OperatorConversions
+        .operatorBuilder(StringUtils.toUpperCase(IpAddressExpressions.CompareExprMacro.NAME))
+        .operandTypes(SqlTypeFamily.ANY, SqlTypeFamily.ANY)
+        .returnTypeCascadeNullable(SqlTypeName.BIGINT)
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_FUNCTION)
+        .build();
+
+    public CompareOperatorConversion()
+    {
+      super(SQL_FUNCTION, "ip_compare");
     }
   }
 
