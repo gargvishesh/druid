@@ -13,6 +13,7 @@ import com.google.common.base.Preconditions;
 import io.imply.druid.inet.IpAddressModule;
 import io.imply.druid.inet.column.IpAddressBlob;
 import io.imply.druid.inet.column.IpPrefixBlob;
+import org.apache.druid.frame.read.FrameReaderUtils;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.math.expr.Expr;
@@ -21,8 +22,12 @@ import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExprType;
 import org.apache.druid.math.expr.ExpressionType;
 import org.apache.druid.math.expr.InputBindings;
+import org.apache.druid.math.expr.NamedFunction;
+import org.apache.druid.segment.column.BaseTypeSignature;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -208,9 +213,8 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!IP_ADDRESS_TYPE.equals(input.type()) && !IP_PREFIX_TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
-          }
+          validateArgType(StringifyExprMacro.this, input, "address", IP_ADDRESS_TYPE, IP_PREFIX_TYPE);
+
           boolean compact = true;
           if (args.size() > 1) {
             compact = args.get(1).eval(bindings).asBoolean();
@@ -262,10 +266,7 @@ public class IpAddressExpressions
     @Override
     public Expr apply(List<Expr> args)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
-
+      validationHelperCheckArgumentCount(args, 2);
 
       if (args.get(1).isLiteral()) {
         int prefixLength = args.get(1).eval(InputBindings.nilBindings()).asInt();
@@ -283,9 +284,7 @@ public class IpAddressExpressions
           public ExprEval eval(ObjectBinding bindings)
           {
             ExprEval input = args.get(0).eval(bindings);
-            if (!IP_ADDRESS_TYPE.equals(input.type()) && input.value() != null) {
-              throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
-            }
+            validateArgType(PrefixExprMacro.this, input, "address", IP_ADDRESS_TYPE);
             IpAddressBlob blob = (IpAddressBlob) input.value();
             if (blob == null) {
               return ExprEval.ofComplex(IP_PREFIX_TYPE, null);
@@ -321,9 +320,7 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = args.get(0).eval(bindings);
-          if (!IP_ADDRESS_TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] must take [%s] as input", name, IP_ADDRESS_TYPE.asTypeString());
-          }
+          validateArgType(PrefixExprMacro.this, input, "address", IP_ADDRESS_TYPE);
           ExprEval prefixSize = args.get(1).eval(bindings);
           IpAddressBlob blob = (IpAddressBlob) input.value();
           if (blob == null) {
@@ -376,9 +373,7 @@ public class IpAddressExpressions
         public ExprEval eval(ObjectBinding bindings)
         {
           ExprEval input = arg.eval(bindings);
-          if (!IP_PREFIX_TYPE.equals(input.type()) && input.value() != null) {
-            throw new IAE("Function[%s] must take [%s] as input", name, IP_PREFIX_TYPE.asTypeString());
-          }
+          validateArgType(HostExprMacro.this, input, "prefix", IP_PREFIX_TYPE);
           IpPrefixBlob blob = (IpPrefixBlob) input.value();
           if (blob == null) {
             return ExprEval.ofComplex(IP_ADDRESS_TYPE, null);
@@ -404,6 +399,145 @@ public class IpAddressExpressions
     }
   }
 
+  public static class CompareExprMacro implements ExprMacroTable.ExprMacro
+  {
+    public static final String NAME = "ip_compare";
+
+    /**
+     * Comparator for {@link IpAddressBlob} used by this function. Cannot use {@link IpAddressBlob#compareTo} because
+     * the builtin comparison is signed, not unsigned, and so would not sort IPs properly.
+     */
+    private static final Comparator<IpAddressBlob> COMPARATOR = (o1, o2) ->
+        FrameReaderUtils.compareByteArraysUnsigned(
+            o1.getBytes(),
+            0,
+            o1.getBytes().length,
+            o2.getBytes(),
+            0,
+            o2.getBytes().length
+        );
+
+    @Override
+    public String name()
+    {
+      return NAME;
+    }
+
+    @Override
+    public Expr apply(final List<Expr> args)
+    {
+      validationHelperCheckArgumentCount(args, 2);
+
+      if (args.get(1).isLiteral()) {
+        return new RhsLiteralCompareExpr(args);
+      } else {
+        return new DynamicCompareExpr(args);
+      }
+    }
+
+    abstract class BaseCompareExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
+    {
+      public BaseCompareExpr(final List<Expr> args)
+      {
+        super(NAME, args);
+      }
+
+      @Nullable
+      @Override
+      public ExpressionType getOutputType(InputBindingInspector inspector)
+      {
+        return ExpressionType.LONG;
+      }
+
+      @Override
+      public Expr visit(Shuttle shuttle)
+      {
+        return shuttle.visit(apply(shuttle.visitAll(args)));
+      }
+    }
+
+    /**
+     * Expr when right-hand side is a literal.
+     */
+    class RhsLiteralCompareExpr extends BaseCompareExpr
+    {
+      private final Expr lhs;
+      private final IpAddressBlob rhsAddress;
+
+      public RhsLiteralCompareExpr(final List<Expr> args)
+      {
+        super(args);
+        this.lhs = args.get(0);
+        this.rhsAddress = literalAsBlob(args.get(1));
+      }
+
+      @Override
+      public ExprEval eval(ObjectBinding bindings)
+      {
+        final ExprEval lhsEval = lhs.eval(bindings);
+        validateArgType(CompareExprMacro.this, lhsEval, "lhs", IP_ADDRESS_TYPE);
+
+        final IpAddressBlob lhsAddress = (IpAddressBlob) lhsEval.value();
+
+        if (lhsAddress == null || rhsAddress == null) {
+          return ExprEval.ofLong(null);
+        }
+
+        return ExprEval.ofLong(COMPARATOR.compare(lhsAddress, rhsAddress));
+      }
+
+      @Nullable
+      private IpAddressBlob literalAsBlob(final Expr expr)
+      {
+        final Object val = expr.getLiteralValue();
+
+        if (val == null) {
+          return null;
+        } else if (val instanceof String) {
+          return IpAddressBlob.parse(val, true);
+        } else if (val instanceof IpAddressBlob) {
+          return (IpAddressBlob) val;
+        } else {
+          throw validationFailed(
+              "requires type [%s] or [%s]",
+              ExpressionType.STRING.asTypeString(),
+              IP_ADDRESS_TYPE.asTypeString()
+          );
+        }
+      }
+    }
+
+    /**
+     * Expr when arguments are non-literal.
+     */
+    class DynamicCompareExpr extends BaseCompareExpr
+    {
+      public DynamicCompareExpr(final List<Expr> args)
+      {
+        super(args);
+      }
+
+      @Override
+      public ExprEval eval(ObjectBinding bindings)
+      {
+        final ExprEval lhsEval = args.get(0).eval(bindings);
+        validateArgType(CompareExprMacro.this, lhsEval, "lhs", IP_ADDRESS_TYPE);
+
+        final ExprEval rhsEval = args.get(1).eval(bindings);
+        validateArgType(CompareExprMacro.this, rhsEval, "rhs", IP_ADDRESS_TYPE);
+
+        final IpAddressBlob lhsAddress = (IpAddressBlob) lhsEval.value();
+        final IpAddressBlob rhsAddress = (IpAddressBlob) rhsEval.value();
+
+        if (lhsAddress == null || rhsAddress == null) {
+          return ExprEval.ofLong(null);
+        }
+
+        return ExprEval.ofLong(COMPARATOR.compare(lhsAddress, rhsAddress));
+      }
+    }
+  }
+
   public static class MatchExprMacro extends BaseMatchExprMacro
   {
     public static final String NAME = "ip_match";
@@ -415,12 +549,14 @@ public class IpAddressExpressions
     }
 
     @Override
-    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob) {
+    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob)
+    {
       return blob::matches;
     }
 
     @Override
-    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob) {
+    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob)
+    {
       return blob::matches;
     }
   }
@@ -436,12 +572,14 @@ public class IpAddressExpressions
     }
 
     @Override
-    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob) {
+    Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob)
+    {
       return blob::searches;
     }
 
     @Override
-    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob) {
+    Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob)
+    {
       return blob::searches;
     }
   }
@@ -449,14 +587,13 @@ public class IpAddressExpressions
   public static abstract class BaseMatchExprMacro implements ExprMacroTable.ExprMacro
   {
     abstract Function<String, Boolean> getIpAddressMatchFunction(IpAddressBlob blob);
+
     abstract Function<String, Boolean> getIpPrefixMatchFunction(IpPrefixBlob blob);
 
     @Override
     public Expr apply(List<Expr> args)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      validationHelperCheckArgumentCount(args, 2);
       if (args.get(0).isLiteral() && args.get(1).isLiteral()) {
         throw new IAE(
             "Function[%s] must have exactly one of the two arguments be a Complex IP type: either a [%s] for the first argument, or a [%s] for the second argument.",
@@ -602,14 +739,19 @@ public class IpAddressExpressions
           ExprEval input = args.get(0).eval(bindings);
           ExprEval matchesInput = args.get(1).eval(bindings);
 
-          if ((IP_ADDRESS_TYPE.equals(input.type()) || input.value() == null) && (matchesInput.value() == null || matchesInput.type().is(ExprType.STRING))) {
+          if ((IP_ADDRESS_TYPE.equals(input.type()) || input.value() == null) && (matchesInput.value() == null
+                                                                                  || matchesInput.type()
+                                                                                                 .is(ExprType.STRING))) {
             // The first argument is Ip Address Complex type (or null) and the second argument is String (or null)...
             IpAddressBlob blob = (IpAddressBlob) input.value();
             if (blob == null) {
               return ExprEval.ofLongBoolean(matchesInput.value() == null);
             }
             return ExprEval.ofLongBoolean(getIpAddressMatchFunction(blob).apply(matchesInput.asString()));
-          } else if ((IP_PREFIX_TYPE.equals(matchesInput.type()) || matchesInput.value() == null) && (input.value() == null || input.type().is(ExprType.STRING))) {
+          } else if ((IP_PREFIX_TYPE.equals(matchesInput.type()) || matchesInput.value() == null) && (input.value()
+                                                                                                      == null
+                                                                                                      || input.type()
+                                                                                                              .is(ExprType.STRING))) {
             // Or, the first argument is String (or null) and the second argument is Ip Prefix Complex type (or null)
             IpPrefixBlob blob = (IpPrefixBlob) matchesInput.value();
             if (blob == null) {
@@ -682,5 +824,39 @@ public class IpAddressExpressions
     }
   }
 
+  /**
+   * Validate that an argument has an expected type (or one of a set of expected types).
+   *
+   * Could be moved to {@link NamedFunction}.
+   *
+   * @param namedFunction function being validated
+   * @param eval          evaluated argument
+   * @param argName       argument name (used for the error message)
+   * @param types         expected types
+   */
+  private static void validateArgType(
+      final NamedFunction namedFunction,
+      final ExprEval<?> eval,
+      final String argName,
+      final ExpressionType... types
+  )
+  {
+    if (eval.value() == null) {
+      // Always allow null.
+      return;
+    }
 
+    final ExpressionType evalType = eval.type();
+    for (ExpressionType type : types) {
+      if (type.equals(evalType)) {
+        return;
+      }
+    }
+
+    throw namedFunction.validationFailed(
+        "argument[%s] must have type[%s]",
+        argName,
+        Arrays.stream(types).map(BaseTypeSignature::asTypeString).collect(Collectors.joining(" or "))
+    );
+  }
 }

@@ -67,6 +67,7 @@ public class IpAddressModule implements DruidModule
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixParseExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.AddressTryParseExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixTryParseExprMacro.class);
+    ExpressionModule.addExprMacro(binder, IpAddressExpressions.CompareExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.StringifyExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.PrefixExprMacro.class);
     ExpressionModule.addExprMacro(binder, IpAddressExpressions.MatchExprMacro.class);
@@ -77,6 +78,7 @@ public class IpAddressModule implements DruidModule
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixParseOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.AddressTryParseOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixTryParseOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.CompareOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.StringifyOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.PrefixOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, IpAddressSqlOperatorConversions.MatchOperatorConversion.class);

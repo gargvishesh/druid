@@ -26,6 +26,8 @@ import org.apache.druid.math.expr.ExpressionTypeFactory;
 import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
 import org.apache.druid.testing.InitializedNullHandlingTest;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +43,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
           new IpAddressExpressions.PrefixParseExprMacro(),
           new IpAddressExpressions.AddressTryParseExprMacro(),
           new IpAddressExpressions.PrefixTryParseExprMacro(),
+          new IpAddressExpressions.CompareExprMacro(),
           new IpAddressExpressions.StringifyExprMacro(),
           new IpAddressExpressions.PrefixExprMacro(),
           new IpAddressExpressions.MatchExprMacro(),
@@ -324,7 +327,7 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   public void testPrefixInvalid()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Function[ip_prefix] must take [COMPLEX<ipAddress>]");
+    expectedException.expectMessage("Function[ip_prefix] argument[address] must have type[COMPLEX<ipAddress>]");
     Expr expr = Parser.parse("ip_prefix(cidr_v4, 16)", MACRO_TABLE);
     expr.eval(inputBindings);
   }
@@ -333,9 +336,46 @@ public class IpAddressExpressionsTest extends InitializedNullHandlingTest
   public void testHostInvalid()
   {
     expectedException.expect(IAE.class);
-    expectedException.expectMessage("Function[ip_host] must take [COMPLEX<ipPrefix>]");
+    expectedException.expectMessage("Function[ip_host] argument[prefix] must have type[COMPLEX<ipPrefix>]");
     Expr expr = Parser.parse("ip_host(ipv4)", MACRO_TABLE);
     expr.eval(inputBindings);
+  }
+
+  @Test
+  public void testCompare()
+  {
+    // Complex IP Address
+    Expr expr = Parser.parse("ip_compare(ipv6, ip_parse(ipv6_string))", MACRO_TABLE);
+    ExprEval eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.equalTo(0L));
+
+    expr = Parser.parse("ip_compare(ipv6, '2001:0db8:0000:0000:0000:8a2e:0370:7333')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.greaterThan(0L));
+
+    expr = Parser.parse("ip_compare(ipv6, '2001:0db8:0000:0000:0000:8a2e:0370:7334')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.equalTo(0L));
+
+    expr = Parser.parse("ip_compare(ipv6, '2001:0db8:0000:0000:0000:8a2e:0370:7335')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.lessThan(0L));
+
+    expr = Parser.parse("ip_compare(ipv4, ip_parse(ipv4_string))", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.equalTo(0L));
+
+    expr = Parser.parse("ip_compare(ipv4, '1.2.3.4')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.equalTo(0L));
+
+    expr = Parser.parse("ip_compare(ipv4, '1.2.3.3')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.greaterThan(0L));
+
+    expr = Parser.parse("ip_compare(ipv4, '1.2.3.5')", MACRO_TABLE);
+    eval = expr.eval(inputBindings);
+    MatcherAssert.assertThat(eval.asLong(), Matchers.lessThan(0L));
   }
 
   @Test
