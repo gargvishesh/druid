@@ -51,7 +51,7 @@ public class TokenService
   private final Map<String, String> reqHeaders;
   private final Map<String, String> reqParams;
 
-  private final Integer KEYCLOAK_INTERNAL_RETRIES = 3;
+  private final int KEYCLOAK_INTERNAL_RETRIES = 3;
 
   public TokenService(
       KeycloakDeployment deployment,
