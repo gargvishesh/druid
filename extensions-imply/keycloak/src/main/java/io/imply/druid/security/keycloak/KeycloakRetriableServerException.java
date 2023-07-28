@@ -11,15 +11,10 @@ package io.imply.druid.security.keycloak;
 
 import org.apache.druid.java.util.common.StringUtils;
 
-public class KeycloakServerException extends RuntimeException
+public class KeycloakRetriableServerException extends RuntimeException
 {
-  public KeycloakServerException(String formatText, Object... arguments)
+  public KeycloakRetriableServerException(String formatText, Object... arguments)
   {
     super(StringUtils.nonStrictFormat(formatText, arguments));
-  }
-
-  public KeycloakServerException(Throwable t, String formatText, Object... arguments)
-  {
-    super(StringUtils.nonStrictFormat(formatText, arguments), t);
   }
 }

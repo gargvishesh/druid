@@ -88,26 +88,42 @@ public class TokenService
           KeycloakedHttpClient.BEARER + requestToken(null).getToken()
       );
 
-      HttpResponse response = client.execute(req);
-      int status = response.getStatusLine().getStatusCode();
-      HttpEntity entity = response.getEntity();
-      if (status != 200) {
-        String json = getContent(entity);
-        String error = "Service token grant failed. Bad status: " + status + " response: " + json;
-        if (status == 400) {
-          throw new KeycloakSecurityBadRequestException(error);
-        }
-        throw new RuntimeException(error);
-      } else if (entity == null) {
-        throw new RuntimeException("No entity");
-      } else {
-        String json = getContent(entity);
-        return JsonSerialization.readValue(json, ClientTokenNotBeforeResponse.class);
-      }
+      return RetryUtils.retry(
+          () -> {
+            HttpResponse response = client.execute(req);
+            int status = response.getStatusLine().getStatusCode();
+            HttpEntity entity = response.getEntity();
+            if (status != 200) {
+              String json = getContent(entity);
+              String error = "Service token grant failed. Bad status: " + status + " response: " + json;
+              if (status == 400) {
+                throw new KeycloakSecurityBadRequestException(error);
+              } else if (status >= 500) {
+              throw new KeycloakRetriableServerException(error);
+            }
+              throw new RuntimeException(error);
+            } else if (entity == null) {
+              throw new RuntimeException("No entity");
+            } else {
+              String json = getContent(entity);
+              return JsonSerialization.readValue(json, ClientTokenNotBeforeResponse.class);
+            }
+          },
+          (throwable) -> throwable instanceof KeycloakRetriableServerException,
+          0,
+          KEYCLOAK_INTERNAL_RETRIES,
+          null,
+          null
+      );
+
     }
     catch (IOException e) {
       throw new RE(e, "Service token grant failed. IOException occured. See server.log for details.");
     }
+    catch (Exception e) {
+      throw new RE(e, "Service token grant failed. Exception occured. See server.log for details.");
+    }
+
   }
 
   private AccessTokenResponse requestToken(@Nullable String refreshToken)
@@ -152,9 +168,25 @@ public class TokenService
       return RetryUtils.retry(
           () -> {
             HttpResponse response = client.execute(post);
-            return parseTokenResponse(response);
+            int status = response.getStatusLine().getStatusCode();
+            HttpEntity entity = response.getEntity();
+            if (status != 200) {
+              String json = getContent(entity);
+              String error = "Service token grant failed. Bad status: " + status + " response: " + json;
+              if (status == 400) {
+                throw new KeycloakSecurityBadRequestException(error);
+              } else if (status >= 500) {
+                throw new KeycloakRetriableServerException(error);
+              }
+              throw new RuntimeException(error);
+            } else if (entity == null) {
+              throw new RuntimeException("No entity");
+            } else {
+              String json = getContent(entity);
+              return JsonSerialization.readValue(json, AccessTokenResponse.class);
+            }
           },
-          (throwable) -> throwable instanceof KeycloakServerException,
+          (throwable) -> throwable instanceof KeycloakRetriableServerException,
           0,
           KEYCLOAK_INTERNAL_RETRIES,
           null,
@@ -168,27 +200,6 @@ public class TokenService
       throw new RE(e, "Service token grant failed. Exception occured. See server.log for details.");
     }
 
-  }
-
-  private AccessTokenResponse parseTokenResponse(HttpResponse response) throws IOException
-  {
-    int status = response.getStatusLine().getStatusCode();
-    HttpEntity entity = response.getEntity();
-    if (status != 200) {
-      String json = getContent(entity);
-      String error = "Service token grant failed. Bad status: " + status + " response: " + json;
-      if (status == 400) {
-        throw new KeycloakSecurityBadRequestException(error);
-      } else if (status >= 500) {
-        throw new KeycloakServerException(error);
-      }
-      throw new RuntimeException(error);
-    } else if (entity == null) {
-      throw new RuntimeException("No entity");
-    } else {
-      String json = getContent(entity);
-      return JsonSerialization.readValue(json, AccessTokenResponse.class);
-    }
   }
 
   @Nullable
