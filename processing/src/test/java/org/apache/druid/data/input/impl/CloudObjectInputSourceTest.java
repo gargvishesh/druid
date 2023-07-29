@@ -19,6 +19,8 @@
 
 package org.apache.druid.data.input.impl;
 
+import com.google.common.collect.Lists;
+import org.apache.druid.data.input.InputEntity;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.java.util.common.parsers.JSONPathSpec;
@@ -147,6 +149,10 @@ public class CloudObjectInputSourceTest
 
     Assert.assertEquals("**.csv", inputSource.getObjectGlob());
     Assert.assertEquals(URIS, returnedLocationUris);
+
+    final List<InputEntity> entities =
+        Lists.newArrayList(inputSource.getInputEntities(new JsonInputFormat(null, null, null, null, null)));
+    Assert.assertEquals(URIS.size(), entities.size());
   }
 
   @Test
@@ -169,6 +175,10 @@ public class CloudObjectInputSourceTest
 
     Assert.assertEquals(null, inputSource.getObjectGlob());
     Assert.assertEquals(URIS, returnedLocationUris);
+
+    final List<InputEntity> entities =
+        Lists.newArrayList(inputSource.getInputEntities(new JsonInputFormat(null, null, null, null, null)));
+    Assert.assertEquals(URIS.size(), entities.size());
   }
 
   @Test
@@ -191,6 +201,10 @@ public class CloudObjectInputSourceTest
 
     Assert.assertEquals("**.csv", inputSource.getObjectGlob());
     Assert.assertEquals(URIS, returnedLocationUris);
+
+    final List<InputEntity> entities =
+        Lists.newArrayList(inputSource.getInputEntities(new JsonInputFormat(null, null, null, null, null)));
+    Assert.assertEquals(OBJECTS.size(), entities.size());
   }
 
   @Test
@@ -209,8 +223,12 @@ public class CloudObjectInputSourceTest
 
     List<CloudObjectLocation> returnedLocations = splits.map(InputSplit::get).collect(Collectors.toList()).get(0);
 
-    Assert.assertEquals(null, inputSource.getObjectGlob());
+    Assert.assertNull(inputSource.getObjectGlob());
     Assert.assertEquals(OBJECTS, returnedLocations);
+
+    final List<InputEntity> entities =
+        Lists.newArrayList(inputSource.getInputEntities(new JsonInputFormat(null, null, null, null, null)));
+    Assert.assertEquals(OBJECTS.size(), entities.size());
   }
 
   @Test
