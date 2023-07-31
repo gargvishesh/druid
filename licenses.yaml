@@ -1545,6 +1545,16 @@ libraries:
 
 ---
 
+name: zetasketch
+license_category: binary
+module: datasketches
+license_name: Apache License version 2.0
+version: 0.1.0
+libraries:
+  - com.google.zetasketch: zetasketch
+
+---
+
 name: Jakarta Dependency Injection
 license_category: binary
 module: java-core

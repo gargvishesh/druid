@@ -221,7 +221,7 @@
 
     <module name="PackageName">
       <property name="format"
-                value="^(org.apache.druid.*)|(io.imply.(clarity|druid|security).*)|(org.apache.datasketches.theta.*)$"/>
+                value="^(org.apache.druid.*)|(io.imply.(clarity|druid|security).*)|(org.apache.datasketches.*)$"/>
     </module>
     <module name="PackageDeclaration"/>
 
