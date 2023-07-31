@@ -409,6 +409,53 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
   }
 
   @Test
+  public void testGroupByFormatFilterCompareStringLiteral()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT "
+        + "IP_STRINGIFY(ipv4), "
+        + "SUM(cnt) "
+        + "FROM druid.iptest "
+        + "WHERE IP_COMPARE(ipv4, '172.14.158.0') >= 0 "
+        + "AND IP_COMPARE(ipv4, '172.14.159.0') < 0 "
+        + "GROUP BY 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(DATA_SOURCE)
+                        .setInterval(querySegmentSpec(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setVirtualColumns(
+                            new ExpressionVirtualColumn(
+                                "v0",
+                                "ip_compare(\"ipv4\",'172.14.158.0')",
+                                ColumnType.LONG,
+                                queryFramework().macroTable()
+                            ),
+                            new ExpressionVirtualColumn(
+                                "v1",
+                                "ip_compare(\"ipv4\",'172.14.159.0')",
+                                ColumnType.LONG,
+                                queryFramework().macroTable()
+                            ),
+                            new IpAddressFormatVirtualColumn("v2", "ipv4", true, false)
+                        )
+                        .setDimensions(dimensions(new DefaultDimensionSpec("v2", "d0")))
+                        .setDimFilter(and(
+                            range("v0", ColumnType.LONG, "0", null, false, false),
+                            range("v1", ColumnType.LONG, null, "0", false, true)))
+                        .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"172.14.158.234", 2L},
+            new Object[]{"172.14.158.239", 2L}
+        )
+    );
+  }
+
+  @Test
   public void testGroupByFormatFilterSearchWithoutDot()
   {
     cannotVectorize();

@@ -71,12 +71,8 @@
   <suppress checks="EmptyLineSeparator" files="[\\/]target[\\/]generated-test-sources[\\/]" />
   <suppress checks="AvoidStaticImport" files="[\\/]src[\\/](test)[\\/]"/>
 
-
-  <suppress checks="Header" files="io.imply.druid.license.*" />
-  <suppress checks="Header" files="io.imply.druid.query.aggregation.*" />
-  <suppress checks="Header" files="io.imply.druid.meter.*" />
-  <suppress checks="Header" files="io.imply.druid.sql.*" />
-  <suppress checks="Header" files="io.imply.druid.storage.*" />
-  <suppress checks="Header" files="org.apache.datasketches.theta.*" />
-  <suppress checks="Header" files="io.imply.druid.query.samplinggroupby.*" />
+  <!-- suppress checks for license headers on imply-provided code.  It would be a lot better to actually check for
+       the imply license header, but not sure how to do that, so we just suppress right now. -->
+  <suppress checks="Header" files="io.imply.druid.*" />
+  <suppress checks="Header" files="org.apache.datasketches.*" />
 </suppressions>
