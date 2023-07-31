@@ -110,7 +110,7 @@ public class TokenService
             }
           },
           (throwable) -> throwable instanceof KeycloakRetriableServerException,
-          0,
+          KEYCLOAK_INTERNAL_RETRIES,
           KEYCLOAK_INTERNAL_RETRIES,
           null,
           null
@@ -134,7 +134,7 @@ public class TokenService
       HttpPost post = RetryUtils.retry(
           () -> new HttpPost(deployment.getTokenUrl()),
           (throwable) -> throwable instanceof Exception,
-          0,
+          KEYCLOAK_INTERNAL_RETRIES,
           KEYCLOAK_INTERNAL_RETRIES,
           null,
           null
