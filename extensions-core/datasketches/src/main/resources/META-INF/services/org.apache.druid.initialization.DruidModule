@@ -21,3 +21,4 @@ org.apache.druid.query.aggregation.datasketches.hll.HllSketchModule
 org.apache.druid.query.aggregation.datasketches.kll.KllSketchModule
 io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule
 io.imply.druid.query.samplinggroupby.SamplingGroupByQueryModule
+io.imply.druid.query.aggregation.datasketches.SketchUtilModule
