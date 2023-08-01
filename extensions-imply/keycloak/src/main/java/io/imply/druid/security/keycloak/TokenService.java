@@ -16,7 +16,6 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
@@ -33,11 +32,10 @@ import org.keycloak.util.JsonSerialization;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * A simple service that handles HTTP requests to grant or refresh tokens.
@@ -113,30 +111,33 @@ public class TokenService
 
     try {
       HttpPost post = new HttpPost(deployment.getTokenUrl());
-      List<NameValuePair> formparams = new ArrayList<>();
-      String requestedGrantType = reqParams.get(OAuth2Constants.GRANT_TYPE);
-      if (requestedGrantType == null) {
-        formparams.add(new BasicNameValuePair(OAuth2Constants.GRANT_TYPE, OAuth2Constants.CLIENT_CREDENTIALS));
-      }
-      if (refreshToken != null) {
-        formparams.add(new BasicNameValuePair(OAuth2Constants.GRANT_TYPE, OAuth2Constants.REFRESH_TOKEN));
-      }
 
       // Add client credentials according to the method configured in keycloak-client-secret.json or keycloak-client-signed-jwt.json file
       Map<String, String> reqHeadersCopy = new HashMap<>(this.reqHeaders);
       Map<String, String> reqParamsCopy = new HashMap<>(this.reqParams);
       ClientCredentialsProviderUtils.setClientCredentials(deployment, reqHeadersCopy, reqParamsCopy);
+
+      // Default to client credential auth if no grant type set - this is just to simply maintain the previous logic
+      String requestedGrantType = reqParams.get(OAuth2Constants.GRANT_TYPE);
+      if (requestedGrantType == null) {
+        reqParamsCopy.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.CLIENT_CREDENTIALS);
+      }
       if (refreshToken != null) {
+        reqParamsCopy.put(OAuth2Constants.GRANT_TYPE, OAuth2Constants.REFRESH_TOKEN);
         reqParamsCopy.put(OAuth2Constants.REFRESH_TOKEN, refreshToken);
       }
+
       for (Map.Entry<String, String> header : reqHeadersCopy.entrySet()) {
         post.setHeader(header.getKey(), header.getValue());
       }
-      for (Map.Entry<String, String> param : reqParamsCopy.entrySet()) {
-        formparams.add(new BasicNameValuePair(param.getKey(), param.getValue()));
-      }
 
-      UrlEncodedFormEntity form = new UrlEncodedFormEntity(formparams, "UTF-8");
+      UrlEncodedFormEntity form = new UrlEncodedFormEntity(
+          reqParamsCopy
+              .entrySet()
+              .stream()
+              .map(es -> new BasicNameValuePair(es.getKey(), es.getValue()))
+              .collect(Collectors.toList()),
+          "UTF-8");
       post.setEntity(form);
 
       HttpResponse response = client.execute(post);
