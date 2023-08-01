@@ -12,6 +12,7 @@ package io.imply.druid.security.keycloak;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.java.util.common.RE;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.rotation.AdapterTokenVerifier;
 import org.keycloak.common.VerificationException;
@@ -27,6 +28,7 @@ import java.util.Map;
  */
 public class TokenManager
 {
+  private static final Logger LOG = new Logger(TokenManager.class);
   private final KeycloakDeployment deployment;
   private final TokenService tokenService;
 
@@ -122,6 +124,7 @@ public class TokenManager
       }
     }
     catch (KeycloakSecurityBadRequestException e) {
+      LOG.error(e, "Token refresh failed");
       grantToken();
     }
   }

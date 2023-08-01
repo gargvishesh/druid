@@ -38,8 +38,11 @@ import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TokenServiceTest
 {
@@ -221,18 +224,11 @@ public class TokenServiceTest
     // verify content
     byte[] buf = new byte[(int) captured.getEntity().getContentLength()];
     Assert.assertEquals(captured.getEntity().getContentLength(), captured.getEntity().getContent().read(buf));
-    Assert.assertEquals(
-        StringUtils.format(
-            "%s=%s&%s=%s&%s=oldToken",
-            OAuth2Constants.GRANT_TYPE,
-            OAuth2Constants.CLIENT_CREDENTIALS,
-            OAuth2Constants.GRANT_TYPE,
-            OAuth2Constants.REFRESH_TOKEN,
-            OAuth2Constants.REFRESH_TOKEN
-        ),
-        StringUtils.fromUtf8(buf)
-    );
-
+    List<String> pairs = Arrays.stream(
+        StringUtils.fromUtf8(buf).split("&")).sorted().collect(Collectors.toList());
+    Assert.assertEquals(2, pairs.size());
+    Assert.assertEquals("grant_type=refresh_token", pairs.get(0));
+    Assert.assertEquals("refresh_token=oldToken", pairs.get(1));
     assertEqualsTokens(expectedResponse, actualResponse);
   }
 
