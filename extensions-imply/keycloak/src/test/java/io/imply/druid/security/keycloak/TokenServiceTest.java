@@ -134,6 +134,36 @@ public class TokenServiceTest
   }
 
   @Test
+  public void testGetNotBefore_retryOnFailure() throws IOException
+  {
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
+    final Map<String, Integer> notBefore = ImmutableMap.of(
+        "client1", 0,
+        "client2", Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000)
+    );
+    TokenService.ClientTokenNotBeforeResponse expectedResponse = new TokenService.ClientTokenNotBeforeResponse(notBefore);
+    mockGetNotBeforeResponseFailureThenSuccess(expectedResponse);
+    final AccessTokenResponse someToken = new AccessTokenResponse();
+    someToken.setToken("accessToken");
+    someToken.setRefreshToken("refreshToken");
+    someToken.setExpiresIn(1000);
+    someToken.setRefreshExpiresIn(10000);
+    mockAccessTokenResponse(someToken);
+    TokenService.ClientTokenNotBeforeResponse actualResponse = tokenService.getClientNotBefore();
+
+    ArgumentCaptor<HttpGet> getCaptor = ArgumentCaptor.forClass(HttpGet.class);
+    Mockito.verify(client, Mockito.times(4)).execute(getCaptor.capture());
+
+    HttpGet captured = getCaptor.getValue();
+    final Header[] headers = captured.getAllHeaders();
+    Assert.assertEquals("http://localhost:8080/auth/realms/druid/not-before-policies", captured.getURI().toString());
+    Assert.assertEquals(1, headers.length);
+    Assert.assertEquals("Authorization", headers[0].getName());
+    Assert.assertEquals("Bearer accessToken", headers[0].getValue());
+    Assert.assertEquals(expectedResponse, actualResponse);
+  }
+
+  @Test
   public void testGrantTokenPasswordGrantTypeVerifyHttpPost() throws IOException
   {
     tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
@@ -209,7 +239,11 @@ public class TokenServiceTest
     final HttpEntity entity = Mockito.mock(HttpEntity.class);
     Mockito.when(statusLine.getStatusCode()).thenReturn(500);
     Mockito.when(entity.getContent())
-           .thenReturn(new ByteArrayInputStream(StringUtils.toUtf8("failure test")));
+        .thenReturn(
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+           new ByteArrayInputStream(StringUtils.toUtf8("failure test"))
+      );
     final HttpResponse response = Mockito.mock(HttpResponse.class);
     Mockito.when(response.getStatusLine()).thenReturn(statusLine);
     Mockito.when(response.getEntity()).thenReturn(entity);
@@ -218,6 +252,29 @@ public class TokenServiceTest
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Service token grant failed. Bad status: 500 response: failure test");
+    tokenService.grantToken();
+  }
+
+  @Test
+  public void testRequestTokenSuccessOnRetry() throws IOException
+  {
+
+    final AccessTokenResponse expectedResponse = new AccessTokenResponse();
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(500, 500, 200);
+    Mockito.when(entity.getContent())
+        .thenReturn(
+            new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+            new ByteArrayInputStream(StringUtils.toUtf8("failure test")),
+            new ByteArrayInputStream(jsonMapper.writeValueAsString(expectedResponse).getBytes(StringUtils.UTF8_STRING))
+      );
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+
     tokenService.grantToken();
   }
 
@@ -238,12 +295,12 @@ public class TokenServiceTest
   }
 
   @Test
-  public void testRequestTokenIOExceptionThrown() throws IOException
+  public void testRequestTokenExceptionThrown() throws IOException
   {
-    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new IOException("IOException test"));
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new IOException("Exception test"));
     Mockito.when(deployment.getClient()).thenReturn(client);
     expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Service token grant failed. IOException occured. See server.log for details.");
+    expectedException.expectMessage("Service token grant failed. Exception occured. See server.log for details.");
     tokenService.grantToken();
   }
 
@@ -260,6 +317,26 @@ public class TokenServiceTest
     Mockito.when(response.getEntity()).thenReturn(entity);
     Mockito.when(client.execute(ArgumentMatchers.argThat(req -> req != null && HttpPost.METHOD_NAME.equals(req.getMethod())))).thenReturn(response);
     Mockito.when(deployment.getClient()).thenReturn(client);
+  }
+
+  private void mockGetNotBeforeResponseFailureThenSuccess(TokenService.ClientTokenNotBeforeResponse notBeforeResponse)
+      throws IOException
+  {
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(500, 500, 200);
+    Mockito.when(entity.getContent()).thenReturn(
+        new ByteArrayInputStream("server failure".getBytes(StringUtils.UTF8_STRING)),
+        new ByteArrayInputStream("server failure".getBytes(StringUtils.UTF8_STRING)),
+        new ByteArrayInputStream(jsonMapper.writeValueAsString(notBeforeResponse).getBytes(StringUtils.UTF8_STRING))
+    );
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+    Mockito.when(client.execute(ArgumentMatchers.argThat(req -> req != null && HttpGet.METHOD_NAME.equals(req.getMethod())))).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+    Mockito.when(deployment.getRealm()).thenReturn("druid");
+    Mockito.when(deployment.getAuthServerBaseUrl()).thenReturn("http://localhost:8080/auth");
   }
 
   private void mockGetNotBeforeResponse(TokenService.ClientTokenNotBeforeResponse notBeforeResponse)
