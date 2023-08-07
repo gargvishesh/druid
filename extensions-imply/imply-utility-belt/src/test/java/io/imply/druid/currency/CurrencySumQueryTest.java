@@ -339,7 +339,7 @@ public class CurrencySumQueryTest extends InitializedNullHandlingTest
     List<Result<TopNResultValue>> expectedResults = Collections.singletonList(
         new Result<>(
             CurrencySumSerdeTest.DAY1,
-            new TopNResultValue(
+            TopNResultValue.create(
                 ImmutableList.of(
                     ImmutableMap.<String, Object>of(
                         VISITOR_ID, "4",
