@@ -758,11 +758,11 @@ pipeline {
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
+                                        HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout $BUILD_PROFILE)
+
                                         if [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
-                                            HADOOP_VERSION="2.8.5"
                                             HADOOP_PROFILE="hadoop2"
                                         else
-                                            HADOOP_VERSION="3.3.6"
                                             HADOOP_PROFILE="hadoop3"
                                         fi
 
