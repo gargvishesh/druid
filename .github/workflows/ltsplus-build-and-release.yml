@@ -31,10 +31,8 @@ env:
   ARTIFACTORY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local
   ARTIFACTORY_PIVOT_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/pivot/pivot
   ARTIFACTORY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/manager/imply-cloud
-  ARTIFACTORY_IMPLY_TGZL: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply
   ARTIFACTORY_IMPLY_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
   ARTIFACTORY_IMPLY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-manager/imply-manager
-  ARTIFACTORY_IMPLY_MANAGER_DOCKER: https://repo.cnc.imply.io/ui/repos/tree/General/docker-local/imply-manager/
 
 jobs:
   build:
@@ -261,18 +259,11 @@ jobs:
         shell: bash
         run: |
           set -eo pipefail
-          echo "Get list of all production imply-manager artifacts"
-          jfrog rt curl -XGET '/api/search/prop?repos=tgz-local&build.name=imply-manager&released=imply-manager-*' ||jq '.[] | select(.props.released[]|test("^imply-manager-[0-9]{4,}.[0-9]{2,}$"))' | tee imply-manager-releases.json
-          # The last one will be the latest release
-          IMPLY_MANAGER_URL=$(jq -r 'last(.results[].uri)' <imply-manager-releases.json)
-          echo "Imply manager URL: $IMPLY_MANAGER_URL"
-          IMPLY_MANAGER_URI=$(echo ${IMPLY_MANAGER_URL} | sed -nr 's/.*(tgz-local\/imply-manager\/imply-manager-[0-9]{4,}\.[0-9]{2,}-[0-9T]*\.tar\.gz)$/\1/p')
-          echo "Imply manager URI: $IMPLY_MANAGER_URI"
-          # Get properties of most recent imply-manager artifact so we can set the current manager version
-          jfrog rt curl -XGET "/api/storage/${IMPLY_MANAGER_URI}?properties" | tee imply-manager-properties.json
-          echo MANAGER_VERSION=$(jq -r < imply-manager-properties.json '.properties."manager.version"[]') >> $GITHUB_ENV
+          echo "Get current production release of imply-manager"
+          jfrog rt search --props "build.name=imply-manager;released=imply-manager-*" tgz-local |jq -r 'map(select(.props.released[] |test("^imply-manager-[0-9]{4,}.[0-9]{2,}$")))| last' | tee imply-manager-properties.json
+          echo MANAGER_VERSION=$(jq -r < imply-manager-properties.json '.props."manager.version"[]') >> $GITHUB_ENV
           # Get manager revision
-          MANAGER_URL=$(jq -r < imply-manager-properties.json '.properties."manager.tgz"[]')
+          MANAGER_URL=$(jq -r < imply-manager-properties.json '.props."manager.tgz"[]')
           echo "Manager URL: $MANAGER_URL"
           MANAGER_URI=$(echo ${MANAGER_URL} | sed -nr 's/.*(tgz-local\/manager\/imply-cloud-[0-9]{4,}\.[0-9]{2,}-[0-9a-z]*-bin\.tar\.gz)$/\1/p')
           jfrog rt curl -XGET "/api/storage/${MANAGER_URI}?properties" | tee manager-properties.json
@@ -284,7 +275,6 @@ jobs:
           echo "Imply ${PIVOT_RELEASE_VERSION} URL: $IMPLY_URL"
           echo "Get Pivot version from ${PIVOT_RELEASE_VERSION} release"
           IMPLY_URI=$(echo ${IMPLY_URL} | sed -nr 's/.*(tgz-local\/imply\/imply-[0-9]{4,}\.[0-9]{2,}-[0-9T]*\.tar\.gz)$/\1/p')
-          echo "Get Pivot version from ${PIVOT_RELEASE_VERSION} release"
           jfrog rt curl -XGET "/api/storage/${IMPLY_URI}?properties" | tee imply-release-${PIVOT_RELEASE_VERSION}-properties.json
           echo PIVOT_VERSION=$(jq -r <imply-release-${PIVOT_RELEASE_VERSION}-properties.json '.properties."pivot.version"[]') >> $GITHUB_ENV
 
