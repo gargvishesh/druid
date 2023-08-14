@@ -23,6 +23,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedTableMacro;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
+import org.apache.druid.sql.calcite.external.Externals;
 import org.apache.druid.sql.calcite.planner.DruidTypeSystem;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
@@ -65,7 +66,7 @@ public class PolarisExplainTableOperatorConversion implements SqlOperatorConvers
           new SqlIdentifier(FUNCTION_NAME, SqlParserPos.ZERO),
           ReturnTypes.CURSOR,
           null,
-          OperandTypes.family(SqlTypeFamily.STRING),
+          Externals.variadic(macro.getParameters()),
           macro.getParameters()
                .stream()
                .map(parameter -> parameter.getType(TYPE_FACTORY))
