@@ -40,7 +40,7 @@ public class PolarisExplainTableMacro implements TableMacro
   }
 
   @Override
-  public TranslatableTable apply(final List<Object> arguments)
+  public TranslatableTable apply(final List<?> arguments)
   {
     try {
       RowSignature signature = jsonMapper.readValue((String) arguments.get(0), RowSignature.class);
