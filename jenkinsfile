@@ -676,6 +676,7 @@ pipeline {
                             GITHUB_NETRC = "/tmp/github-netrc"
                             STAGING_BASE_DIR= "/tmp/druid-build/stage"
                             TMP_DIR = "/tmp/druid-build/tmp"
+                            PLAYWRIGHT_BROWSERS_PATH = "/tmp/druid-build/ms-playwright"
                             BUILD_DIR = "/tmp/druid-build"
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
