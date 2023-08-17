@@ -868,6 +868,16 @@ libraries:
 
 ---
 
+name: javax.validation validation-api
+license_category: binary
+module: core
+license_name: Apache License version 2.0
+version: 2.0.1.Final
+libraries:
+  - javax.validation: validation-api
+
+---
+
 name: com.sun.mail javax.mail
 license_category: binary
 module: extensions/druid-pac4j

@@ -38,7 +38,7 @@ public class ClarityKafkaEmitterConfigTest
   public void testNoTopic()
   {
     expectedException.expect(ProvisionException.class);
-    expectedException.expectMessage("clarity.topic - may not be null");
+    expectedException.expectMessage("clarity.topic - must not be null");
     configurator.configurate(new Properties(), "clarity", ClarityKafkaEmitterConfig.class);
   }
 

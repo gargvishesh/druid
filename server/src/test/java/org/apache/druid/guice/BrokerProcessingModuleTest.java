@@ -20,8 +20,8 @@
 package org.apache.druid.guice;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.CreationException;
 import com.google.inject.Injector;
-import com.google.inject.ProvisionException;
 import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.apache.druid.client.cache.CacheConfig;
@@ -106,7 +106,7 @@ public class BrokerProcessingModuleTest
     Assert.assertNotNull(cachePopulator);
   }
 
-  @Test(expected = ProvisionException.class)
+  @Test(expected = CreationException.class)
   public void testMemoryCheckThrowsException()
   {
     // JDK 9 and above do not support checking for direct memory size
