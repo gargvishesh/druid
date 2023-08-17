@@ -40,3 +40,9 @@ website/i18n/*
 nbproject
 nbactions.xml
 nb-configuration.xml
+
+# docusaurus files
+website/.yarn/
+website/node_modules/
+website/.docusaurus/
+website/build/
