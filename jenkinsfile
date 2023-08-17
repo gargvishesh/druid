@@ -666,7 +666,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'imply-saas', 'dist-hadoop2', 'dist'
+                        values 'imply-saas', 'dist'
                     }
                 }
                 stages {
@@ -681,8 +681,6 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
-                                    echo "druid-hadoop2"
                                 else
                                     echo "druid"
                                 fi
@@ -690,8 +688,6 @@ pipeline {
                             ARTIFACTORY_BUILD_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid.saas"
-                                elif [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
-                                    echo "druid.hadoop2"
                                 else
                                     echo "druid"
                                 fi
@@ -759,13 +755,8 @@ pipeline {
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
-                                        if [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
-                                            HADOOP_VERSION="2.8.5"
-                                            HADOOP_PROFILE="hadoop2"
-                                        else
-                                            HADOOP_VERSION="3.3.6"
-                                            HADOOP_PROFILE="hadoop3"
-                                        fi
+                                        HADOOP_VERSION="3.3.6"
+                                        HADOOP_PROFILE="hadoop3"
 
                                         MARIADB_CONNECTOR_VERSION="2.7.3"
 
@@ -1014,21 +1005,9 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk8) s3 deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { s3DeepStorageTests('-Djvm.runtime=8', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
                 stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { azureDeepStorageTests('-Djvm.runtime=8', '') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) azure deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { azureDeepStorageTests('-Djvm.runtime=8', '-PHadoop2') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1038,21 +1017,9 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk8) hdfs deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { hdfsDeepStorageTests('-Djvm.runtime=8', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
                 stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { gcsDeepStorageTests('-Djvm.runtime=8', '') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk8) gcs deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { gcsDeepStorageTests('-Djvm.runtime=8', '-PHadoop2') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1067,19 +1034,6 @@ pipeline {
                     steps { kinesisDeepStorageTests('-Djvm.runtime=8', '') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
-
-                stage('(Compile=openjdk8, Run=openjdk8) kinesis deep storage test with Hadoop2') {
-                    when {
-                        // kinesis deep storage test currently running in a downstream pipeline as it is flaky
-                        // Jenkins link - https://ci.cnc.imply.io/job/monthly-flaky-tests-main/
-                        // Jenkins file path in repo - Jenkins/jenkinsfile-monthly-flaky-tests
-                        expression { "disabling in main jenkins pipeline and added it to monthly-flaky-tests"  == "OK" }
-                    }
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { kinesisDeepStorageTests('-Djvm.runtime=8', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
 
                 // -Djvm.runtime=11
 
@@ -1101,21 +1055,9 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk11) s3 deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { s3DeepStorageTests('-Djvm.runtime=11', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
                 stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { azureDeepStorageTests('-Djvm.runtime=11', '') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
-                stage('(Compile=openjdk8, Run=openjdk11) azure deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { azureDeepStorageTests('-Djvm.runtime=11', '-PHadoop2') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
@@ -1125,23 +1067,12 @@ pipeline {
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk11) hdfs deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { hdfsDeepStorageTests('-Djvm.runtime=11', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
-
                 stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test') {
                     agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
                     steps { gcsDeepStorageTests('-Djvm.runtime=11', '') }
                     post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
                 }
 
-                stage('(Compile=openjdk8, Run=openjdk11) gcs deep storage test with Hadoop2') {
-                    agent { docker { image "${IMAGE_JDK8}-${DOCKER_TAG}"; args "${DOCKER_AGENT_ARGS}"; registryUrl "${RT_REGISTRY_URL}"; registryCredentialsId "${RT_REGISTRY_CREDS}"; label "${DOCKER_AGENT_LABEL}" } }
-                    steps { gcsDeepStorageTests('-Djvm.runtime=11', '-PHadoop2') }
-                    post { always { buildArtifacts(env.STAGE_NAME) }; cleanup { resetWs() } }
-                }
             } // end of parallel
         } // end of stage('Checks')
 
@@ -1159,7 +1090,7 @@ pipeline {
                 axes {
                     axis {
                         name 'BUILD_PROFILE'
-                        values 'dist', 'imply-saas', 'dist-hadoop2'
+                        values 'imply-saas', 'dist'
                     }
                 }
                 stages {
@@ -1173,8 +1104,6 @@ pipeline {
                             ARTIFACT_NAME = sh(script:"""#!/bin/bash
                                 if [ "${BUILD_PROFILE}" == "imply-saas" ]; then
                                     echo "druid-saas"
-                                elif [ "${BUILD_PROFILE}" == "dist-hadoop2" ]; then
-                                    echo "druid-hadoop2"
                                 else
                                     echo "druid"
                                 fi
@@ -1255,7 +1184,6 @@ pipeline {
                     echo "Setting BVT as Fail"
                     markBvtAsFail('druid', "${BUILD_VERSION}")
                     markBvtAsFail('druid-saas', "${BUILD_VERSION}")
-                    markBvtAsFail('druid-hadoop2', "{$BUILD_VERSION}")
                 }
             }
         }
