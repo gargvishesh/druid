@@ -39,7 +39,7 @@ public class ClarityHttpEmitterConfigTest
   public void testNoUrl()
   {
     expectedException.expect(ProvisionException.class);
-    expectedException.expectMessage("clarity.recipientBaseUrl - may not be null");
+    expectedException.expectMessage("clarity.recipientBaseUrl - must not be null");
     configurator.configurate(new Properties(), "clarity", ClarityHttpEmitterConfig.class);
   }
 

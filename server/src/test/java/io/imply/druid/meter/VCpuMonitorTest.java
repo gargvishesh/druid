@@ -88,7 +88,7 @@ public class VCpuMonitorTest
   public void testMonitorWithoutCgroup()
   {
     final VCpuMonitor monitor = new VCpuMonitor(
-        QueryStackTests.getProcessingConfig(true, 2),
+        QueryStackTests.getProcessingConfig(2),
         new MockRuntimeInfo(4, 0, 0),
         Paths.get("/fake/root"),
         Paths.get("/fake/pid"),
@@ -116,7 +116,7 @@ public class VCpuMonitorTest
   public void testMonitorWithCgroup()
   {
     final VCpuMonitor monitor = new VCpuMonitor(
-        QueryStackTests.getProcessingConfig(true, 2),
+        QueryStackTests.getProcessingConfig(2),
         new MockRuntimeInfo(4, 0, 0),
         procDir.toPath(),
         procDir.toPath(),
@@ -153,7 +153,7 @@ public class VCpuMonitorTest
     EasyMock.expect(mock.instant()).andReturn(Instant.parse("2021-10-12T11:24:30Z"));
     EasyMock.replay(mock);
     final VCpuMonitor monitor = new VCpuMonitor(
-        QueryStackTests.getProcessingConfig(true, 2),
+        QueryStackTests.getProcessingConfig(2),
         new MockRuntimeInfo(4, 0, 0),
         procDir.toPath(),
         procDir.toPath(),

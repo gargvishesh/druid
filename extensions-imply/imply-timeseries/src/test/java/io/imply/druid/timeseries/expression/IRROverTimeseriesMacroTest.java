@@ -75,7 +75,7 @@ public class IRROverTimeseriesMacroTest
         + "window=2006-11-30T18:30:00.000Z/2010-12-30T18:30:00.000Z, "
         + "iterations=[{iteration=1, npv=932.4170726765988, npvDerivative=10713.4105523886, estimate=0.012967297564386485}, "
         + "{iteration=2, npv=-84.9590975566025, npvDerivative=12751.566530403356, estimate=0.019629937590146133}, "
-        + "{iteration=3, npv=-0.585301158227594, npvDerivative=12576.456378206465, estimate=0.019676477023880572}, "
+        + "{iteration=3, npv=-0.585301158227594, npvDerivative=12576.456378206467, estimate=0.019676477023880572}, "
         + "{iteration=4, npv=-2.817681524902582E-5, npvDerivative=12575.245527322819, estimate=0.019676479264537836}, "
         + "{iteration=5, npv=0.0, npvDerivative=12575.24546903006, estimate=0.019676479264537836}]}",
         result.asString()
