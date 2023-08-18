@@ -12,6 +12,7 @@ package io.imply.druid.sql.calcite.view.state.listener;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.collect.ImmutableMap;
 import io.imply.druid.sql.calcite.view.ImplyViewDefinition;
 import io.imply.druid.sql.calcite.view.state.manager.ViewStateManagerResourceTest;
@@ -37,6 +38,7 @@ public class ViewStateCacheListenerResourceTest
   @Before
   public void setup()
   {
+    SMILE_MAPPER.registerModule(new JodaModule());
     req = EasyMock.createMock(HttpServletRequest.class);
     viewStateListener = EasyMock.createMock(ViewStateListener.class);
     viewStateListenerResource = new ViewStateListenerResource(viewStateListener);
