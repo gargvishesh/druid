@@ -3,9 +3,13 @@ id: kafka-supervisor-operations
 title: "Apache Kafka supervisor operations reference"
 sidebar_label: "Apache Kafka operations"
 description: "Reference topic for running and maintaining Apache Kafka supervisors"
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 ---
 
-<!--
+<TabItem value="0" label="">
+
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements.  See the NOTICE file
   ~ distributed with this work for additional information
@@ -111,23 +115,23 @@ it will just ensure that no indexing tasks are running until the supervisor is r
 
 ## Resetting Supervisors
 
-The `POST /druid/indexer/v1/supervisor/<supervisorId>/reset` operation clears stored 
-offsets, causing the supervisor to start reading offsets from either the earliest or latest 
-offsets in Kafka (depending on the value of `useEarliestOffset`). After clearing stored 
-offsets, the supervisor kills and recreates any active tasks, so that tasks begin reading 
-from valid offsets. 
+The `POST /druid/indexer/v1/supervisor/<supervisorId>/reset` operation clears stored
+offsets, causing the supervisor to start reading offsets from either the earliest or latest
+offsets in Kafka (depending on the value of `useEarliestOffset`). After clearing stored
+offsets, the supervisor kills and recreates any active tasks, so that tasks begin reading
+from valid offsets.
 
-Use care when using this operation! Resetting the supervisor may cause Kafka messages 
-to be skipped or read twice, resulting in missing or duplicate data. 
+Use care when using this operation! Resetting the supervisor may cause Kafka messages
+to be skipped or read twice, resulting in missing or duplicate data.
 
-The reason for using this operation is to recover from a state in which the supervisor 
-ceases operating due to missing offsets. The indexing service keeps track of the latest 
-persisted Kafka offsets in order to provide exactly-once ingestion guarantees across 
-tasks. Subsequent tasks must start reading from where the previous task completed in 
-order for the generated segments to be accepted. If the messages at the expected 
-starting offsets are no longer available in Kafka (typically because the message retention 
-period has elapsed or the topic was removed and re-created) the supervisor will refuse 
-to start and in flight tasks will fail. This operation enables you to recover from this condition. 
+The reason for using this operation is to recover from a state in which the supervisor
+ceases operating due to missing offsets. The indexing service keeps track of the latest
+persisted Kafka offsets in order to provide exactly-once ingestion guarantees across
+tasks. Subsequent tasks must start reading from where the previous task completed in
+order for the generated segments to be accepted. If the messages at the expected
+starting offsets are no longer available in Kafka (typically because the message retention
+period has elapsed or the topic was removed and re-created) the supervisor will refuse
+to start and in flight tasks will fail. This operation enables you to recover from this condition.
 
 Note that the supervisor must be running for this endpoint to be available.
 
@@ -149,9 +153,10 @@ twice, resulting in missing or duplicate data.
 The following example shows how to reset offsets for a kafka supervisor with the name `social_media`. Let's say the supervisor is reading
 from two kafka topics `ads_media_foo` and `ads_media_bar` and has the stored offsets: `{"ads_media_foo:0": 0, "ads_media_foo:1": 10, "ads_media_bar:0": 20, "ads_media_bar:1": 40}`.
 
-<!--DOCUSAURUS_CODE_TABS-->
+<Tabs>
 
-<!--cURL-->
+<TabItem value="1" label="cURL">
+
 
 ```shell
 curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/social_media/resetOffsets"
@@ -159,7 +164,9 @@ curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/so
 --data-raw '{"type":"kafka","partitions":{"type":"end","stream":"ads_media_foo|ads_media_bar","partitionOffsetMap":{"ads_media_foo:0": 3, "ads_media_bar:1": 12}}}'
 ```
 
-<!--HTTP-->
+</TabItem>
+<TabItem value="2" label="HTTP">
+
 
 ```HTTP
 POST /druid/indexer/v1/supervisor/social_media/resetOffsets HTTP/1.1
@@ -181,7 +188,8 @@ Content-Type: application/json
 The above operation will reset offsets for `ads_media_foo` partition 0 and `ads_media_bar` partition 1 to offsets 3 and 12 respectively. After a successful reset,
 when the supervisor's tasks restart, they will resume reading from `{"ads_media_foo:0": 3, "ads_media_foo:1": 10, "ads_media_bar:0": 20, "ads_media_bar:1": 12}`.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+</Tabs>
 
 #### Sample response
 
@@ -197,7 +205,7 @@ when the supervisor's tasks restart, they will resume reading from `{"ads_media_
 
 ## Terminating Supervisors
 
-The `POST /druid/indexer/v1/supervisor/<supervisorId>/terminate` operation terminates a supervisor and causes all 
+The `POST /druid/indexer/v1/supervisor/<supervisorId>/terminate` operation terminates a supervisor and causes all
 associated indexing tasks managed by this supervisor to immediately stop and begin
 publishing their segments. This supervisor will still exist in the metadata store and its history may be retrieved
 with the supervisor history API, but will not be listed in the 'get supervisors' API response nor can it's configuration

@@ -6,8 +6,12 @@ sidebar_label: Supervisors
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
-<!--
+
+<TabItem value="0" label="">
+
 
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements.  See the NOTICE file
@@ -3103,13 +3107,101 @@ The following example shows how to reset a supervisor with the name `social_medi
 
 
 ```shell
+curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/social_media/reset"
+```
+
+</TabItem>
+<TabItem value="48" label="HTTP">
+
+
+```HTTP
+POST /druid/indexer/v1/supervisor/social_media/reset HTTP/1.1
+Host: http://ROUTER_IP:ROUTER_PORT
+```
+
+</TabItem>
+</Tabs>
+
+#### Sample response
+
+<details>
+  <summary>Click to show sample response</summary>
+
+  ```json
+{
+    "id": "social_media"
+}
+  ```
+</details>
+
+### Reset Offsets for a supervisor
+
+Resets the specified offsets for a supervisor. This endpoint clears _only_ the specified offsets in Kafka or sequence numbers in Kinesis, prompting the supervisor to resume data reading.
+If there are no stored offsets, the specified offsets will be set in the metadata store. The supervisor will start from the reset offsets for the partitions specified and for the other partitions from the stored offset.
+It kills and recreates active tasks pertaining to the partitions specified to read from valid offsets.
+
+Use this endpoint to selectively reset offsets for partitions without resetting the entire set.
+
+#### URL
+
+<code class="postAPI">POST</code> <code>/druid/indexer/v1/supervisor/:supervisorId/resetOffsets</code>
+
+#### Responses
+
+<Tabs>
+
+<TabItem value="1" label="200 SUCCESS">
+
+
+*Successfully reset offsets*
+
+</TabItem>
+<TabItem value="2" label="404 NOT FOUND">
+
+
+*Invalid supervisor ID*
+
+</TabItem>
+</Tabs>
+
+---
+#### Reset Offsets Metadata
+
+This section presents the structure and details of the reset offsets metadata payload.
+
+| Field | Type | Description | Required |
+|---------|---------|---------|---------|
+| `type` | String | The type of reset offsets metadata payload. It must match the supervisor's `type`. Possible values: `kafka` or `kinesis`. | Yes |
+| `partitions` | Object | An object representing the reset metadata. See below for details. | Yes |
+
+#### Partitions
+
+The following table defines the fields within the `partitions` object in the reset offsets metadata payload.
+
+| Field | Type | Description | Required |
+|---------|---------|---------|---------|
+| `type` | String | Must be set as `end`.  Indicates the end sequence numbers for the reset offsets. | Yes |
+| `stream` | String | The stream to be reset. It must be a valid stream consumed by the supervisor. | Yes |
+| `partitionOffsetMap` | Object | A map of partitions to corresponding offsets for the stream to be reset.| Yes |
+
+#### Sample request
+
+The following example shows how to reset offsets for a kafka supervisor with the name `social_media`. Let's say the supervisor is reading
+from a kafka topic `ads_media_stream` and has the stored offsets: `{"0": 0, "1": 10, "2": 20, "3": 40}`.
+
+<Tabs>
+
+<TabItem value="3" label="cURL">
+
+
+```shell
 curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/social_media/resetOffsets"
 --header 'Content-Type: application/json'
 --data-raw '{"type":"kafka","partitions":{"type":"end","stream":"ads_media_stream","partitionOffsetMap":{"0":100, "2": 650}}}'
 ```
 
 </TabItem>
-<TabItem value="48" label="HTTP">
+<TabItem value="4" label="HTTP">
 
 
 ```HTTP
@@ -3129,6 +3221,9 @@ Content-Type: application/json
   }
 }
 ```
+
+The above operation will reset offsets only for partitions 0 and 2 to 100 and 650 respectively. After a successful reset,
+when the supervisor's tasks restart, they will resume reading from `{"0": 100, "1": 10, "2": 650, "3": 40}`.
 
 </TabItem>
 </Tabs>
