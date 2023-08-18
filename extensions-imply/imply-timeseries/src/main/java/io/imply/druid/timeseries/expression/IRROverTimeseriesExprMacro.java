@@ -151,10 +151,10 @@ public class IRROverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
       double timeRatio =
           (double) (cashFlows.getTimestamps().getLong(i) - window.getStartMillis()) / window.toDurationMillis();
       double npvDerPerCashFlow =
-          -1 * timeRatio * cashFlows.getDataPoints().getDouble(i) * Math.pow(1 + rate, -1 * timeRatio - 1);
+          -1 * timeRatio * cashFlows.getDataPoints().getDouble(i) * StrictMath.pow(1 + rate, -1 * timeRatio - 1);
       totalNPVDerForCashFlow += npvDerPerCashFlow;
     }
-    return (endInvestment * Math.pow(1 + rate, -2)) + totalNPVDerForCashFlow;
+    return (endInvestment * StrictMath.pow(1 + rate, -2)) + totalNPVDerForCashFlow;
   }
 
   public double calculateIRR(
