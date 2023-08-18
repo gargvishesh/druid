@@ -3065,7 +3065,7 @@ Host: http://ROUTER_IP:ROUTER_PORT
 
 ### Reset a supervisor
 
-Resets the specified supervisor. This endpoint clears stored offsets in Kafka or sequence numbers in Kinesis, prompting the supervisor to resume data reading. The supervisor will start from the earliest or latest available position, depending on the platform (offsets in Kafka or sequence numbers in Kinesis). It kills and recreates active tasks to read from valid positions.
+Resets the specified supervisor. This endpoint clears _all_ stored offsets in Kafka or sequence numbers in Kinesis, prompting the supervisor to resume data reading. The supervisor will start from the earliest or latest available position, depending on the platform (offsets in Kafka or sequence numbers in Kinesis). It kills and recreates active tasks to read from valid positions.
 
 Use this endpoint to recover from a stopped state due to missing offsets in Kafka or sequence numbers in Kinesis. Use this endpoint with caution as it may result in skipped messages and lead to data loss or duplicate data.
 
@@ -3103,7 +3103,9 @@ The following example shows how to reset a supervisor with the name `social_medi
 
 
 ```shell
-curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/social_media/reset"
+curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/social_media/resetOffsets"
+--header 'Content-Type: application/json'
+--data-raw '{"type":"kafka","partitions":{"type":"end","stream":"ads_media_stream","partitionOffsetMap":{"0":100, "2": 650}}}'
 ```
 
 </TabItem>
@@ -3111,8 +3113,21 @@ curl --request POST "http://ROUTER_IP:ROUTER_PORT/druid/indexer/v1/supervisor/so
 
 
 ```HTTP
-POST /druid/indexer/v1/supervisor/social_media/reset HTTP/1.1
+POST /druid/indexer/v1/supervisor/social_media/resetOffsets HTTP/1.1
 Host: http://ROUTER_IP:ROUTER_PORT
+Content-Type: application/json
+
+{
+  "type": "kafka",
+  "partitions": {
+    "type": "end",
+    "stream": "ads_media_stream",
+    "partitionOffsetMap": {
+      "0": 100,
+      "2": 650
+    }
+  }
+}
 ```
 
 </TabItem>
