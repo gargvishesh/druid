@@ -3,12 +3,10 @@ id: kafka-supervisor-operations
 title: "Apache Kafka supervisor operations reference"
 sidebar_label: "Apache Kafka operations"
 description: "Reference topic for running and maintaining Apache Kafka supervisors"
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
 
 ---
 
-<TabItem value="0" label="">
+<!--
 
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements.  See the NOTICE file
