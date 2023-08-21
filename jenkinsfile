@@ -755,7 +755,7 @@ pipeline {
                                         DERBYTOOLS_VERSION="10.14.2.0"
 
                                         # Imply includes additional hadoop libraries (e.g., hadoop-aws)
-                                        HADOOP_VERSION="3.3.6"
+                                        HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout $BUILD_PROFILE)
                                         HADOOP_PROFILE="hadoop3"
 
                                         MARIADB_CONNECTOR_VERSION="2.7.3"
