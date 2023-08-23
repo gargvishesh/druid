@@ -7,7 +7,6 @@ on:
       - 'docs/**'
       - 'dev/**'
       - 'helm/**'
-      - 'web-console/**'
       - '**/*.md'
     branches:
       - release/*-LTSPlus
@@ -16,7 +15,6 @@ on:
       - 'docs/**'
       - 'dev/**'
       - 'helm/**'
-      - 'web-console/**'
       - '**/*.md'
     branches:
       - release/*-LTSPlus
@@ -46,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         jdk: [ '8' ]
-        profile: [dist, imply-saas, dist-hadoop2]
+        profile: [dist]
     runs-on: imply-ubuntu-latest
     steps:
       - name: Checkout branch
@@ -84,9 +82,6 @@ jobs:
         run: |
           # Imply includes additional hadoop libraries (e.g., hadoop-aws)
           case $BUILD_PROFILE in
-          "dist-hadoop2")
-            echo ARTIFACT_NAME="druid-hadoop2" >> $GITHUB_ENV
-            echo HADOOP_PROFILE="hadoop2" >> $GITHUB_ENV;;
           "imply-saas")
             echo ARTIFACT_NAME="druid-saas" >> $GITHUB_ENV
             echo HADOOP_PROFILE="hadoop3" >> $GITHUB_ENV;;
@@ -178,7 +173,7 @@ jobs:
             rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
           done
 
-      - name: Put druid on a diet
+      - name: Reduce the size of the distribution by replacing some jars with symlinks
         run: |
           perl - <<'EOT'
           use strict;
@@ -207,6 +202,7 @@ jobs:
       - name: Prepare artifact for upload
         run: |
           tar -C $STAGING_DIR/dist -czvf ${GITHUB_WORKSPACE}/${ARTIFACT_NAME}-${DRUID_VERSION}-$(git rev-parse --short HEAD).tar.gz druid
+
       - name: Upload artifact to Artifactory
         id: upload
         run: |
