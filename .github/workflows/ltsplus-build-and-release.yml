@@ -1,0 +1,365 @@
+name: "Build and Release LTSPlus Imply bundle"
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'dev/**'
+      - 'helm/**'
+      - '**/*.md'
+    branches:
+      - release/*-LTSPlus
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'dev/**'
+      - 'helm/**'
+      - '**/*.md'
+    branches:
+      - release/*-LTSPlus
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}' # group workflows only on pull_requests and not on branch commits
+  cancel-in-progress: true
+
+env:
+  PIVOT_RELEASE_VERSION: 2023.07
+  ARTIFACTORY_IMPLY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply
+  ARTIFACTORY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local
+  ARTIFACTORY_PIVOT_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/pivot/pivot
+  ARTIFACTORY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/manager/imply-cloud
+  ARTIFACTORY_IMPLY_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
+  ARTIFACTORY_IMPLY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-manager/imply-manager
+
+jobs:
+  build:
+    name: "build (jdk${{ matrix.jdk }}) (profile ${{ matrix.profile }})"
+    env:
+      SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+      MVN: mvn -B
+      MAVEN_SKIP: -Pskip-static-checks -Dweb.console.skip=true -Dmaven.javadoc.skip=true
+      MAVEN_SKIP_TESTS: -Pskip-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        jdk: [ '8' ]
+        profile: [dist]
+    runs-on: imply-ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+
+      - name: Setup java
+        run: export JAVA_HOME=$JAVA_HOME_${{ matrix.jdk }}_X64
+
+      - name: Log in to Artifactory
+        uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+          JF_URL: https://repo.cnc.imply.io
+
+      - name: Load maven settings.xml from Github Secrets (base64)
+        env:
+          MVN_SETTINGS_XML: ${{ secrets.MVN_SETTINGS_XML }}
+        run: |
+          mkdir ~/.m2 || true
+          echo $MVN_SETTINGS_XML | base64 --decode > ~/.m2/settings.xml
+          cat ~/.m2/settings.xml
+
+      - name: Set some versions from pom.xml
+        id: versions
+        env:
+          BUILD_PROFILE: ${{ matrix.profile }}
+        run: |
+          echo DERBYTOOLS_VERSION=$(sed -nr 's/.*<derby.version>([0-9]{1,}.[0-9]{1,}.[0-9]{1,}.[0-9]{1,})<\/derby.version>/\1/p' pom.xml) >> $GITHUB_ENV
+          echo MARIADB_CONNECTOR_VERSION=$(sed -nr 's/.*<mariadb.version>([0-9]{1,}.[0-9]{1,}.[0-9]{1,})<\/mariadb.version>/\1/p' pom.xml) >> $GITHUB_ENV
+
+      - name: Set build profile
+        id: profile
+        env:
+          BUILD_PROFILE: ${{ matrix.profile }}
+        run: |
+          # Imply includes additional hadoop libraries (e.g., hadoop-aws)
+          case $BUILD_PROFILE in
+          "imply-saas")
+            echo ARTIFACT_NAME="druid-saas" >> $GITHUB_ENV
+            echo HADOOP_PROFILE="hadoop3" >> $GITHUB_ENV;;
+          "dist")
+            echo ARTIFACT_NAME="druid" >> $GITHUB_ENV
+            echo HADOOP_PROFILE="hadoop3" >> $GITHUB_ENV;;
+          *)
+            echo "Build profile not matched";;
+          esac
+
+      - name: Set release type to LTSPlus and remove snapshot suffix
+        id: version
+        run: |
+          # remove snapshot suffix from pom files
+          INIT_DRUID_VERSION=$(${MVN} org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=project.version -q -DforceStdout)
+          DRUID_VERSION=$(echo ${INIT_DRUID_VERSION} | sed -nr 's/([^-])(-iap)(-SNAPSHOT)/\1-LTSPlus\2/p')
+          ${MVN} versions:set -DnewVersion=$DRUID_VERSION -DgenerateBackupPoms=false
+          echo DRUID_VERSION=${DRUID_VERSION} >> $GITHUB_ENV
+          echo BUILD_VERSION=${DRUID_VERSION}-$(git rev-parse --short HEAD) >> $GITHUB_ENV
+          echo RELEASE_VERSION=$(echo ${DRUID_VERSION} | sed -nr 's/([0-9]{1,}.[0-9]{1,})([\d]*)?(-[[a-zA-Z]*)-iap$/\1\2\3/p') >> $GITHUB_ENV
+          echo RELEASE_VERSION=$(echo ${DRUID_VERSION} | sed -nr 's/([0-9]{1,}.[0-9]{1,})([\d]*)?(-[[a-zA-Z]*)-iap$/\1\2\3/p') >> $GITHUB_OUTPUT
+          echo HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout -P$HADOOP_PROFILE) >> $GITHUB_ENV
+
+      - name: Maven build
+        uses: nick-fields/retry@v2
+        id: maven_build
+        env:
+          BUILD_PROFILE: ${{ matrix.profile }}
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_on: error
+          command: |
+            echo "Compiling Druid with Java version=${{ matrix.jdk }}"
+            ${MVN} clean install \
+              -Dhadoop.compile.version="${HADOOP_VERSION}" \
+              -Danimal.sniffer.skip=true \
+              -Dcheckstyle.skip=true \
+              -Denforcer.skip=true \
+              -Dforbiddenapis.skip=true \
+              -Djacoco.skip=true \
+              -Dmaven.javadoc.skip=true \
+              -Dpmd.skip=true \
+              -Dspotbugs.skip=true \
+              -DskipTests \
+              -Dtar \
+              -P${BUILD_PROFILE} \
+              -P${HADOOP_PROFILE}
+            echo "Built Druid, version: ${DRUID_VERSION}"
+
+      - name: Set up for staging
+        run: |
+          STAGING_DIR=${RUNNER_TEMP}/druid-build/stage/${BUILD_PROFILE}
+          TMP_DIR=${RUNNER_TEMP}/druid-build/tmp
+          mkdir -p "${STAGING_DIR}/dist"
+          mkdir -p "${TMP_DIR}"
+          tar -C "$TMP_DIR" -xzf "${GITHUB_WORKSPACE}"/distribution/target/apache-druid-*-bin.tar.gz
+          mv "$TMP_DIR"/apache-druid-* "$STAGING_DIR/dist/druid"
+          echo STAGING_DIR=${STAGING_DIR} >> $GITHUB_ENV
+
+      - name: Fetch the MariaDB Client from mariadb.com
+        run: |
+          MARIADB_CONNECTOR_LOCATION="$STAGING_DIR/dist/druid/extensions/mysql-metadata-storage/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
+          curl -o "$MARIADB_CONNECTOR_LOCATION" --retry 10 "https://downloads.mariadb.com/Connectors/java/connector-java-${MARIADB_CONNECTOR_VERSION}/mariadb-java-client-${MARIADB_CONNECTOR_VERSION}.jar"
+
+          if [ "$(sha1sum "$MARIADB_CONNECTOR_LOCATION" | awk '{print $1}')" != "4a2edc05bd882ad19371d2615c2635dccf8d74f0" ]
+          then
+            echo "$MARIADB_CONNECTOR_LOCATION: checksum mismatch" >&2
+            exit 1
+          fi
+
+      - name: Add hadoop-aws
+        run: (cd "$STAGING_DIR"/dist/druid && java -classpath "lib/*" org.apache.druid.cli.Main tools pull-deps -h "org.apache.hadoop:hadoop-aws:${HADOOP_VERSION}")
+
+      - name: Add derbytools to lib
+        run: |
+          DERBYTOOLS_LOCATION="$STAGING_DIR/dist/druid/lib/derbytools-$DERBYTOOLS_VERSION.jar"
+          curl -Lo "$DERBYTOOLS_LOCATION" "https://search.maven.org/remotecontent?filepath=org/apache/derby/derbytools/$DERBYTOOLS_VERSION/derbytools-$DERBYTOOLS_VERSION.jar"
+
+          if [ "$(sha1sum "$DERBYTOOLS_LOCATION" | awk '{print $1}')" != "338d5a54b4089c80414fe0ecb3899d521da69b26" ]
+          then
+            echo "$DERBYTOOLS_LOCATION: checksum mismatch" >&2
+            exit 1
+          fi
+
+      - name: Remove unsupported open-source extensions
+        run: |
+          for extension in druid-pac4j druid-ranger-security materialized-view-maintenance materialized-view-selection; do
+            rm -rf "${STAGING_DIR}/dist/druid/extensions/${extension}"
+          done
+
+      - name: Reduce the size of the distribution by replacing some jars with symlinks
+        run: |
+          perl - <<'EOT'
+          use strict;
+          use File::Basename;
+
+          my $dir = "$ENV{STAGING_DIR}/dist/druid";
+          chdir $dir or die "chdir $dir: $!";
+
+          my %jars;
+          for my $jar (qx!find ./lib -name '*.jar'!, qx!find ./extensions -name '*.jar'!, qx!find ./hadoop-dependencies -name '*.jar'!) {
+            chomp $jar;
+            my $jarname = basename($jar);
+            if (exists $jars{$jarname}) {
+              my $depth = $jar =~ tr !/!/! - 1;
+              my $dots = "";
+              for my $x (1..$depth) {
+                $dots .= "../";
+              }
+              system("ln", "-sf", "${dots}$jars{$jarname}", $jar);
+            } else {
+              $jars{$jarname} = $jar;
+            }
+          }
+          EOT
+
+      - name: Prepare artifact for upload
+        run: |
+          tar -C $STAGING_DIR/dist -czvf ${GITHUB_WORKSPACE}/${ARTIFACT_NAME}-${DRUID_VERSION}-$(git rev-parse --short HEAD).tar.gz druid
+
+      - name: Upload artifact to Artifactory
+        id: upload
+        run: |
+          echo "BUILD_VERSION=${DRUID_VERSION}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          BUILD_VERSION="${DRUID_VERSION}-$(git rev-parse --short HEAD)"
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};BVT=InProgress;build.url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID;vcs.branch=${GITHUB_REF_NAME};build.version=${BUILD_VERSION}" "${ARTIFACT_NAME}-${DRUID_VERSION}-$(git rev-parse --short HEAD).tar.gz" "tgz-local/${ARTIFACT_NAME}/"
+
+      - name: Notify slack of new druid build
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "artifacts": "${{ env.ARTIFACTORY_TGZ }}/${{ env.ARTIFACT_NAME }}/${{ env.ARTIFACT_NAME }}-${{ env.BUILD_VERSION }}.tar.gz",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_BUILD_WEBHOOK_URL }}
+
+    outputs:
+      druid_build_version: ${{ steps.upload.outputs.BUILD_VERSION }}
+      release_version: ${{ steps.version.outputs.RELEASE_VERSION }}
+
+  bundle-and-deploy:
+    runs-on: imply-ubuntu-latest
+    needs: build
+    container:
+      image: repo.cnc.imply.io/docker/imply-artifact:20220128Hb4ed917
+      credentials:
+        username: readonly-sa
+        password: ${{ secrets.ARTIFACTORY_RO_PASSWORD }}
+    env:
+      RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
+      DRUID_VERSION: ${{ needs.build.outputs.druid_build_version }}
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v3
+        with:
+          repository: implydata/imply-release
+          ref: master
+          path: imply-release
+          ssh-key: ${{ secrets.IMPLY_RELEASE_KEY }}
+
+      - name: Log in to Artifactory
+        uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+          JF_URL: https://repo.cnc.imply.io
+
+      - name: Get and set pivot and manager versions
+        shell: bash
+        run: |
+          set -eo pipefail
+          echo "Get current production release of imply-manager"
+          jfrog rt search --props "build.name=imply-manager;released=imply-manager-*" tgz-local |jq -r 'map(select(.props.released[] |test("^imply-manager-[0-9]{4,}.[0-9]{2,}$")))| last' | tee imply-manager-properties.json
+          echo MANAGER_VERSION=$(jq -r < imply-manager-properties.json '.props."manager.version"[]') >> $GITHUB_ENV
+          # Get manager revision
+          MANAGER_URL=$(jq -r < imply-manager-properties.json '.props."manager.tgz"[]')
+          echo "Manager URL: $MANAGER_URL"
+          MANAGER_URI=$(echo ${MANAGER_URL} | sed -nr 's/.*(tgz-local\/manager\/imply-cloud-[0-9]{4,}\.[0-9]{2,}-[0-9a-z]*-bin\.tar\.gz)$/\1/p')
+          jfrog rt curl -XGET "/api/storage/${MANAGER_URI}?properties" | tee manager-properties.json
+          echo MANAGER_REVISION=$(jq -r < manager-properties.json '.properties."vcs.revision"[]') >> $GITHUB_ENV
+          echo "Get list of all production imply artifacts for Pivot release"
+          jfrog rt curl -XGET "/api/search/prop?repos=tgz-local&build.name=imply&release.version=${PIVOT_RELEASE_VERSION}&released=" | tee imply-releases-${PIVOT_RELEASE_VERSION}.json
+          # The last one will be the latest release
+          IMPLY_URL=$(jq -r <imply-releases-${PIVOT_RELEASE_VERSION}.json 'last(.results[].uri)')
+          echo "Imply ${PIVOT_RELEASE_VERSION} URL: $IMPLY_URL"
+          echo "Get Pivot version from ${PIVOT_RELEASE_VERSION} release"
+          IMPLY_URI=$(echo ${IMPLY_URL} | sed -nr 's/.*(tgz-local\/imply\/imply-[0-9]{4,}\.[0-9]{2,}-[0-9T]*\.tar\.gz)$/\1/p')
+          jfrog rt curl -XGET "/api/storage/${IMPLY_URI}?properties" | tee imply-release-${PIVOT_RELEASE_VERSION}-properties.json
+          echo PIVOT_VERSION=$(jq -r <imply-release-${PIVOT_RELEASE_VERSION}-properties.json '.properties."pivot.version"[]') >> $GITHUB_ENV
+
+      - name: Create imply bundle
+        run: |
+          export BUILD_TIMESTAMP=$(TZ=UTC date +%Y%m%dT%H%M%S)
+          cd imply-release/
+          bash scripts/build-imply-bundle.sh
+          #bash scripts/build-imply-bundle-saas.sh
+          cat imply-distro.version
+          echo IMPLY_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
+
+      - name: Upload imply bundle(s) to Artifactory
+        run: |
+          find . -name "*.tar.gz"
+          export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          # imply
+          cd imply-release
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-${IMPLY_VERSION}.tar.gz" "tgz-local/imply/"
+          # imply-saas
+          #jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
+
+      - name: Notify slack of new imply bundle
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "package_name": "imply",
+              "package_version": "${{ env.IMPLY_VERSION }}",
+              "dvt_artifacts": "${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
+              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
+
+      - name: Checkout imply-cloud (manager) repo
+        uses: actions/checkout@v3
+        with:
+          repository: implydata/imply-cloud
+          ref: ${{ env.MANAGER_REVISION }}
+          path: imply-release/imply-cloud
+          ssh-key: ${{ secrets.IMPLY_CLOUD_KEY }}
+
+      - name: Create Imply Manager bundle
+        run: |
+          cd imply-release/
+          bash scripts/build-imply-manager.sh
+          echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
+          echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
+          echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
+
+      - name: Upload imply-manager bundle(s) to Artifactory
+        run: |
+          find . -name "*.tar.gz"
+          export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          # imply
+          cd imply-release
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
+
+      - name: Notify slack of new imply-manager bundle
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "package_name": "imply-manager",
+              "package_version": "${{ env.IMPLY_VERSION }}",
+              "dvt_artifacts": "linux: ${{ env.ARTIFACTORY_IMPLY_MANAGER_TGZ }}-${{ env.IMPLY_MANAGER_VERSION }}.tar.gz",
+              "components": "imply: ${{ env.ARTIFACTORY_IMPLY_TGZ }}-${{ env.IMPLY_VERSION }}.tar.gz\nmanager: ${{ env.ARTIFACTORY_MANAGER_TGZ }}-${{ env.MANAGER_VERSION }}-bin.tar.gz",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
+
+      - name: Assume role to us-east-1 eng for s3 artifact deployment
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::422682147474:role/deployment_infra_assumed_deployment_role
+          aws-region: us-east-1
+          role-duration-seconds: 1200
+
+      - name: Release bundle to S3 for cloud.eng
+        env:
+          S3_BUCKET_PREFIX: s3://imply-cloud-eng/bundles
+        run:
+          aws s3 cp "imply-release/imply-${IMPLY_VERSION}.tar.gz" "${S3_BUCKET_PREFIX}/imply-${IMPLY_VERSION}.tar.gz" --acl bucket-owner-full-control
+
+      - name: Update the LTSPlus cluster in cloud.eng
+        env:
+          CLUSTER_ID: 28b61ef2-a137-492d-a06c-c053e762e6e2
+        run:
+          ./imply-release/scripts/update-cluster ${CLUSTER_ID} ROLLING ${IMPLY_VERSION} "imply-${IMPLY_VERSION}" ${IMPLY_VERSION} --environment dev
