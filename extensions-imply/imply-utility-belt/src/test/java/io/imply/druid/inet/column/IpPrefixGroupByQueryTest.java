@@ -29,10 +29,7 @@ import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
-import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.Segment;
-import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -106,7 +103,7 @@ public class IpPrefixGroupByQueryTest
   @Test
   public void testGroupBy()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -127,9 +124,7 @@ public class IpPrefixGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy()) ||
-        vectorize == QueryContexts.Vectorize.FALSE ||
-        useRealtimeSegments
+    if (vectorize == QueryContexts.Vectorize.FALSE || useRealtimeSegments
     ) {
       // since we happen to implement a string dimension selector so that we can re-use dictionary encoded column
       // indexing, group by v1 and v2 work because of the "we'll do it live! fuck it!" principle
@@ -160,12 +155,7 @@ public class IpPrefixGroupByQueryTest
   @Test
   public void testGroupByStringify()
   {
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectMessage(
-          "GroupBy v1 does not support dimension selectors with unknown cardinality."
-      );
-    } else if (vectorize == QueryContexts.Vectorize.FORCE) {
+    if (vectorize == QueryContexts.Vectorize.FORCE) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -214,12 +204,7 @@ public class IpPrefixGroupByQueryTest
   @Test
   public void testGroupByStringifyWithMixed()
   {
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectMessage(
-          "GroupBy v1 does not support dimension selectors with unknown cardinality."
-      );
-    } else if (vectorize == QueryContexts.Vectorize.FORCE) {
+    if (vectorize == QueryContexts.Vectorize.FORCE) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -269,15 +254,8 @@ public class IpPrefixGroupByQueryTest
   public void testGroupByTypedDimSpec()
   {
     // if the correct type is used, then everything fails as expected
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectMessage(
-          "GroupBy v1 only supports dimensions with an outputType of STRING."
-      );
-    } else {
-      expectedException.expect(IAE.class);
-      expectedException.expectMessage("invalid type: COMPLEX<ipPrefix>");
-    }
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("invalid type: COMPLEX<ipPrefix>");
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
