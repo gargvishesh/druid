@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -63,10 +64,10 @@ public class SimpleTimeSeriesData
   @Override
   public String toString()
   {
-    return Objects.toStringHelper(this)
-                  .add("timestamps", timestamps)
-                  .add("dataPoints", dataPoints)
-                  .add("window", window)
-                  .toString();
+    return MoreObjects.toStringHelper(this)
+                      .add("timestamps", timestamps)
+                      .add("dataPoints", dataPoints)
+                      .add("window", window)
+                      .toString();
   }
 }

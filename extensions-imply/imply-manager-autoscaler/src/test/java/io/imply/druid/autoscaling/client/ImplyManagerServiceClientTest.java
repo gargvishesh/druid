@@ -43,6 +43,7 @@ import java.io.InputStream;
 import java.util.List;
 
 @RunWith(JUnitParamsRunner.class)
+@SuppressWarnings("DoNotMock")
 public class ImplyManagerServiceClientTest
 {
   private static final String IMPLY_MANAGER_ADDRESS = "www.implymanager.io";

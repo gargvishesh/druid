@@ -32,7 +32,7 @@ import org.mockito.verification.VerificationMode;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-
+@SuppressWarnings("DoNotMock")
 public class CommonCacheNotifierTest
 {
   private static final boolean CACHE_NOTIFICATIONS_ENABLED = true;

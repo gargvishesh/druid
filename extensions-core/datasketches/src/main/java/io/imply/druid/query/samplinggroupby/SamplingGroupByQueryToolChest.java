@@ -28,8 +28,8 @@ import org.apache.druid.query.aggregation.MetricManipulationFn;
 import org.apache.druid.query.aggregation.MetricManipulatorFns;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
+import org.apache.druid.query.groupby.GroupingEngine;
 import org.apache.druid.query.groupby.ResultRow;
-import org.apache.druid.query.groupby.strategy.GroupByStrategyV2;
 import org.apache.druid.segment.column.RowSignature;
 
 import java.util.HashMap;
@@ -76,7 +76,7 @@ public class SamplingGroupByQueryToolChest extends QueryToolChest<ResultRow, Sam
     }
 
     List<AggregatorFactory> aggregatorSpecs = ImmutableList.copyOf(query.getAggregatorSpecs());
-    int aggregatorStart = query.getContextBoolean(GroupByStrategyV2.CTX_KEY_OUTERMOST, true) ?
+    int aggregatorStart = query.getContextBoolean(GroupingEngine.CTX_KEY_OUTERMOST, true) ?
                           query.getResultRowAggregatorStart() : query.getIntermediateResultRowAggregatorStart();
     return row -> {
       for (int i = 0; i < aggregatorSpecs.size(); i++) {
@@ -103,7 +103,7 @@ public class SamplingGroupByQueryToolChest extends QueryToolChest<ResultRow, Sam
       // Set up downstream context.
       ImmutableMap.Builder<String, Object> context = ImmutableMap.builder();
       context.put(QueryContexts.FINALIZE_KEY, false);
-      context.put(GroupByStrategyV2.CTX_KEY_OUTERMOST, false);
+      context.put(GroupingEngine.CTX_KEY_OUTERMOST, false);
       context.put(GroupByQueryConfig.CTX_KEY_ARRAY_RESULT_ROWS, true);
 
       // remove having spec and new override context since this will run on historicals as well
@@ -124,7 +124,7 @@ public class SamplingGroupByQueryToolChest extends QueryToolChest<ResultRow, Sam
       );
 
       // don't apply post-aggregators if the merge is not outermost
-      if (!queryPlus.getQuery().getContextBoolean(GroupByStrategyV2.CTX_KEY_OUTERMOST, true)) {
+      if (!queryPlus.getQuery().getContextBoolean(GroupingEngine.CTX_KEY_OUTERMOST, true)) {
         return mergedSequence;
       }
 

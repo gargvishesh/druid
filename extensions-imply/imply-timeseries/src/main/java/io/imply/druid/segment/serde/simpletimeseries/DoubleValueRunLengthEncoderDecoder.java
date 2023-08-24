@@ -9,6 +9,7 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 import java.nio.ByteBuffer;
@@ -157,7 +158,7 @@ public class DoubleValueRunLengthEncoderDecoder
     @Override
     public String toString()
     {
-      return Objects.toStringHelper(this)
+      return MoreObjects.toStringHelper(this)
                         .add("length", length)
                         .add("value", value)
                         .toString();

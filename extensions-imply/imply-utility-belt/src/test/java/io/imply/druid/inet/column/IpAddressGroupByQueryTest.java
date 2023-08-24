@@ -33,7 +33,6 @@ import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.GroupByQueryRunnerTest;
 import org.apache.druid.query.groupby.ResultRow;
-import org.apache.druid.query.groupby.strategy.GroupByStrategySelector;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
 import org.junit.Assert;
@@ -108,7 +107,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupBy()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -129,9 +128,7 @@ public class IpAddressGroupByQueryTest
 
     List<ResultRow> results = seq.toList();
 
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy()) ||
-        vectorize == QueryContexts.Vectorize.FALSE ||
-        useRealtimeSegments
+    if (vectorize == QueryContexts.Vectorize.FALSE || useRealtimeSegments
     ) {
       // since we happen to implement a string dimension selector so that we can re-use dictionary encoded column
       // indexing, group by v1 and v2 work because of the "we'll do it live! fuck it!" principle
@@ -162,12 +159,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByStringify()
   {
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectMessage(
-          "GroupBy v1 does not support dimension selectors with unknown cardinality."
-      );
-    } else if (vectorize == QueryContexts.Vectorize.FORCE) {
+    if (vectorize == QueryContexts.Vectorize.FORCE) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -217,15 +209,8 @@ public class IpAddressGroupByQueryTest
   public void testGroupByTypedDimSpec()
   {
     // if the correct type is used, then everything fails as expected
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectMessage(
-          "GroupBy v1 only supports dimensions with an outputType of STRING."
-      );
-    } else {
-      expectedException.expect(IAE.class);
-      expectedException.expectMessage("invalid type: COMPLEX<ipAddress>");
-    }
+    expectedException.expect(IAE.class);
+    expectedException.expectMessage("invalid type: COMPLEX<ipAddress>");
     GroupByQuery groupQuery = GroupByQuery.builder()
                                           .setDataSource("test_datasource")
                                           .setGranularity(Granularities.ALL)
@@ -243,7 +228,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByStringifyVirtualColumn()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -288,7 +273,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByStringifyVirtualColumnSelectorFilter()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -342,7 +327,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByStringifyVirtualColumnBoundFilter()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -395,7 +380,7 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByStringifyVirtualColumnForcev6Compact()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE && useRealtimeSegments) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
@@ -440,15 +425,11 @@ public class IpAddressGroupByQueryTest
   @Test
   public void testGroupByArrayAgg()
   {
-    if (vectorize == QueryContexts.Vectorize.FORCE && !GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
+    if (vectorize == QueryContexts.Vectorize.FORCE) {
       expectedException.expect(RuntimeException.class);
       expectedException.expectMessage(
           "Cannot vectorize!"
       );
-    }
-
-    if (GroupByStrategySelector.STRATEGY_V1.equals(config.getDefaultStrategy())) {
-      return;
     }
 
     GroupByQuery groupQuery = GroupByQuery.builder()

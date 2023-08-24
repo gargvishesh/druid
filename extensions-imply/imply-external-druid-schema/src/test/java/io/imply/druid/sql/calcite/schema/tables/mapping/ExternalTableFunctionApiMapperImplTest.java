@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
+@SuppressWarnings("DoNotMock")
 public class ExternalTableFunctionApiMapperImplTest
 {
   @Mock
