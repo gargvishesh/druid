@@ -268,8 +268,6 @@
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
                                         <argument>-c</argument>
-                                        <argument>io.imply:imply-virtual-segments</argument>
-                                        <argument>-c</argument>
                                         <argument>io.imply:imply-timeseries</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-lookups</argument>
@@ -543,8 +541,6 @@
                                         <argument>io.imply:clarity-emitter-kafka</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-keycloak</argument>
-                                        <argument>-c</argument>
-                                        <argument>io.imply:imply-virtual-segments</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-external-druid-schema</argument>
                                         <argument>-c</argument>

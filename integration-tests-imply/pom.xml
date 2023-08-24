@@ -89,12 +89,6 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>io.imply</groupId>
-      <artifactId>imply-virtual-segments</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
