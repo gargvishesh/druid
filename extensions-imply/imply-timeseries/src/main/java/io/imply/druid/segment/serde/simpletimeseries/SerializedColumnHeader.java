@@ -9,7 +9,7 @@
 
 package io.imply.druid.segment.serde.simpletimeseries;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import org.apache.druid.segment.serde.cell.LongSerializer;
 
 import java.io.IOException;
@@ -91,7 +91,7 @@ public class SerializedColumnHeader
   @Override
   public String toString()
   {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
                       .add("longSerializer", longSerializer)
                       .add("bytes", bytes)
                       .add("minTimestamp", minTimestamp)

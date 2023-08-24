@@ -208,7 +208,6 @@
         <module>extensions-imply/keycloak</module>
         <module>integration-tests-imply</module>
         <module>extensions-imply/imply-manager-autoscaler</module>
-        <module>extensions-imply/imply-virtual-segments</module>
         <module>extensions-imply/imply-external-druid-schema</module>
         <module>extensions-imply/imply-timeseries</module>
         <module>extensions-imply/imply-sql-async</module>
