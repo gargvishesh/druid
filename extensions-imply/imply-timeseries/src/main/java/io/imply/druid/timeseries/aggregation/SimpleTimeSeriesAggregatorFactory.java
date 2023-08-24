@@ -16,18 +16,22 @@ import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import io.imply.druid.timeseries.TimeSeriesFromByteBufferAdapter;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.Intervals;
+import org.apache.druid.query.aggregation.AggregateCombiner;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
+import org.apache.druid.query.aggregation.ObjectAggregateCombiner;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
 import org.apache.druid.segment.BaseLongColumnValueSelector;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
+import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
@@ -197,5 +201,59 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
         getWindow(),
         getMaxEntries()
     );
+  }
+
+  @Override
+  public AggregateCombiner makeAggregateCombiner()
+  {
+    return new ObjectAggregateCombiner()
+    {
+      private final AtomicReference<Object> objRef = new AtomicReference<>(null);
+      private final BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector =
+          new BaseObjectColumnValueSelector<SimpleTimeSeriesContainer>()
+          {
+            @Nullable
+            @Override
+            public SimpleTimeSeriesContainer getObject()
+            {
+              return (SimpleTimeSeriesContainer) objRef.get();
+            }
+
+            @Override
+            public Class<? extends SimpleTimeSeriesContainer> classOfObject()
+            {
+              return SimpleTimeSeriesContainer.class;
+            }
+          };
+      SimpleTimeSeriesMergeAggregator baseAgg;
+
+      @Override
+      public void reset(ColumnValueSelector sel)
+      {
+        baseAgg = new SimpleTimeSeriesMergeAggregator(this.selector, window, maxEntries);
+        fold(sel);
+      }
+
+      @Override
+      public void fold(ColumnValueSelector sel)
+      {
+        objRef.set(sel.getObject());
+        baseAgg.aggregate();
+        objRef.set(null);
+      }
+
+      @Nullable
+      @Override
+      public Object getObject()
+      {
+        return baseAgg.get();
+      }
+
+      @Override
+      public Class classOfObject()
+      {
+        return SimpleTimeSeriesContainer.class;
+      }
+    };
   }
 }
