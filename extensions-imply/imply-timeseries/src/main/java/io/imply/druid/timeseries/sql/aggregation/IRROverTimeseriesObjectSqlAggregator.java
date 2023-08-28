@@ -103,7 +103,7 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
       );
     }
 
-    String cashFlowColumnName, aumColumnName;
+    String cashFlowColumnName, investmentColumnName;
     // fetch cashFlow column name
     DruidExpression cashFlowColumn = Aggregations.toDruidExpressionForNumericAggregator(
         plannerContext,
@@ -127,8 +127,8 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
       );
     }
 
-    // fetch aum column name
-    DruidExpression aumColumn = Aggregations.toDruidExpressionForNumericAggregator(
+    // fetch start value column name
+    DruidExpression investmentColumn = Aggregations.toDruidExpressionForNumericAggregator(
         plannerContext,
         rowSignature,
         Expressions.fromFieldAccess(
@@ -138,14 +138,14 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
             aggregateCall.getArgList().get(2)
         )
     );
-    if (aumColumn == null) {
+    if (investmentColumn == null) {
       return null;
     }
-    if (aumColumn.isDirectColumnAccess()) {
-      aumColumnName = aumColumn.getDirectColumn();
+    if (investmentColumn.isDirectColumnAccess()) {
+      investmentColumnName = investmentColumn.getDirectColumn();
     } else {
-      aumColumnName = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
-          aumColumn,
+      investmentColumnName = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
+          investmentColumn,
           ColumnType.DOUBLE
       );
     }
@@ -217,7 +217,7 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
         );
     String startInvestmentAgg = Calcites.makePrefixedName(name, "startInvestment");
     AggregatorFactory startInvestmentAggregationFactory = new FilteredAggregatorFactory(
-        new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "startInvestmentInternal"), aumColumnName),
+        new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "startInvestmentInternal"), investmentColumnName),
         plannerContext.isUseBoundsAndSelectors()
         ? new SelectorDimFilter(
             timeFloorVirtualColumnName,
@@ -234,7 +234,7 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
     );
     String endInvestmentAgg = Calcites.makePrefixedName(name, "endInvestment");
     AggregatorFactory endInvestmentAggregationFactory = new FilteredAggregatorFactory(
-        new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "endInvestmentInternal"), aumColumnName),
+        new DoubleSumAggregatorFactory(Calcites.makePrefixedName(name, "endInvestmentInternal"), investmentColumnName),
         plannerContext.isUseBoundsAndSelectors()
         ? new SelectorDimFilter(
             timeFloorVirtualColumnName,

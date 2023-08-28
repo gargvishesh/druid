@@ -157,13 +157,14 @@ public enum Interpolator
 
     ImplyLongArrayList timestamps = inputSeries.getTimestamps();
     ImplyDoubleArrayList dataPoints = inputSeries.getDataPoints();
-    SimpleTimeSeries timeSeries = new SimpleTimeSeries(new ImplyLongArrayList(maxEntries),
-                                                       new ImplyDoubleArrayList(maxEntries),
-                                                       inputSeries.getWindow(),
-                                                       inputSeries.getStart(),
-                                                       inputSeries.getEnd(),
-                                                       maxEntries,
-                                                       keepBoundariesOnly ? durationGranularity.getDurationMillis() : 1L
+    SimpleTimeSeries timeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(maxEntries),
+        new ImplyDoubleArrayList(maxEntries),
+        inputSeries.getWindow(),
+        inputSeries.getStart(),
+        inputSeries.getEnd(),
+        maxEntries,
+        keepBoundariesOnly ? durationGranularity.getDurationMillis() : 1L
     );
 
     long currTimestamp = timestamps.getLong(0);

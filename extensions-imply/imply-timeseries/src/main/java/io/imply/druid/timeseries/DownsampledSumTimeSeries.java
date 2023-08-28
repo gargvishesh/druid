@@ -9,32 +9,28 @@
 
 package io.imply.druid.timeseries;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.collect.Utils;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * This maintains an intermediate TS for tracking the mean of all samples present per time bucket.
  * The time buckets are created on fly on the basis of the bucket duration as the data is read.
  */
-public class DownsampledSumTimeSeries extends TimeSeries<DownsampledSumTimeSeries>
+public class DownsampledSumTimeSeries extends SimpleTimeSeries
 {
-  private ImplyLongArrayList bucketStarts;
-  private ImplyDoubleArrayList sumPoints;
   private DurationGranularity timeBucketGranularity;
 
   public DownsampledSumTimeSeries(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
@@ -51,102 +47,76 @@ public class DownsampledSumTimeSeries extends TimeSeries<DownsampledSumTimeSerie
   }
 
   public DownsampledSumTimeSeries(
-      ImplyLongArrayList bucketStarts,
-      ImplyDoubleArrayList sumPoints,
+      ImplyLongArrayList timestamps,
+      ImplyDoubleArrayList dataPoints,
       DurationGranularity timeBucketGranularity,
       Interval window,
-      @Nullable EdgePoint start,
-      @Nullable EdgePoint end,
+      @Nullable TimeSeries.EdgePoint start,
+      @Nullable TimeSeries.EdgePoint end,
       int maxEntries
   )
   {
-    super(window, start, end, maxEntries);
-    this.bucketStarts = bucketStarts;
-    this.sumPoints = sumPoints;
+    super(
+        timestamps,
+        dataPoints,
+        window,
+        start,
+        end,
+        maxEntries,
+        timeBucketGranularity.getDurationMillis()
+    );
     this.timeBucketGranularity = Objects.requireNonNull(timeBucketGranularity, "Must have a non-null duration");
   }
 
-  private Iterator<BucketData> getIterator()
-  {
-    return IntStream.range(0, bucketStarts.size())
-                              .mapToObj(idx -> new BucketData(bucketStarts.getLong(idx), sumPoints.getDouble(idx)))
-                              .iterator();
-  }
-
-  @JsonProperty
-  public ImplyDoubleArrayList getSumPoints()
-  {
-    return sumPoints;
-  }
-
-  @JsonProperty
-  public ImplyLongArrayList getBucketStarts()
-  {
-    return bucketStarts;
-  }
-
-  @JsonProperty
   public DurationGranularity getTimeBucketGranularity()
   {
-    return new DurationGranularity(timeBucketGranularity.getDuration(), timeBucketGranularity.getOrigin());
-  }
-
-  public List<DownsampledSumTimeSeries> getTimeSeriesList()
-  {
-    return timeSeriesList;
-  }
-
-  @Override
-  public int size()
-  {
-    build();
-    return bucketStarts.size() + timeSeriesList.stream().mapToInt(DownsampledSumTimeSeries::size).sum();
+    return timeBucketGranularity;
   }
 
   @Override
   protected void internalAddDataPoint(long timestamp, double data)
   {
     long bucketStart = timeBucketGranularity.bucketStart(timestamp);
-    int currIndex = bucketStarts.size() - 1;
-    if (currIndex < 0 || bucketStart > bucketStarts.getLong(currIndex)) {
-      bucketStarts.add(bucketStart);
-      sumPoints.add(data);
-    } else if (bucketStart == bucketStarts.getLong(currIndex)) {
-      sumPoints.set(currIndex, sumPoints.getDouble(currIndex) + data);
+    int currIndex = getTimestamps().size() - 1;
+    if (currIndex < 0 || bucketStart > getTimestamps().getLong(currIndex)) {
+      getTimestamps().add(bucketStart);
+      getDataPoints().add(data);
+    } else if (bucketStart == getTimestamps().getLong(currIndex)) {
+      getDataPoints().set(currIndex, getDataPoints().getDouble(currIndex) + data);
     } else {
-      throw new RE("MeanTimeseries data is not sorted." + "Found bucket start %d after %d (timestamp : %d)",
+      throw new RE("DownsampledSumTimeSeries data is not sorted." + "Found bucket start [%d] after [%d] (timestamp : [%d])",
                    bucketStart,
-                   bucketStarts.getLong(currIndex),
+                   getTimestamps().getLong(currIndex),
                    timestamp);
     }
   }
 
   @Override
-  protected void internalMergeSeries(List<DownsampledSumTimeSeries> mergeSeries)
+  protected void internalMergeSeries(List<SimpleTimeSeries> mergeSeries)
   {
     if (mergeSeries.isEmpty()) {
       return;
     }
 
-    mergeSeries.forEach(DownsampledSumTimeSeries::build);
+    mergeSeries.forEach(SimpleTimeSeries::build);
     ImplyLongArrayList mergedBucketStarts = new ImplyLongArrayList();
     ImplyDoubleArrayList mergedSumPoints = new ImplyDoubleArrayList();
-    Iterator<BucketData> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream().map(DownsampledSumTimeSeries::getIterator).collect(Collectors.toList()),
-        Comparator.comparingLong(BucketData::getStart)
+    Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
+        mergeSeries.stream().map(SimpleTimeSeries::getIterator).collect(Collectors.toList()),
+        Comparator.comparingLong(lhs -> lhs.lhs)
     );
     int currIndex = -1;
     while (mergedTimeSeries.hasNext()) {
-      BucketData meanSeriesEntry = mergedTimeSeries.next();
-      if (currIndex == -1 || (meanSeriesEntry.getStart() > mergedBucketStarts.getLong(currIndex))) {
-        mergedBucketStarts.add(meanSeriesEntry.getStart());
-        mergedSumPoints.add(meanSeriesEntry.getSum());
+      Pair<Long, Double> meanSeriesEntry = mergedTimeSeries.next();
+      if (currIndex == -1 || (meanSeriesEntry.lhs > mergedBucketStarts.getLong(currIndex))) {
+        mergedBucketStarts.add(meanSeriesEntry.lhs.longValue());
+        mergedSumPoints.add(meanSeriesEntry.rhs.longValue());
         currIndex++;
-      } else if (meanSeriesEntry.getStart() == mergedBucketStarts.getLong(currIndex)) {
-        mergedSumPoints.set(currIndex, mergedSumPoints.getDouble(currIndex) + meanSeriesEntry.getSum());
+      } else if (meanSeriesEntry.lhs == mergedBucketStarts.getLong(currIndex)) {
+        mergedSumPoints.set(currIndex, mergedSumPoints.getDouble(currIndex) + meanSeriesEntry.rhs);
       } else {
-        throw new RE("MeanTimeseries data is not sorted." + "Found bucket start %d after %d",
-                     meanSeriesEntry.getStart(),
+        throw new RE("DownsampledSumTimeSeries data is not sorted." + "Found bucket start [%d] after [%d]",
+                     meanSeriesEntry.lhs,
                      mergedBucketStarts.getLong(currIndex));
       }
     }
@@ -163,78 +133,38 @@ public class DownsampledSumTimeSeries extends TimeSeries<DownsampledSumTimeSerie
   }
 
   @Override
-  public void addTimeSeries(DownsampledSumTimeSeries timeSeries)
+  public void addTimeSeries(SimpleTimeSeries timeSeries)
   {
-    boolean compatibleMerge = timeSeries.getTimeBucketGranularity().equals(getTimeBucketGranularity());
+    boolean compatibleMerge = timeSeries.getBucketMillis().equals(getTimeBucketGranularity().getDurationMillis());
     if (!compatibleMerge) {
-      throw new IAE("The time series to merge are incompatible. Trying to merge %s granularity into %s",
-                    timeSeries.getTimeBucketGranularity(),
-                    getTimeBucketGranularity());
+      throw new IAE(
+          "The time series to merge are incompatible. Trying to merge [%s] bucket millis into [%s]",
+          getTimeBucketGranularity().getDurationMillis(),
+          timeSeries.getBucketMillis()
+      );
     }
     timeSeriesList.add(timeSeries);
   }
 
   @Override
-  public void build()
-  {
-    if (timeSeriesList.isEmpty()) {
-      return;
-    }
-    List<DownsampledSumTimeSeries> mergeList = new ArrayList<>(timeSeriesList);
-    timeSeriesList.clear();
-    mergeList.add(this);
-    mergeSeries(mergeList);
-  }
-
-  @Override
   public SimpleTimeSeries computeSimple()
   {
-    build();
-    int simpleSeriesSize = bucketStarts.size();
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
-        new ImplyLongArrayList(simpleSeriesSize),
-        new ImplyDoubleArrayList(simpleSeriesSize),
-        getWindow(),
-        getStart(),
-        getEnd(),
-        getMaxEntries(),
-        1L
+    SimpleTimeSeries simpleTimeSeries = super.computeSimple();
+    return new SimpleTimeSeries(
+      simpleTimeSeries.getTimestamps(),
+      simpleTimeSeries.getDataPoints(),
+      simpleTimeSeries.getWindow(),
+      simpleTimeSeries.getStart(),
+      simpleTimeSeries.getEnd(),
+      simpleTimeSeries.getMaxEntries(),
+      simpleTimeSeries.getBucketMillis()
     );
-    for (int i = 0; i < simpleSeriesSize; i++) {
-      simpleTimeSeries.addDataPoint(bucketStarts.getLong(i), sumPoints.getDouble(i));
-    }
-    simpleTimeSeries.build();
-    return simpleTimeSeries;
   }
 
   @Override
-  protected void internalCopy(DownsampledSumTimeSeries copySeries)
+  protected void internalCopy(SimpleTimeSeries copySeries)
   {
-    this.bucketStarts = copySeries.getBucketStarts();
-    this.sumPoints = copySeries.getSumPoints();
-    this.timeSeriesList = copySeries.getTimeSeriesList();
-    this.timeBucketGranularity = copySeries.getTimeBucketGranularity();
-  }
-
-  private static class BucketData
-  {
-    private final long start;
-    private final double sum;
-
-    public BucketData(long start, double sum)
-    {
-      this.start = start;
-      this.sum = sum;
-    }
-
-    public long getStart()
-    {
-      return start;
-    }
-
-    public double getSum()
-    {
-      return sum;
-    }
+    super.internalCopy(copySeries);
+    this.timeBucketGranularity = new DurationGranularity(copySeries.getBucketMillis(), 0);
   }
 }

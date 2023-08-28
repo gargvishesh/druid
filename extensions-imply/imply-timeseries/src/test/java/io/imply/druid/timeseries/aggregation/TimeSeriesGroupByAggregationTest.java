@@ -145,7 +145,10 @@ public class TimeSeriesGroupByAggregationTest
         new ImplyLongArrayList(expectedDownsampledSumTimestamps),
         new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         Intervals.of("2014-10-20T00:00:00.000Z/2021-10-20T00:00:00.000Z"),
-        30684
+        null,
+        null,
+        30684,
+        7200000L
     );
 
     long[] expectedSumTimestamps = new long[]{0L};

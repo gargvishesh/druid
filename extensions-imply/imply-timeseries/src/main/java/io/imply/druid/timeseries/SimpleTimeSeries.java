@@ -272,7 +272,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     this.timeSeriesList = copySeries.getTimeSeriesList();
   }
 
-  private Iterator<Pair<Long, Double>> getIterator()
+  protected Iterator<Pair<Long, Double>> getIterator()
   {
     return IntStream.range(0, timestamps.size())
                     .mapToObj(idx -> new Pair<>(timestamps.getLong(idx), dataPoints.getDouble(idx)))
