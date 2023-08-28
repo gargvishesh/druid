@@ -152,7 +152,10 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         new ImplyLongArrayList(expectedDownsampledSumTimestamps),
         new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         FULL_ON_INTERVAL,
-        219144
+        null,
+        null,
+        219144,
+        7200000L
     );
     
     Result<TimeseriesResultValue> expectedResult = new Result<>(
@@ -238,7 +241,10 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         new ImplyLongArrayList(expectedTimestamps),
         new ImplyDoubleArrayList(expectedDownsampledSumDataPoints),
         window,
-        19
+        null,
+        null,
+        19,
+        1800000L
     );
 
     long[] expectedInterpolatedTimestamps = new long[]{
@@ -266,7 +272,10 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
         new ImplyLongArrayList(expectedInterpolatedTimestamps),
         new ImplyDoubleArrayList(expectedInterpolatedDownsampledSumDataPoints),
         window,
-        19
+        null,
+        null,
+        19,
+        1L
     );
 
     Result<TimeseriesResultValue> expectedResult = new Result<>(

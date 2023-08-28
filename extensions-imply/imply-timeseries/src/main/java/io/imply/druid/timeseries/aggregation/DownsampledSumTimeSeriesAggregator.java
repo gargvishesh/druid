@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.DownsampledSumTimeSeries;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -50,7 +51,7 @@ public class DownsampledSumTimeSeriesAggregator implements Aggregator
   @Override
   public Object get()
   {
-    return downsampledSumTimeSeriesBuilder;
+    return SimpleTimeSeriesContainer.createFromInstance(downsampledSumTimeSeriesBuilder.computeSimple());
   }
 
   @Override

@@ -50,6 +50,10 @@ public class SimpleTimeSeriesContainer
 
   public static SimpleTimeSeriesContainer createFromObject(Object object, Interval window, int maxEntries)
   {
+    if (object instanceof SimpleTimeSeriesContainer) {
+      return (SimpleTimeSeriesContainer) object;
+    }
+
     if (object instanceof SimpleTimeSeries) {
       return SimpleTimeSeriesContainer.createFromInstance((SimpleTimeSeries) object);
     }

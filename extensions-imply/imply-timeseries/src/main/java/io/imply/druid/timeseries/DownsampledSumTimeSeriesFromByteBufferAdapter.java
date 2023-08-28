@@ -15,7 +15,7 @@ import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
-public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFromByteBufferAdapter<DownsampledSumTimeSeries>
+public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFromByteBufferAdapter<SimpleTimeSeries>
 {
   private final DurationGranularity timeBucketGranularity;
   private final long windowStartBucket;
@@ -36,7 +36,7 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
     }
   }
 
-  private void addMeanSeriesEntry(WritableMemory mem, int buffStartPosition, long timestamp, double sumPoint)
+  private void addDownsampledSumSeriesEntry(WritableMemory mem, int buffStartPosition, long timestamp, double sumPoint)
   {
     long bucketStart = getTimeBucketGranularity().bucketStart(timestamp);
     int slotId = (int) ((bucketStart - windowStartBucket) / getTimeBucketGranularity().getDurationMillis());
@@ -55,16 +55,16 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
   @Override
   void internalAddDataPointBuffered(WritableMemory mem, int buffStartPosition, long timestamp, double data)
   {
-    addMeanSeriesEntry(mem, buffStartPosition, timestamp, data);
+    addDownsampledSumSeriesEntry(mem, buffStartPosition, timestamp, data);
   }
 
   @Override
-  void internalMergeSeriesBuffered(WritableMemory mem, int buffStartPosition, DownsampledSumTimeSeries mergeSeries)
+  void internalMergeSeriesBuffered(WritableMemory mem, int buffStartPosition, SimpleTimeSeries mergeSeries)
   {
-    ImplyLongArrayList timestamps = mergeSeries.getBucketStarts();
-    ImplyDoubleArrayList sumPoints = mergeSeries.getSumPoints();
+    ImplyLongArrayList timestamps = mergeSeries.getTimestamps();
+    ImplyDoubleArrayList sumPoints = mergeSeries.getDataPoints();
     for (int i = 0; i < mergeSeries.size(); i++) {
-      addMeanSeriesEntry(mem, buffStartPosition, timestamps.getLong(i), sumPoints.getDouble(i));
+      addDownsampledSumSeriesEntry(mem, buffStartPosition, timestamps.getLong(i), sumPoints.getDouble(i));
     }
   }
 
@@ -73,7 +73,7 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
     return timeBucketGranularity;
   }
 
-  public DownsampledSumTimeSeries computeMeanBuffered(WritableMemory mem, int buffStartPosition)
+  public DownsampledSumTimeSeries computeDownsampledSumBuffered(WritableMemory mem, int buffStartPosition)
   {
     int currSize = size(mem, buffStartPosition);
     int sumOffset = buffStartPosition + DATA_OFFSET;
@@ -102,7 +102,7 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
   @Override
   public SimpleTimeSeries computeSimpleBuffered(WritableMemory mem, int buffStartPosition)
   {
-    return computeMeanBuffered(mem, buffStartPosition).computeSimple();
+    return computeDownsampledSumBuffered(mem, buffStartPosition).computeSimple();
   }
 
   private boolean isBucketInitialized(WritableMemory mem, int position, int bucketId)

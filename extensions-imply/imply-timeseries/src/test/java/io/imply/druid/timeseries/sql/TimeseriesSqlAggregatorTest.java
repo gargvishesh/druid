@@ -279,9 +279,9 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                     + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0],"
                     + "\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
-                // mean_timeseries
+                // downsampled_sum_timeseries
                 "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
-                    + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+                    + "\"bucketMillis\":86400000,\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
                     + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
                 // delta_timeseries
                 "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
@@ -736,7 +736,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
             new Object[]{
                 "{\"cashFlows\":\"SimpleTimeSeries{timestamps=[946684800000, 946771200000], dataPoints=[1.0, 2.0], "
                   + "maxEntries=2, start=EdgePoint{timestamp=-1, data=-1.0}, end=EdgePoint{timestamp=946857600000, data=3.0}, "
-                  + "bucketMillis=1}\",\"endValue\":\"3.0\","
+                  + "bucketMillis=86400000}\",\"endValue\":\"3.0\","
                   + "\"iterations\":[{\"estimate\":\"-0.631542609054844\",\"iteration\":\"1\",\"npv\":\"1.1796524512184576\",\"npvDerivative\":\"1.612554670933759\"},"
                   + "{\"estimate\":\"-0.47001347181852526\",\"iteration\":\"2\",\"npv\":\"-2.847198672998438\",\"npvDerivative\":\"17.6265330312076\"},"
                   + "{\"estimate\":\"-0.35710585080926505\",\"iteration\":\"3\",\"npv\":\"-0.9132750459247614\",\"npvDerivative\":\"8.088692665394646\"},"

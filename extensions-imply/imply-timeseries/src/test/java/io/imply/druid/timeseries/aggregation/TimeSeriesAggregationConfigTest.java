@@ -16,9 +16,9 @@ import org.junit.Test;
 public class TimeSeriesAggregationConfigTest
 {
   @Test
-  public void testMaxEntriesMeanTimeSeries()
+  public void testMaxEntriesDownsampledSumTimeSeries()
   {
-    DownsampledSumTimeSeriesAggregatorFactory meanTimeSeriesAggregationFactory =
+    DownsampledSumTimeSeriesAggregatorFactory downsampledSumTimeSeriesAggregationFactory =
         DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory("",
                                                                                                 "",
                                                                                                 "",
@@ -26,6 +26,6 @@ public class TimeSeriesAggregationConfigTest
                                                                                                 2L,
                                                                                                 Intervals.utc(3, 7),
                                                                                                 null);
-    Assert.assertEquals(3, meanTimeSeriesAggregationFactory.getMaxEntries());
+    Assert.assertEquals(3, downsampledSumTimeSeriesAggregationFactory.getMaxEntries());
   }
 }

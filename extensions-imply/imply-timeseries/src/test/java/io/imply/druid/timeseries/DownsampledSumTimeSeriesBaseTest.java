@@ -23,7 +23,7 @@ import static io.imply.druid.timeseries.SimpleTimeSeriesFromByteBufferAdapaterTe
 public abstract class DownsampledSumTimeSeriesBaseTest
 {
   @Test
-  public void testMeanTS()
+  public void testDownsampledSumTS()
   {
 
     SimpleTimeSeries input = Util.makeSimpleTS(new long[]{0, 1, 2}, new double[]{0, 1, 2});
@@ -33,6 +33,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         new DurationGranularity(2, 0)
     );
     SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2});
+    expectedSeries.setBucketMillis(2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -49,6 +50,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
     );
 
     SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2});
+    expectedSeries.setBucketMillis(2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -66,6 +68,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         new DurationGranularity(2, 0)
     );
     SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{15, 24});
+    expectedSeries.setBucketMillis(2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -111,7 +114,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         new TimeSeries.EdgePoint(0L, 3D),
         new TimeSeries.EdgePoint(6L, 15D),
         MAX_ENTRIES,
-        1L
+        2L
     );
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);

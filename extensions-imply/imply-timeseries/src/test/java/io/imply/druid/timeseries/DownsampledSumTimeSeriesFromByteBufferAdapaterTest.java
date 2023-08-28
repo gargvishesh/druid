@@ -43,7 +43,7 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapaterTest extends Downsamp
             seriesList[i].getDataPoints().getDouble(j)
         );
       }
-      seriesToMerge[i] = bufferSeriesList[i].computeMeanBuffered(mem, buffStartPosition);
+      seriesToMerge[i] = bufferSeriesList[i].computeDownsampledSumBuffered(mem, buffStartPosition);
     }
 
     for (DownsampledSumTimeSeries downsampledSumTimeSeries : seriesToMerge) {

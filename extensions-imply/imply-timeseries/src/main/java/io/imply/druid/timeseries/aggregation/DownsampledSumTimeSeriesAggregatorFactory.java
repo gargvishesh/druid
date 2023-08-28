@@ -13,14 +13,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.timeseries.DownsampledSumTimeSeries;
-import io.imply.druid.timeseries.SerdeUtils;
+import io.imply.druid.timeseries.SimpleTimeSeries;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
-import io.imply.druid.timeseries.TimeSeries;
 import io.imply.druid.timeseries.TimeSeriesFromByteBufferAdapter;
-import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
-import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.NonnullPair;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.Aggregator;
 import org.apache.druid.query.aggregation.AggregatorFactory;
@@ -34,8 +30,6 @@ import org.apache.druid.segment.column.ColumnType;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Map;
 
 public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorFactory
 {
@@ -114,7 +108,7 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     if (getTimeseriesColumn() != null) {
-      BaseObjectColumnValueSelector<DownsampledSumTimeSeries> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
+      BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
       return new DownsampledSumTimeSeriesMergeBufferAggregator(
           selector,
           new DurationGranularity(getTimeBucketMillis(), 0),
@@ -146,14 +140,26 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    DownsampledSumTimeSeries leftSeries = (DownsampledSumTimeSeries) lhs;
-    DownsampledSumTimeSeries rightSeries = (DownsampledSumTimeSeries) rhs;
-    if (rightSeries != null && leftSeries != null) {
+    DownsampledSumTimeSeries leftSeries = makeDownsampledSumTimeSeriesFromObject(
+        lhs,
+        getWindow(),
+        getMaxEntries(),
+        getTimeBucketMillis()
+    );
+    DownsampledSumTimeSeries rightSeries = makeDownsampledSumTimeSeriesFromObject(
+        rhs,
+        getWindow(),
+        getMaxEntries(),
+        getTimeBucketMillis()
+    );
+    if (rightSeries == null && leftSeries == null) {
+      return SimpleTimeSeriesContainer.createFromInstance(null);
+    } else if (rightSeries != null && leftSeries != null) {
       leftSeries.addTimeSeries(rightSeries);
     } else if (rightSeries != null) {
-      return rightSeries;
+      return SimpleTimeSeriesContainer.createFromInstance(rightSeries.computeSimple());
     }
-    return leftSeries;
+    return SimpleTimeSeriesContainer.createFromInstance(leftSeries.computeSimple());
   }
 
   @Override
@@ -173,21 +179,32 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   @Override
   public Object deserialize(Object object)
   {
-    if (object instanceof DownsampledSumTimeSeries) {
-      return object;
+    return SimpleTimeSeriesContainer.createFromObject(object, window, maxEntries);
+  }
+
+  @Nullable
+  public static DownsampledSumTimeSeries makeDownsampledSumTimeSeriesFromObject(
+      Object object,
+      Interval window,
+      int maxEntries,
+      long timeBucketMillis
+  )
+  {
+    if (object == null) {
+      return null;
     }
-    Map<String, Object> timeseriesKeys = (Map<String, Object>) object;
-    ImplyLongArrayList bucketStarts = new ImplyLongArrayList((List<Long>) timeseriesKeys.get("bucketStarts"));
-    ImplyDoubleArrayList sumPoints = new ImplyDoubleArrayList((List<Double>) timeseriesKeys.get("sumPoints"));
-    NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> bounds = SerdeUtils.getBounds(timeseriesKeys);
+
+    SimpleTimeSeriesContainer simpleTimeSeriesContainer =
+        SimpleTimeSeriesContainer.createFromObject(object, window, maxEntries);
+    SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple();
     return new DownsampledSumTimeSeries(
-        bucketStarts,
-        sumPoints,
-        new DurationGranularity(getTimeBucketMillis(), 0),
-        getWindow(),
-        bounds.lhs,
-        bounds.rhs,
-        getMaxEntries()
+        simpleTimeSeries.getTimestamps(),
+        simpleTimeSeries.getDataPoints(),
+        new DurationGranularity(timeBucketMillis, 0),
+        window,
+        simpleTimeSeries.getStart(),
+        simpleTimeSeries.getEnd(),
+        maxEntries
     );
   }
 
@@ -195,19 +212,13 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   @Override
   public Object finalizeComputation(@Nullable Object object)
   {
-    if (object == null) {
-      return null;
-    }
-
-    DownsampledSumTimeSeries downsampledSumTimeSeries = (DownsampledSumTimeSeries) object;
-    downsampledSumTimeSeries.build();
-    return SimpleTimeSeriesContainer.createFromInstance(downsampledSumTimeSeries.computeSimple());
+    return object;
   }
 
   @Override
   public ColumnType getIntermediateType()
   {
-    return ColumnType.ofComplex("imply-ts-downsampled-sum");
+    return BaseTimeSeriesAggregatorFactory.TYPE;
   }
 
   @Override

@@ -10,6 +10,7 @@
 package io.imply.druid.timeseries.aggregation;
 
 import io.imply.druid.timeseries.DownsampledSumTimeSeriesFromByteBufferAdapter;
+import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -23,7 +24,7 @@ public class DownsampledSumTimeSeriesBuildBufferAggregator implements BufferAggr
 {
   private final BaseLongColumnValueSelector timeSelector;
   private final BaseDoubleColumnValueSelector dataSelector;
-  private final DownsampledSumTimeSeriesFromByteBufferAdapter meanByteBufferTimeSeries;
+  private final DownsampledSumTimeSeriesFromByteBufferAdapter downsampledSumTimeSeriesFromByteBufferAdapter;
   private final BufferToWritableMemoryCache bufferToWritableMemoryCache;
 
   public DownsampledSumTimeSeriesBuildBufferAggregator(
@@ -36,14 +37,14 @@ public class DownsampledSumTimeSeriesBuildBufferAggregator implements BufferAggr
   {
     this.timeSelector = timeSelector;
     this.dataSelector = dataSelector;
-    this.meanByteBufferTimeSeries = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
+    this.downsampledSumTimeSeriesFromByteBufferAdapter = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, maxEntries);
     this.bufferToWritableMemoryCache = new BufferToWritableMemoryCache();
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    meanByteBufferTimeSeries.init(bufferToWritableMemoryCache.getMemory(buf), position);
+    downsampledSumTimeSeriesFromByteBufferAdapter.init(bufferToWritableMemoryCache.getMemory(buf), position);
   }
 
   @Override
@@ -52,7 +53,7 @@ public class DownsampledSumTimeSeriesBuildBufferAggregator implements BufferAggr
     if (dataSelector.isNull() || timeSelector.isNull()) {
       return;
     }
-    meanByteBufferTimeSeries.addDataPointBuffered(
+    downsampledSumTimeSeriesFromByteBufferAdapter.addDataPointBuffered(
         bufferToWritableMemoryCache.getMemory(buf),
         position,
         timeSelector.getLong(),
@@ -64,7 +65,10 @@ public class DownsampledSumTimeSeriesBuildBufferAggregator implements BufferAggr
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return meanByteBufferTimeSeries.computeMeanBuffered(bufferToWritableMemoryCache.getMemory(buf), position);
+    return SimpleTimeSeriesContainer.createFromInstance(
+        downsampledSumTimeSeriesFromByteBufferAdapter.computeDownsampledSumBuffered(bufferToWritableMemoryCache.getMemory(buf), position)
+                                                     .computeSimple()
+    );
   }
 
   @Override
