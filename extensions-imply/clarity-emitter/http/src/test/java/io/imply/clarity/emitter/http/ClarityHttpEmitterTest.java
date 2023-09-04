@@ -805,7 +805,7 @@ public class ClarityHttpEmitterTest
       builder.setDimension("id", id);
     }
 
-    return builder.build(String.valueOf(metric), value == null ? 0 : value).build("service", "host");
+    return builder.setMetric(String.valueOf(metric), value == null ? 0 : value).build("service", "host");
   }
 
   private Event buildEvent(String feed, Number value)

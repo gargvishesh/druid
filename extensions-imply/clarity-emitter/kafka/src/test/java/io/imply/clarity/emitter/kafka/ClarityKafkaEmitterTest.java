@@ -97,7 +97,8 @@ public class ClarityKafkaEmitterTest
     final String topic = "test-" + UUID.randomUUID();
     final List<Event> events = ImmutableList.of(
         ServiceMetricEvent.builder()
-                          .build(new DateTime("2000", DateTimeZone.UTC), "myMetric", 3.2)
+                          .setCreatedTime(new DateTime("2000", DateTimeZone.UTC))
+                          .setMetric("myMetric", 3.2)
                           .build("myService", "myHost"),
         AlertBuilder.create("My Alert").build("myService", "myHost")
     );
@@ -122,7 +123,8 @@ public class ClarityKafkaEmitterTest
   {
     final String topic = "test-" + UUID.randomUUID();
     final Event event = ServiceMetricEvent.builder()
-                                          .build(new DateTime("2000", DateTimeZone.UTC), "myMetric", 3.2)
+                                          .setCreatedTime(new DateTime("2000", DateTimeZone.UTC))
+                                          .setMetric("myMetric", 3.2)
                                           .build("myService", "myHost");
 
     final Map<String, String> emitterConfig = ImmutableMap.of(
@@ -147,7 +149,8 @@ public class ClarityKafkaEmitterTest
     final String topic = "test-" + UUID.randomUUID();
     final List<Event> events = ImmutableList.of(
         ServiceMetricEvent.builder()
-                          .build(new DateTime("2000", DateTimeZone.UTC), "myMetric", 3.2)
+                          .setCreatedTime(new DateTime("2000", DateTimeZone.UTC))
+                          .setMetric("myMetric", 3.2)
                           .build("myService", "myHost"),
         AlertBuilder.create("My Alert").build("myService", "myHost")
     );
