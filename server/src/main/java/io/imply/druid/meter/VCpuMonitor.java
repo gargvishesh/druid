@@ -151,7 +151,7 @@ public class VCpuMonitor extends AbstractMonitor
         .setDimension("processorShares", processorShares)
         .setDimension("processorQuota", processorQuota)
         .setDimension("effectiveCpus", effectiveCpuCount)
-        .build(METRIC, computedVCpus);
+        .setMetric(METRIC, computedVCpus);
 
     emitter.emit(eventBuilder);
     return true;
