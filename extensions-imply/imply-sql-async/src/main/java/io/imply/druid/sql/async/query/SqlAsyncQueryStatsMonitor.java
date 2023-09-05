@@ -54,7 +54,7 @@ public class SqlAsyncQueryStatsMonitor extends AbstractMonitor
     emitter.emit(
         new ServiceMetricEvent.Builder()
             .setDimension("server", brokerId)
-            .build(statName, value)
+            .setMetric(statName, value)
     );
   }
 }
