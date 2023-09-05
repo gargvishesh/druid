@@ -374,7 +374,6 @@ def azureDeepStorageTests(jvmRuntimeOpt, hadoopProfile) {
                 try {
                     sh script: """
                         az storage container create -n ${containerName} \
-                        --public-access blob \
                         --account-name \${AZURE_ACCOUNT} --account-key \${AZURE_KEY}
                     """,
                        label: "creating storage container"
