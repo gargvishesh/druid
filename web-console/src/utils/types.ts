@@ -94,6 +94,9 @@ export function dataTypeToIcon(dataType: string): IconName {
       return IconNames.TIMELINE_LINE_CHART;
     // END: Imply-added code for the timeseries extension
 
+    case 'COMPLEX<SERIALIZABLEPAIRLONGSTRING>':
+      return IconNames.DOUBLE_CHEVRON_RIGHT;
+
     case 'NULL':
       return IconNames.CIRCLE;
 
