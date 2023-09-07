@@ -38,6 +38,19 @@ public class Util
     );
   }
 
+  public static SimpleTimeSeries makeSimpleTS(long[] ts, double[] dp, Long bucketMillis)
+  {
+    return new SimpleTimeSeries(
+        new ImplyLongArrayList(ts),
+        new ImplyDoubleArrayList(dp),
+        VISIBLE_WINDOW,
+        null,
+        null,
+        MAX_ENTRIES,
+        bucketMillis
+    );
+  }
+
   public static ExprMacroTable makeTimeSeriesMacroTable()
   {
     ImmutableList.Builder<ExprMacroTable.ExprMacro> macros =

@@ -9,21 +9,18 @@
 
 package io.imply.druid.timeseries;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.RE;
-import org.apache.druid.java.util.common.collect.Utils;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * This maintains an intermediate TS for tracking the mean of all samples present per time bucket.
@@ -68,6 +65,7 @@ public class DownsampledSumTimeSeries extends SimpleTimeSeries
     this.timeBucketGranularity = Objects.requireNonNull(timeBucketGranularity, "Must have a non-null duration");
   }
 
+  @JsonProperty
   public DurationGranularity getTimeBucketGranularity()
   {
     return timeBucketGranularity;
@@ -90,60 +88,98 @@ public class DownsampledSumTimeSeries extends SimpleTimeSeries
                    timestamp);
     }
   }
-
-  @Override
-  protected void internalMergeSeries(List<SimpleTimeSeries> mergeSeries)
+  
+  public void addTimeSeries(DownsampledSumTimeSeries mergeSeries)
   {
-    if (mergeSeries.isEmpty()) {
-      return;
-    }
-
-    mergeSeries.forEach(SimpleTimeSeries::build);
-    ImplyLongArrayList mergedBucketStarts = new ImplyLongArrayList();
-    ImplyDoubleArrayList mergedSumPoints = new ImplyDoubleArrayList();
-    Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream().map(SimpleTimeSeries::getIterator).collect(Collectors.toList()),
-        Comparator.comparingLong(lhs -> lhs.lhs)
-    );
-    int currIndex = -1;
-    while (mergedTimeSeries.hasNext()) {
-      Pair<Long, Double> meanSeriesEntry = mergedTimeSeries.next();
-      if (currIndex == -1 || (meanSeriesEntry.lhs > mergedBucketStarts.getLong(currIndex))) {
-        mergedBucketStarts.add(meanSeriesEntry.lhs.longValue());
-        mergedSumPoints.add(meanSeriesEntry.rhs.longValue());
-        currIndex++;
-      } else if (meanSeriesEntry.lhs == mergedBucketStarts.getLong(currIndex)) {
-        mergedSumPoints.set(currIndex, mergedSumPoints.getDouble(currIndex) + meanSeriesEntry.rhs);
-      } else {
-        throw new RE("DownsampledSumTimeSeries data is not sorted." + "Found bucket start [%d] after [%d]",
-                     meanSeriesEntry.lhs,
-                     mergedBucketStarts.getLong(currIndex));
-      }
-    }
-    DownsampledSumTimeSeries mergedSeries = new DownsampledSumTimeSeries(
-        mergedBucketStarts,
-        mergedSumPoints,
-        getTimeBucketGranularity(),
-        getWindow(),
-        getStart(),
-        getEnd(),
-        getMaxEntries()
-    );
-    copy(mergedSeries);
-  }
-
-  @Override
-  public void addTimeSeries(SimpleTimeSeries timeSeries)
-  {
-    boolean compatibleMerge = timeSeries.getBucketMillis().equals(getTimeBucketGranularity().getDurationMillis());
+    boolean compatibleMerge = mergeSeries.getTimeBucketGranularity().equals(getTimeBucketGranularity());
     if (!compatibleMerge) {
       throw new IAE(
-          "The time series to merge are incompatible. Trying to merge [%s] bucket millis into [%s]",
-          getTimeBucketGranularity().getDurationMillis(),
-          timeSeries.getBucketMillis()
+          "The time series to merge are incompatible. Trying to merge %s granularity into %s",
+          mergeSeries.getTimeBucketGranularity(),
+          getTimeBucketGranularity()
       );
     }
-    timeSeriesList.add(timeSeries);
+    if (!getWindow().equals(mergeSeries.getWindow())) {
+      throw DruidException.defensive(
+          "The time series to merge have different visible windows : (%s, %s)",
+          getWindow(),
+          mergeSeries.getWindow()
+      );
+    }
+
+    // merge the timestamps that are same and collected the ones in the merge series that aren't same
+    int currSeriescounter = 0, mergeSeriesCounter = 0;
+    IntArrayList leftoverPoints = new IntArrayList();
+
+    ImplyDoubleArrayList dataPoints = getDataPoints();
+    ImplyDoubleArrayList mergeSeriesDataPoints = mergeSeries.getDataPoints();
+    ImplyLongArrayList timestamps = getTimestamps();
+    ImplyLongArrayList mergeSeriesTimestamps = mergeSeries.getTimestamps();
+    while (mergeSeriesCounter < mergeSeries.size() && currSeriescounter < size()) {
+      long mergeSeriesTimestamp = mergeSeriesTimestamps.getLong(mergeSeriesCounter);
+      long currSeriesTimestamp = timestamps.getLong(currSeriescounter);
+      if (mergeSeriesTimestamp == currSeriesTimestamp) {
+        dataPoints.set(
+            currSeriescounter,
+            dataPoints.getDouble(currSeriescounter) + mergeSeriesDataPoints.getDouble(mergeSeriesCounter)
+        );
+        mergeSeriesCounter++;
+        currSeriescounter++;
+      } else if (mergeSeriesTimestamp < currSeriesTimestamp) {
+        leftoverPoints.add(mergeSeriesCounter);
+        mergeSeriesCounter++;
+      } else {
+        currSeriescounter++;
+      }
+    }
+    while (mergeSeriesCounter < mergeSeries.size()) {
+      leftoverPoints.add(mergeSeriesCounter);
+      mergeSeriesCounter++;
+    }
+
+    // resize the current series to adjust for leftover points
+    int oldSize = size();
+    int newSize = oldSize + leftoverPoints.size();
+    timestamps.size(newSize);
+    dataPoints.size(newSize);
+
+    // put the leftover points to their correct place
+    int oldSizeCounter = oldSize - 1;
+    int leftOverCounter = leftoverPoints.size() - 1;
+    int newSeriesCounter = newSize - 1;
+    while (oldSizeCounter >= 0 && leftOverCounter >= 0) {
+      long currSeriesTimestamp = timestamps.getLong(oldSizeCounter);
+      long mergeSeriesTimestamp = mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter));
+      if (currSeriesTimestamp < mergeSeriesTimestamp) {
+        timestamps.set(newSeriesCounter, mergeSeriesTimestamp);
+        dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
+        newSeriesCounter--;
+        leftOverCounter--;
+      } else if (currSeriesTimestamp > mergeSeriesTimestamp) {
+        timestamps.set(newSeriesCounter, currSeriesTimestamp);
+        dataPoints.set(newSeriesCounter, dataPoints.getDouble(oldSizeCounter));
+        newSeriesCounter--;
+        oldSizeCounter--;
+      } else {
+        throw DruidException.defensive("");
+      }
+    }
+    while (leftOverCounter >= 0) {
+      timestamps.set(newSeriesCounter, mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter)));
+      dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
+      newSeriesCounter--;
+      leftOverCounter--;
+    }
+
+    final EdgePoint startBoundary = mergeSeries.getStart();
+    if (startBoundary != null && startBoundary.getTimestampJson() != null) {
+      addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
+    }
+
+    final EdgePoint endBoundary = mergeSeries.getEnd();
+    if (endBoundary != null && endBoundary.getTimestampJson() != null) {
+      addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
+    }
   }
 
   @Override
@@ -151,13 +187,13 @@ public class DownsampledSumTimeSeries extends SimpleTimeSeries
   {
     SimpleTimeSeries simpleTimeSeries = super.computeSimple();
     return new SimpleTimeSeries(
-      simpleTimeSeries.getTimestamps(),
-      simpleTimeSeries.getDataPoints(),
-      simpleTimeSeries.getWindow(),
-      simpleTimeSeries.getStart(),
-      simpleTimeSeries.getEnd(),
-      simpleTimeSeries.getMaxEntries(),
-      simpleTimeSeries.getBucketMillis()
+        simpleTimeSeries.getTimestamps(),
+        simpleTimeSeries.getDataPoints(),
+        simpleTimeSeries.getWindow(),
+        simpleTimeSeries.getStart(),
+        simpleTimeSeries.getEnd(),
+        simpleTimeSeries.getMaxEntries(),
+        simpleTimeSeries.getBucketMillis()
     );
   }
 

@@ -149,8 +149,7 @@ public enum Interpolator
                                             inputSeries.getEnd().getTimestamp(),
                                             inputSeries.getEnd().getData(),
                                             inputSeries.getWindow().getStartMillis()));
-        timeSeries.build();
-        return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
+        return SimpleTimeSeriesContainer.createFromInstance(timeSeries.computeSimple());
       }
       return SimpleTimeSeriesContainer.createFromInstance(inputSeries);
     }
@@ -258,8 +257,7 @@ public enum Interpolator
       }
     }
 
-    timeSeries.build();
-    return SimpleTimeSeriesContainer.createFromInstance(timeSeries);
+    return SimpleTimeSeriesContainer.createFromInstance(timeSeries.computeSimple());
   }
 
   @Nullable

@@ -55,7 +55,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
-import static org.apache.druid.query.QueryRunnerTestHelper.FULL_ON_INTERVAL;
 
 public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends InitializedNullHandlingTest
 {
@@ -136,7 +135,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
                     null,
                     null,
                     "fuu",
-                    FULL_ON_INTERVAL,
+                    Intervals.ETERNITY,
                     MAX_ENTRIES
                 )
             )
@@ -162,7 +161,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
     SimpleTimeSeries expectedTimeSeries = new SimpleTimeSeries(
         new ImplyLongArrayList(expectedTimestamps),
         new ImplyDoubleArrayList(expectedDataPoints),
-        FULL_ON_INTERVAL,
+        Intervals.ETERNITY,
         MAX_ENTRIES
     );
 
@@ -182,7 +181,7 @@ public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends Initializ
     Interval dataIntervalPlusOneHour = Intervals.of("2014-10-20T00/2014-10-20T10");
     GroupByQuery groupByQuery = new GroupByQuery(
         new TableDataSource(QueryRunnerTestHelper.DATA_SOURCE),
-        new MultipleIntervalSegmentSpec(ImmutableList.of(FULL_ON_INTERVAL)),
+        new MultipleIntervalSegmentSpec(ImmutableList.of(Intervals.ETERNITY)),
         null,
         null,
         Granularities.ALL,

@@ -13,16 +13,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import org.apache.druid.common.guava.GuavaUtils;
-import org.apache.druid.java.util.common.UOE;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Base class for a time series. It provides an way to build a time series by adding data points, existing time series or
@@ -35,7 +30,6 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   private EdgePoint start;
   private EdgePoint end;
   private final int maxEntries;
-  protected List<T> timeSeriesList;
 
   public TimeSeries(Interval window,
                     @Nullable EdgePoint start,
@@ -46,7 +40,6 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
     this.start = GuavaUtils.firstNonNull(start, empty());
     this.end = GuavaUtils.firstNonNull(end, empty());
     this.maxEntries = maxEntries;
-    this.timeSeriesList = new ArrayList<>();
   }
 
   /**
@@ -73,43 +66,6 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
         }
       }
     }
-  }
-
-  /**
-   * Public interface to merge the argument series with itself. Also, merges the visible windows of the series.
-   * All the series to be merged should have the same visible window.
-   * @param mergeSeries
-   */
-  public void mergeSeries(List<T> mergeSeries)
-  {
-    // can't merge series with different visible windows as of now
-    boolean incompatibleMerge = mergeSeries.stream().map(TimeSeries::getWindow).distinct().count() > 1;
-    if (incompatibleMerge) {
-      throw new UOE("The time series to merge have different visible windows : (%s, %s)",
-                    getWindow(),
-                    mergeSeries.stream()
-                               .map(series -> GuavaUtils.firstNonNull(series.getWindow().toString(), "null"))
-                               .collect(Collectors.joining(",")));
-    }
-
-    // update the edges
-    EdgePoint maxStart = mergeSeries.stream()
-                                    .map(TimeSeries::getStart)
-                                    .filter(start -> start != null && start.timestamp != -1 && start.data != -1)
-                                    .max(Comparator.comparingLong(EdgePoint::getTimestamp))
-                                    .orElse(empty());
-    EdgePoint minEnd = mergeSeries.stream()
-                                  .map(TimeSeries::getEnd)
-                                  .filter(start -> start != null && start.timestamp != -1 && start.data != -1)
-                                  .min(Comparator.comparingLong(EdgePoint::getTimestamp))
-                                  .orElse(empty());
-    start.setTimestamp(maxStart.getTimestamp());
-    start.setData(maxStart.getData());
-    end.setTimestamp(minEnd.getTimestamp());
-    end.setData(minEnd.getData());
-
-    // merge the visible window
-    internalMergeSeries(mergeSeries);
   }
 
   /**
@@ -167,21 +123,10 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   protected abstract void internalAddDataPoint(long timestamp, double data);
 
   /**
-   * Merge a list of series of the type of derived object.
-   * @param mergeSeries
-   */
-  protected abstract void internalMergeSeries(List<T> mergeSeries);
-
-  /**
    * Add time series to the derived object. The time series will have the same visible window (if any) as of this TS.
    * @param timeSeries
    */
   abstract void addTimeSeries(T timeSeries);
-
-  /**
-   * Merge the data present in the derived object to form a single TS. It can include a mix of data points and pre-built series.
-   */
-  public abstract void build();
 
   /**
    * Converts an intermediate TS to a final time series. This can trigger a build followed by the final computation.
@@ -200,7 +145,7 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
   @Override
   public int hashCode()
   {
-    return Objects.hash(window, start, end, timeSeriesList, maxEntries);
+    return Objects.hash(window, start, end, maxEntries);
   }
 
   @Override
@@ -216,8 +161,18 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
     return Objects.equals(window, that.getWindow()) &&
            Objects.equals(start, that.getStart()) &&
            Objects.equals(end, that.getEnd()) &&
-           Objects.equals(maxEntries, that.maxEntries) &&
-           Objects.equals(timeSeriesList, that.timeSeriesList);
+           Objects.equals(maxEntries, that.maxEntries);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "TimeSeries{" +
+           "window=" + window +
+           ", start=" + start +
+           ", end=" + end +
+           ", maxEntries=" + maxEntries +
+           '}';
   }
 
   /**

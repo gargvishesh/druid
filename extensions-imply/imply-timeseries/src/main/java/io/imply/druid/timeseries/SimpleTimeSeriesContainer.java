@@ -13,7 +13,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
-import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.segment.serde.cell.StorableBuffer;
@@ -177,25 +176,9 @@ public class SimpleTimeSeriesContainer
 
   public void pushInto(SimpleTimeSeries simpleTimeSeries)
   {
+    Preconditions.checkNotNull(simpleTimeSeries, "merge series is null");
     SimpleTimeSeries thisSimpleTimeSeries = getSimpleTimeSeries();
-    if (thisSimpleTimeSeries != null) {
-      ImplyLongArrayList timestamps = thisSimpleTimeSeries.getTimestamps();
-      ImplyDoubleArrayList datapoints = thisSimpleTimeSeries.getDataPoints();
-
-      for (int i = 0; i < timestamps.size(); i++) {
-        simpleTimeSeries.addDataPoint(timestamps.getLong(i), datapoints.getDouble(i));
-      }
-
-      final TimeSeries.EdgePoint startBoundary = thisSimpleTimeSeries.getStart();
-      if (startBoundary != null && startBoundary.getTimestampJson() != null) {
-        simpleTimeSeries.addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
-      }
-
-      final TimeSeries.EdgePoint endBoundary = thisSimpleTimeSeries.getEnd();
-      if (endBoundary != null && endBoundary.getTimestampJson() != null) {
-        simpleTimeSeries.addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
-      }
-    }
+    simpleTimeSeries.addTimeSeries(thisSimpleTimeSeries);
   }
 
   public void pushInto(

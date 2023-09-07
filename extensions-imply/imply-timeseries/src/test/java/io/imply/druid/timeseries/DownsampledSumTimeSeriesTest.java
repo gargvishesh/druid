@@ -35,7 +35,6 @@ public class DownsampledSumTimeSeriesTest extends DownsampledSumTimeSeriesBaseTe
       for (int j = 0; j < seriesList[i].size(); j++) {
         seriesToMerge[i].addDataPoint(seriesList[i].getTimestamps().getLong(j), seriesList[i].getDataPoints().getDouble(j));
       }
-      seriesToMerge[i].build();
     }
 
     DownsampledSumTimeSeries initSeries = new DownsampledSumTimeSeries(durationGranularity, window, MAX_ENTRIES);
@@ -43,9 +42,6 @@ public class DownsampledSumTimeSeriesTest extends DownsampledSumTimeSeriesBaseTe
     for (DownsampledSumTimeSeries downsampledSumTimeSeries : seriesToMerge) {
       initSeries.addTimeSeries(downsampledSumTimeSeries);
     }
-
-    // build the whole thing
-    initSeries.build();
 
     return initSeries.computeSimple();
   }
