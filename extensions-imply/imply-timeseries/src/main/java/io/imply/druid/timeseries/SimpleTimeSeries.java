@@ -12,19 +12,14 @@ package io.imply.druid.timeseries;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
-import org.apache.druid.java.util.common.Pair;
-import org.apache.druid.java.util.common.RE;
-import org.apache.druid.java.util.common.collect.Utils;
+import org.apache.druid.error.DruidException;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * This time series maintains a simple list of (time, data) tuples.
@@ -35,6 +30,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   private ImplyDoubleArrayList dataPoints;
   private final int maxEntries;
   private Long bucketMillis;
+  private boolean isDirty;
 
   public SimpleTimeSeries(Interval window, int maxEntries)
   {
@@ -115,12 +111,18 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   @JsonProperty
   public ImplyLongArrayList getTimestamps()
   {
+    if (isDirty) {
+      computeSimple();
+    }
     return timestamps;
   }
 
   @JsonProperty
   public ImplyDoubleArrayList getDataPoints()
   {
+    if (isDirty) {
+      computeSimple();
+    }
     return dataPoints;
   }
 
@@ -135,16 +137,10 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     this.bucketMillis = bucketMillis;
   }
 
-  public List<SimpleTimeSeries> getTimeSeriesList()
-  {
-    return timeSeriesList;
-  }
-
   @Override
   public int size()
   {
-    build();
-    return timestamps.size() + timeSeriesList.stream().mapToInt(SimpleTimeSeries::size).sum();
+    return timestamps.size();
   }
 
   @Override
@@ -155,81 +151,54 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
     }
     timestamps.add(timestamp);
     dataPoints.add(data);
-  }
-
-  @Override
-  protected void internalMergeSeries(List<SimpleTimeSeries> mergeSeries)
-  {
-    if (mergeSeries.isEmpty()) {
-      return;
-    }
-
-    mergeSeries.forEach(SimpleTimeSeries::build);
-    Iterator<Pair<Long, Double>> mergedTimeSeries = Utils.mergeSorted(
-        mergeSeries.stream()
-                   .map(SimpleTimeSeries::getIterator)
-                   .collect(Collectors.toList()),
-        Comparator.comparingLong(lhs -> lhs.lhs)
-    );
-
-    ImplyLongArrayList timestamps = new ImplyLongArrayList(size());
-    ImplyDoubleArrayList dataPoints = new ImplyDoubleArrayList(size());
-    while (mergedTimeSeries.hasNext()) {
-      if (size() == maxEntries) {
-        throw new RuntimeException("Exceeded the max entries allowed");
-      }
-      Pair<Long, Double> dataPoint = mergedTimeSeries.next();
-      timestamps.add((long) dataPoint.lhs);
-      dataPoints.add((double) dataPoint.rhs);
-    }
-    SimpleTimeSeries mergedSeries = new SimpleTimeSeries(
-        timestamps,
-        dataPoints,
-        getWindow(),
-        getStart(),
-        getEnd(),
-        getMaxEntries(),
-        1L
-    );
-    mergedSeries.build();
-    copy(mergedSeries);
+    isDirty = true;
   }
 
   @Override
   public void addTimeSeries(SimpleTimeSeries timeSeries)
   {
-    for (int i = 1; i < timeSeries.size(); i++) {
-      if (timeSeries.getTimestamps().getLong(i - 1) > timeSeries.getTimestamps().getLong(i)) {
-        throw new RE(
-            "SimpleTimeSeries data is not sorted." + "Found timestamp %d after %d while merging",
-            timeSeries.getTimestamps().getLong(i),
-            timeSeries.getTimestamps().getLong(i - 1)
-        );
-      }
+    if (timeSeries == null || timeSeries.size() == 0) {
+      return;
     }
+
+    if (!getWindow().equals(timeSeries.getWindow())) {
+      throw DruidException.defensive(
+          "The time series to merge have different visible windows : (%s, %s)",
+          getWindow(),
+          timeSeries.getWindow()
+      );
+    }
+
     if (bucketMillis != null && !bucketMillis.equals(timeSeries.getBucketMillis())) {
       bucketMillis = null;
     }
-    timeSeriesList.add(timeSeries);
-  }
 
-  @Override
-  public void build()
-  {
-    if (timeSeriesList.isEmpty()) {
-      return;
+    ImplyLongArrayList timestamps = timeSeries.getTimestamps();
+    ImplyDoubleArrayList datapoints = timeSeries.getDataPoints();
+
+    for (int i = 0; i < timestamps.size(); i++) {
+      addDataPoint(timestamps.getLong(i), datapoints.getDouble(i));
     }
-    List<SimpleTimeSeries> mergeList = new ArrayList<>(timeSeriesList);
-    timeSeriesList.clear();
-    mergeList.add(this);
-    mergeSeries(mergeList);
+
+    final EdgePoint startBoundary = timeSeries.getStart();
+    if (startBoundary != null && startBoundary.getTimestampJson() != null) {
+      addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
+    }
+
+    final EdgePoint endBoundary = timeSeries.getEnd();
+    if (endBoundary != null && endBoundary.getTimestampJson() != null) {
+      addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
+    }
+    isDirty = true;
   }
 
   @Override
   public SimpleTimeSeries computeSimple()
   {
-    build();
-    cosort(timestamps, dataPoints);
+    if (isDirty) {
+      cosort(timestamps, dataPoints);
+      isDirty = false;
+    }
     return this;
   }
 
@@ -269,20 +238,12 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   {
     this.timestamps = copySeries.getTimestamps();
     this.dataPoints = copySeries.getDataPoints();
-    this.timeSeriesList = copySeries.getTimeSeriesList();
-  }
-
-  protected Iterator<Pair<Long, Double>> getIterator()
-  {
-    return IntStream.range(0, timestamps.size())
-                    .mapToObj(idx -> new Pair<>(timestamps.getLong(idx), dataPoints.getDouble(idx)))
-                    .iterator();
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(timestamps, dataPoints, timeSeriesList, bucketMillis, super.hashCode());
+    return Objects.hash(timestamps, dataPoints, bucketMillis, super.hashCode());
   }
 
   @Override
@@ -295,10 +256,10 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
       return false;
     }
     SimpleTimeSeries that = (SimpleTimeSeries) o;
-    return Objects.equals(timestamps, that.timestamps) && Objects.equals(dataPoints, that.dataPoints) && Objects.equals(
-        timeSeriesList,
-        that.timeSeriesList
-    ) && Objects.equals(getBucketMillis(), that.getBucketMillis()) && super.equals(o);
+    return Objects.equals(getTimestamps(), that.getTimestamps()) &&
+           Objects.equals(getDataPoints(), that.getDataPoints()) &&
+           Objects.equals(getBucketMillis(), that.getBucketMillis()) &&
+           super.equals(o);
   }
 
   @Override
@@ -316,6 +277,9 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
 
   public SimpleTimeSeriesData asSimpleTimeSeriesData()
   {
+    if (isDirty) {
+      computeSimple();
+    }
     return new SimpleTimeSeriesData(timestamps, dataPoints, getWindow());
   }
 }

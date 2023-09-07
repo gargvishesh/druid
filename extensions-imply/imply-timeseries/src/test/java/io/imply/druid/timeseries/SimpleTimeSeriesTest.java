@@ -36,7 +36,7 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
       for (int j = 0; j < seriesList[i].size(); j++) {
         seriesToMerge[i].addDataPoint(seriesList[i].getTimestamps().getLong(j), seriesList[i].getDataPoints().getDouble(j));
       }
-      seriesToMerge[i].build();
+      seriesToMerge[i] = seriesToMerge[i].computeSimple();
     }
 
     // generate a time series
@@ -47,10 +47,7 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
       initSeries.addTimeSeries(simpleTimeSeries);
     }
 
-    // build the whole thing
-    initSeries.build();
-
-    return initSeries;
+    return initSeries.computeSimple();
   }
 
   @Test
@@ -65,7 +62,7 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
     }
 
     // this will sort the resulting timestamps/datapoints by time in ascending order
-    timeSeries.computeSimple();
+    timeSeries = timeSeries.computeSimple();
 
     ImplyLongArrayList timestamps = timeSeries.getTimestamps();
 

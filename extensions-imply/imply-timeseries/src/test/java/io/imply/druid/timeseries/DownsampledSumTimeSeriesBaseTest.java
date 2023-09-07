@@ -32,8 +32,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         VISIBLE_WINDOW,
         new DurationGranularity(2, 0)
     );
-    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2});
-    expectedSeries.setBucketMillis(2L);
+    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2}, 2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -49,8 +48,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         new DurationGranularity(2, 0)
     );
 
-    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2});
-    expectedSeries.setBucketMillis(2L);
+    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{1, 2}, 2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -67,8 +65,7 @@ public abstract class DownsampledSumTimeSeriesBaseTest
         VISIBLE_WINDOW,
         new DurationGranularity(2, 0)
     );
-    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{15, 24});
-    expectedSeries.setBucketMillis(2L);
+    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 2}, new double[]{15, 24}, 2L);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
