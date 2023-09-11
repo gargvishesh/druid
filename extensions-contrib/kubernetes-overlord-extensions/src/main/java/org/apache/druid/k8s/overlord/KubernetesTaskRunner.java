@@ -23,7 +23,9 @@ import com.google.api.client.util.Lists;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -274,6 +276,7 @@ public class KubernetesTaskRunner implements TaskLogStreamer, TaskRunner
   {
     final KubernetesWorkItem workItem = tasks.get(taskid);
     if (workItem == null) {
+      log.error("Can not find task [%s]", taskid);
       return Optional.absent();
     }
 
@@ -309,23 +312,40 @@ public class KubernetesTaskRunner implements TaskLogStreamer, TaskRunner
   @Override
   public List<Pair<Task, ListenableFuture<TaskStatus>>> restore()
   {
-    List<Pair<Task, ListenableFuture<TaskStatus>>> restoredTasks = new ArrayList<>();
-    for (Job job : client.getPeonJobs()) {
-      try {
-        Task task = adapter.toTask(job);
-        restoredTasks.add(Pair.of(task, joinAsync(task)));
-      }
-      catch (IOException e) {
-        log.error(e, "Error deserializing task from job [%s]", job.getMetadata().getName());
-      }
-    }
-    return restoredTasks;
+    return ImmutableList.of();
   }
 
   @Override
   @LifecycleStart
   public void start()
   {
+    log.info("Starting K8sTaskRunner...");
+    List<ListenableFuture<TaskStatus>> futures = new ArrayList<>();
+    for (Job job : client.getPeonJobs()) {
+      try {
+        Task task = adapter.toTask(job);
+        ListenableFuture<TaskStatus> taskStatusListenableFuture = joinAsync(task);
+        if (job.getStatus() != null && job.getStatus().getActive() == null
+            && (job.getStatus().getFailed() != null || job.getStatus().getSucceeded() != null))
+        {
+          log.info("Recently completed task [%s]", task.getId());
+          futures.add(taskStatusListenableFuture);
+        }
+      }
+      catch (IOException e) {
+        log.error(e, "Error deserializing task from job [%s]", job.getMetadata().getName());
+      }
+    }
+    try {
+      Futures.allAsList(futures).get(30, TimeUnit.SECONDS);
+    }
+    catch (Exception e) {
+      log.error(e, "Failed to wait futures to finish");
+      throw new RuntimeException(e);
+    }
+
+    log.info("Loaded %,d tasks from previous run", tasks.size());
+
     cleanupExecutor.scheduleAtFixedRate(
         () ->
             client.deleteCompletedPeonJobsOlderThan(
