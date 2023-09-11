@@ -174,6 +174,11 @@ public class SimpleTimeSeriesContainer
     return getSimpleTimeSeries().computeSimple();
   }
 
+  public int size()
+  {
+    return computeSimple().size();
+  }
+
   public void pushInto(SimpleTimeSeries simpleTimeSeries)
   {
     Preconditions.checkNotNull(simpleTimeSeries, "merge series is null");

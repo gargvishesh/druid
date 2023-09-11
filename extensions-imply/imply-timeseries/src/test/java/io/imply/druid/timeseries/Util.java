@@ -10,13 +10,14 @@
 package io.imply.druid.timeseries;
 
 import com.google.common.collect.ImmutableList;
-import io.imply.druid.timeseries.expression.ArithmeticOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.ArithmeticTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRRDebugOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesSizeExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
@@ -61,10 +62,11 @@ public class Util
                          new TimeWeightedAverageTimeseriesExprMacro(),
                          new DeltaTimeseriesExprMacro(),
                          new IRROverTimeseriesExprMacro(),
-                         new IRRDebugOverTimeseriesExprMacro()
+                         new IRRDebugOverTimeseriesExprMacro(),
+                         new TimeseriesSizeExprMacro()
                      )
                      .addAll(InterpolationTimeseriesExprMacro.getMacros())
-                     .addAll(ArithmeticOverTimeseriesExprMacro.getMacros())
+                     .addAll(ArithmeticTimeseriesExprMacro.getMacros())
                      .addAll(TestExprMacroTable.INSTANCE.getMacros());
     return new ExprMacroTable(macros.build());
   }

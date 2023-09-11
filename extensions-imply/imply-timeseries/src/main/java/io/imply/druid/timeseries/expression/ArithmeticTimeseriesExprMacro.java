@@ -32,14 +32,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-public abstract class ArithmeticOverTimeseriesExprMacro implements ExprMacroTable.ExprMacro
+public abstract class ArithmeticTimeseriesExprMacro implements ExprMacroTable.ExprMacro
 {
   private final Operator operator;
   private final String name;
   private static final ExpressionType OUTPUT_TYPE =
       Objects.requireNonNull(ExpressionType.fromColumnType(BaseTimeSeriesAggregatorFactory.TYPE), "type is null");
 
-  public ArithmeticOverTimeseriesExprMacro(Operator operator)
+  public ArithmeticTimeseriesExprMacro(Operator operator)
   {
     this.operator = operator;
     this.name = StringUtils.format("%s_timeseries", operator.name().toLowerCase(Locale.ROOT));
@@ -59,7 +59,7 @@ public abstract class ArithmeticOverTimeseriesExprMacro implements ExprMacroTabl
     {
       public ArithmeticOverTimeseriesExpr(List<Expr> args)
       {
-        super(ArithmeticOverTimeseriesExprMacro.this.name(), args);
+        super(ArithmeticTimeseriesExprMacro.this.name(), args);
       }
 
       @Override
@@ -325,45 +325,45 @@ public abstract class ArithmeticOverTimeseriesExprMacro implements ExprMacroTabl
     }
   }
 
-  public static class AddOverTimeseriesExprMacro extends ArithmeticOverTimeseriesExprMacro
+  public static class AddTimeseriesExprMacro extends ArithmeticTimeseriesExprMacro
   {
-    public AddOverTimeseriesExprMacro()
+    public AddTimeseriesExprMacro()
     {
       super(Operator.ADD);
     }
   }
 
-  public static class SubtractOverTimeseriesExprMacro extends ArithmeticOverTimeseriesExprMacro
+  public static class SubtractTimeseriesExprMacro extends ArithmeticTimeseriesExprMacro
   {
-    public SubtractOverTimeseriesExprMacro()
+    public SubtractTimeseriesExprMacro()
     {
       super(Operator.SUBTRACT);
     }
   }
 
-  public static class MultiplyOverTimeseriesExprMacro extends ArithmeticOverTimeseriesExprMacro
+  public static class MultiplyTimeseriesExprMacro extends ArithmeticTimeseriesExprMacro
   {
-    public MultiplyOverTimeseriesExprMacro()
+    public MultiplyTimeseriesExprMacro()
     {
       super(Operator.MULTIPLY);
     }
   }
 
-  public static class DivideOverTimeseriesExprMacro extends ArithmeticOverTimeseriesExprMacro
+  public static class DivideTimeseriesExprMacro extends ArithmeticTimeseriesExprMacro
   {
-    public DivideOverTimeseriesExprMacro()
+    public DivideTimeseriesExprMacro()
     {
       super(Operator.DIVIDE);
     }
   }
 
-  public static List<ArithmeticOverTimeseriesExprMacro> getMacros()
+  public static List<ArithmeticTimeseriesExprMacro> getMacros()
   {
     return ImmutableList.of(
-        new AddOverTimeseriesExprMacro(),
-        new SubtractOverTimeseriesExprMacro(),
-        new MultiplyOverTimeseriesExprMacro(),
-        new DivideOverTimeseriesExprMacro()
+        new AddTimeseriesExprMacro(),
+        new SubtractTimeseriesExprMacro(),
+        new MultiplyTimeseriesExprMacro(),
+        new DivideTimeseriesExprMacro()
     );
   }
 }

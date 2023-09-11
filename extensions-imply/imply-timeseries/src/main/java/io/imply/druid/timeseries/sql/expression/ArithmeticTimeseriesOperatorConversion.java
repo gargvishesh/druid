@@ -26,11 +26,11 @@ import org.apache.druid.sql.calcite.table.RowSignatures;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class ArithmeticOverTimeseriesOperatorConversion implements SqlOperatorConversion
+public class ArithmeticTimeseriesOperatorConversion implements SqlOperatorConversion
 {
   private final String name;
 
-  public ArithmeticOverTimeseriesOperatorConversion(String name)
+  public ArithmeticTimeseriesOperatorConversion(String name)
   {
     this.name = name;
   }
@@ -74,7 +74,7 @@ public class ArithmeticOverTimeseriesOperatorConversion implements SqlOperatorCo
     return OperatorConversions.convertDirectCall(plannerContext, rowSignature, rexNode, name);
   }
 
-  public static class AddTimeseriesOperatorConversion extends ArithmeticOverTimeseriesOperatorConversion
+  public static class AddTimeseriesOperatorConversion extends ArithmeticTimeseriesOperatorConversion
   {
     public AddTimeseriesOperatorConversion()
     {
@@ -82,7 +82,7 @@ public class ArithmeticOverTimeseriesOperatorConversion implements SqlOperatorCo
     }
   }
 
-  public static class SubtractTimeseriesOperatorConversion extends ArithmeticOverTimeseriesOperatorConversion
+  public static class SubtractTimeseriesOperatorConversion extends ArithmeticTimeseriesOperatorConversion
   {
     public SubtractTimeseriesOperatorConversion()
     {
@@ -90,7 +90,7 @@ public class ArithmeticOverTimeseriesOperatorConversion implements SqlOperatorCo
     }
   }
 
-  public static class MultiplyTimeseriesOperatorConversion extends ArithmeticOverTimeseriesOperatorConversion
+  public static class MultiplyTimeseriesOperatorConversion extends ArithmeticTimeseriesOperatorConversion
   {
     public MultiplyTimeseriesOperatorConversion()
     {
@@ -98,7 +98,7 @@ public class ArithmeticOverTimeseriesOperatorConversion implements SqlOperatorCo
     }
   }
 
-  public static class DivideTimeseriesOperatorConversion extends ArithmeticOverTimeseriesOperatorConversion
+  public static class DivideTimeseriesOperatorConversion extends ArithmeticTimeseriesOperatorConversion
   {
     public DivideTimeseriesOperatorConversion()
     {

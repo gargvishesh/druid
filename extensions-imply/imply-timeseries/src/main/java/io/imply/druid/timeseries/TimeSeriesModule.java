@@ -18,24 +18,26 @@ import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetr
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
-import io.imply.druid.timeseries.expression.ArithmeticOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.ArithmeticTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRRDebugOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.TimeseriesSizeExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import io.imply.druid.timeseries.sql.aggregation.DownsampledSumTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.IRRDebugOverTimeseriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.IRROverTimeseriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SimpleTimeSeriesObjectSqlAggregator;
 import io.imply.druid.timeseries.sql.aggregation.SumTimeSeriesObjectSqlAggregator;
-import io.imply.druid.timeseries.sql.expression.ArithmeticOverTimeseriesOperatorConversion;
+import io.imply.druid.timeseries.sql.expression.ArithmeticTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.DeltaTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.InterpolationOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.MaxOverTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeWeightedAverageOperatorConversion;
+import io.imply.druid.timeseries.sql.expression.TimeseriesSizeOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeseriesToJSONOperatorConversion;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
@@ -57,7 +59,6 @@ public class TimeSeriesModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    log.info("The imply-timeseries feature is enabled");
     return ImmutableList.of(
         new SimpleModule("TimeSeriesModule").registerSubtypes(
             new NamedType(
@@ -96,9 +97,10 @@ public class TimeSeriesModule implements DruidModule
     SqlBindings.addOperatorConversion(binder, TimeseriesToJSONOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, DeltaTimeseriesOperatorConversion.class);
     for (SqlOperatorConversion sqlOperatorConversion :
-        ArithmeticOverTimeseriesOperatorConversion.sqlOperatorConversionList()) {
+        ArithmeticTimeseriesOperatorConversion.sqlOperatorConversionList()) {
       SqlBindings.addOperatorConversion(binder, sqlOperatorConversion.getClass());
     }
+    SqlBindings.addOperatorConversion(binder, TimeseriesSizeOperatorConversion.class);
 
     // add expressions
     ExpressionModule.addExprMacro(binder, MaxOverTimeseriesExprMacro.class);
@@ -108,11 +110,12 @@ public class TimeSeriesModule implements DruidModule
     }
     ExpressionModule.addExprMacro(binder, TimeWeightedAverageTimeseriesExprMacro.class);
     ExpressionModule.addExprMacro(binder, DeltaTimeseriesExprMacro.class);
-    for (ArithmeticOverTimeseriesExprMacro arithmeticOverTimeseriesExprMacro : ArithmeticOverTimeseriesExprMacro.getMacros()) {
-      ExpressionModule.addExprMacro(binder, arithmeticOverTimeseriesExprMacro.getClass());
+    for (ArithmeticTimeseriesExprMacro arithmeticTimeseriesExprMacro : ArithmeticTimeseriesExprMacro.getMacros()) {
+      ExpressionModule.addExprMacro(binder, arithmeticTimeseriesExprMacro.getClass());
     }
     ExpressionModule.addExprMacro(binder, IRROverTimeseriesExprMacro.class);
     ExpressionModule.addExprMacro(binder, IRRDebugOverTimeseriesExprMacro.class);
+    ExpressionModule.addExprMacro(binder, TimeseriesSizeExprMacro.class);
   }
 
   public static void registerSerde()

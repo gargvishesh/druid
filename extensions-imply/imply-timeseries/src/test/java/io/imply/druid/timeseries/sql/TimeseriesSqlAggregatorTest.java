@@ -31,6 +31,7 @@ import org.apache.druid.query.QueryRunnerFactoryConglomerate;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
 import org.apache.druid.query.aggregation.FilteredAggregatorFactory;
+import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.groupby.GroupByQuery;
@@ -145,7 +146,11 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         + "  timeseries_to_json(padded_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(backfill_boundary(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 'PT12H')), \n"
         + "  timeseries_to_json(sum_timeseries(ts, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z')), \n"
-        + "  max_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'))"
+        + "  max_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')), \n"
+        + "  timeseries_size(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')), \n"
+        + "  timeseries_to_json(timeseries(ts, '-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z')), \n"
+        + "  timeseries_to_json(downsampled_sum_timeseries(ts, '1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z', 'P2D')), \n"
+        + "  sum(timeseries_size(ts)) \n"
         + "FROM foo",
         Collections.singletonList(
             Druids.newTimeseriesQueryBuilder()
@@ -192,7 +197,25 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "ts",
                           260_000,
                           Intervals.ETERNITY
-                      )
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a5:agg",
+                          null,
+                          null,
+                          "ts",
+                          Intervals.ETERNITY,
+                          null
+                      ),
+                      DownsampledSumTimeSeriesAggregatorFactory.getDownsampledSumTimeSeriesAggregationFactory(
+                          "a6:agg",
+                          null,
+                          null,
+                          "ts",
+                          172800000L,
+                          Intervals.of("1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z"),
+                          null
+                      ),
+                      new LongSumAggregatorFactory("a7", "v0")
                   ))
                   .postAggregators(
                       new ExpressionPostAggregator(
@@ -267,8 +290,32 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "max_over_timeseries(\"a0:agg\")",
                           null,
                           Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p12",
+                          "timeseries_size(\"a0:agg\")",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p13",
+                          "timeseries_to_json(\"a5:agg\")",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p14",
+                          "timeseries_to_json(\"a6:agg\")",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
                       )
                   )
+                  .virtualColumns(new ExpressionVirtualColumn(
+                      "v0",
+                      "timeseries_size(\"ts\")",
+                      ColumnType.LONG,
+                      Util.makeTimeSeriesMacroTable()
+                  ))
                   .context(QUERY_CONTEXT_DEFAULT)
                   .build()
         ),
@@ -327,7 +374,19 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"bucketMillis\":1,\"dataPoints\":[21.0],\"timestamps\":[1],"
                   + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
                 // max_over_timeseries
-                3D
+                3D,
+                // timeseries_size
+                3L,
+                // timeseries on timeseries column
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0,4.0,5.0,6.0],\"timestamps\":[1,1,1,1,1,1],"
+                  + "\"window\":\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"}",
+                // downsampled sum timeseries on timeseries column
+                "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+                  + "\"bucketMillis\":172800000,\"dataPoints\":[21.0],\"timestamps\":[0],"
+                  + "\"window\":\"1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z\"}",
+                // sum of timeseries_size over all rows
+                6L
             })
     );
   }

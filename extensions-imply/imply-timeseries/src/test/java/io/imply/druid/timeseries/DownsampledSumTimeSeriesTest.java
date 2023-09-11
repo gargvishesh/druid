@@ -11,8 +11,11 @@ package io.imply.druid.timeseries;
 
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
+import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
+import org.junit.Assert;
+import org.junit.Test;
 
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
@@ -44,5 +47,39 @@ public class DownsampledSumTimeSeriesTest extends DownsampledSumTimeSeriesBaseTe
     }
 
     return initSeries.computeSimple();
+  }
+
+  @Test
+  public void testAddSimpleTimeseries()
+  {
+    DownsampledSumTimeSeries initSeries = new DownsampledSumTimeSeries(
+        new DurationGranularity(2, 0),
+        Intervals.utc(2, 7),
+        MAX_ENTRIES
+    );
+    for (int i = 2; i < 7; i += 2) {
+      initSeries.addDataPoint(i, i);
+    }
+    initSeries.addSimpleTimeSeries(new SimpleTimeSeries(
+        new ImplyLongArrayList(new long[]{0, 1, 3, 5, 7, 8}),
+        new ImplyDoubleArrayList(new double[]{0, 1, 3, 5, 7, 8}),
+        Intervals.utc(0, 8),
+        null,
+        null,
+        MAX_ENTRIES,
+        1L
+    ));
+    Assert.assertEquals(
+        new SimpleTimeSeries(
+          new ImplyLongArrayList(new long[]{2, 4, 6}),
+          new ImplyDoubleArrayList(new double[]{5, 9, 13}),
+          Intervals.utc(2, 7),
+          new TimeSeries.EdgePoint(0, 1),
+          new TimeSeries.EdgePoint(8, 8),
+          MAX_ENTRIES,
+          2L
+        ),
+        initSeries.computeSimple()
+    );
   }
 }

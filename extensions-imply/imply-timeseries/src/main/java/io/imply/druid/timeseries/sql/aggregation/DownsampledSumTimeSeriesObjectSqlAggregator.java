@@ -9,10 +9,12 @@
 
 package io.imply.druid.timeseries.sql.aggregation;
 
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -20,7 +22,6 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Optionality;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
@@ -67,59 +68,89 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
       boolean finalizeAggregations
   )
   {
-    if (aggregateCall.getArgList().size() < 4) {
+    if (aggregateCall.getArgList().size() < 3) {
       return null;
     }
 
-    String timeColumnName, dataColumnName;
-    // fetch time column name
-    DruidExpression timeColumn = Aggregations.toDruidExpressionForNumericAggregator(
-        plannerContext,
-        rowSignature,
-        Expressions.fromFieldAccess(
-            rexBuilder.getTypeFactory(),
-            rowSignature,
-            project,
-            aggregateCall.getArgList().get(0)
+    // timeseries column
+    String timeseriesColumnName = null, timeColumnName = null, dataColumnName = null;
+    int argCounter = 0;
+    if (aggregateCall.getArgList().size() == 3 ||
+        // timeseries column case
+        (aggregateCall.getArgList().size() == 4 &&
+         isFieldMaxEntriesArg(
+             aggregateCall.getArgList().get(3),
+             rexBuilder.getTypeFactory(),
+             rowSignature,
+             project
+         )
         )
-    );
-    if (timeColumn == null) {
-      return null;
-    }
-    if (timeColumn.isDirectColumnAccess()) {
-      timeColumnName = timeColumn.getDirectColumn();
-    } else {
-      VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
+    ) {
+      // fetch timeseries column name
+      DruidExpression timeseriesColumn = Aggregations.toDruidExpressionForNumericAggregator(
           plannerContext,
+          rowSignature,
+          Expressions.fromFieldAccess(
+              rexBuilder.getTypeFactory(),
+              rowSignature,
+              project,
+              aggregateCall.getArgList().get(argCounter)
+          )
+      );
+      if (timeseriesColumn == null) {
+        return null;
+      }
+      timeseriesColumnName = extractColumnNameFromExpression(
+          timeseriesColumn,
+          virtualColumnRegistry,
+          plannerContext,
+          ColumnType.ofComplex(SimpleTimeSeriesComplexMetricSerde.TYPE_NAME)
+      );
+      argCounter++;
+    } else {
+      // fetch time column name
+      DruidExpression timeColumn = Aggregations.toDruidExpressionForNumericAggregator(
+          plannerContext,
+          rowSignature,
+          Expressions.fromFieldAccess(
+              rexBuilder.getTypeFactory(),
+              rowSignature,
+              project,
+              aggregateCall.getArgList().get(argCounter)
+          )
+      );
+      if (timeColumn == null) {
+        return null;
+      }
+      timeColumnName = extractColumnNameFromExpression(
           timeColumn,
+          virtualColumnRegistry,
+          plannerContext,
           ColumnType.LONG
       );
-      timeColumnName = virtualColumn.getOutputName();
-    }
+      argCounter++;
 
-    // fetch data column name
-    DruidExpression dataColumn = Aggregations.toDruidExpressionForNumericAggregator(
-        plannerContext,
-        rowSignature,
-        Expressions.fromFieldAccess(
-            rexBuilder.getTypeFactory(),
-            rowSignature,
-            project,
-            aggregateCall.getArgList().get(1)
-        )
-    );
-    if (dataColumn == null) {
-      return null;
-    }
-    if (dataColumn.isDirectColumnAccess()) {
-      dataColumnName = dataColumn.getDirectColumn();
-    } else {
-      VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
+      // fetch data column name
+      DruidExpression dataColumn = Aggregations.toDruidExpressionForNumericAggregator(
           plannerContext,
+          rowSignature,
+          Expressions.fromFieldAccess(
+              rexBuilder.getTypeFactory(),
+              rowSignature,
+              project,
+              aggregateCall.getArgList().get(argCounter)
+          )
+      );
+      if (dataColumn == null) {
+        return null;
+      }
+      dataColumnName = extractColumnNameFromExpression(
           dataColumn,
+          virtualColumnRegistry,
+          plannerContext,
           ColumnType.DOUBLE
       );
-      dataColumnName = virtualColumn.getOutputName();
+      argCounter++;
     }
 
     // fetch time window
@@ -127,26 +158,39 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
         rexBuilder.getTypeFactory(),
         rowSignature,
         project,
-        aggregateCall.getArgList().get(2)
+        aggregateCall.getArgList().get(argCounter)
     );
     Interval window = Intervals.of(RexLiteral.stringValue(timeWindow));
+    argCounter++;
 
+    // fetch bucket millis
     final RexNode timeBucketMillisArg = Expressions.fromFieldAccess(
         rexBuilder.getTypeFactory(),
         rowSignature,
         project,
-        aggregateCall.getArgList().get(3)
+        aggregateCall.getArgList().get(argCounter)
     );
     long timeBucketMillis = new Period(RexLiteral.stringValue(timeBucketMillisArg)).toStandardDuration().getMillis();
+    argCounter++;
 
     // check if maxEntries is provided
     Integer maxEntries = null;
-    if (aggregateCall.getArgList().size() == 5) {
+    if (aggregateCall.getArgList().size() == 5 ||
+        // timeseries column case
+        (aggregateCall.getArgList().size() == 4 &&
+         isFieldMaxEntriesArg(
+             aggregateCall.getArgList().get(3),
+             rexBuilder.getTypeFactory(),
+             rowSignature,
+             project
+         )
+        )
+    ) {
       final RexNode maxEntriesArg = Expressions.fromFieldAccess(
           rexBuilder.getTypeFactory(),
           rowSignature,
           project,
-          aggregateCall.getArgList().get(4)
+          aggregateCall.getArgList().get(argCounter)
       );
       maxEntries = ((Number) RexLiteral.value(maxEntriesArg)).intValue();
     }
@@ -157,12 +201,53 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
             StringUtils.format("%s:agg", name),
             dataColumnName,
             timeColumnName,
-            null,
+            timeseriesColumnName,
             timeBucketMillis,
             window,
             maxEntries
         )
     );
+  }
+
+  private String extractColumnNameFromExpression(
+      DruidExpression expression,
+      VirtualColumnRegistry virtualColumnRegistry,
+      PlannerContext plannerContext,
+      ColumnType columnType
+  )
+  {
+    if (expression.isDirectColumnAccess()) {
+      return expression.getDirectColumn();
+    } else {
+      VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
+          plannerContext,
+          expression,
+          columnType
+      );
+      return virtualColumn.getOutputName();
+    }
+  }
+
+  private boolean isFieldMaxEntriesArg(
+      int fieldNumber,
+      RelDataTypeFactory typeFactory,
+      RowSignature rowSignature,
+      Project project
+  )
+  {
+    try {
+      final RexNode maxEntriesArg = Expressions.fromFieldAccess(
+          typeFactory,
+          rowSignature,
+          project,
+          fieldNumber
+      );
+      ((Number) RexLiteral.value(maxEntriesArg)).intValue();
+      return true;
+    }
+    catch (Exception e) {
+      return false;
+    }
   }
 
   private static class DownsampledSumTimeSeriesSqlAggFunction extends SqlAggFunction
@@ -180,37 +265,33 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
           ),
           null,
           OperandTypes.or(
-              OperandTypes.and(
-                  OperandTypes.sequence(
-                      "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod)",
-                      OperandTypes.ANY,
-                      OperandTypes.ANY,
-                      OperandTypes.LITERAL,
-                      OperandTypes.LITERAL
-                  ),
-                  OperandTypes.family(
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.STRING
-                  )
+              OperandTypes.sequence(
+                  "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod)",
+                  OperandTypes.ANY,
+                  OperandTypes.ANY,
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING)
               ),
-              OperandTypes.and(
-                  OperandTypes.sequence(
-                      "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
-                      OperandTypes.ANY,
-                      OperandTypes.ANY,
-                      OperandTypes.LITERAL,
-                      OperandTypes.LITERAL,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL
-                  ),
-                  OperandTypes.family(
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.ANY,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.STRING,
-                      SqlTypeFamily.EXACT_NUMERIC
-                  )
+              OperandTypes.sequence(
+                  "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
+                  OperandTypes.ANY,
+                  OperandTypes.ANY,
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.POSITIVE_INTEGER_LITERAL
+              ),
+              OperandTypes.sequence(
+                  "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeseriesColumn, window, bucketPeriod)",
+                  OperandTypes.ANY,
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING)
+              ),
+              OperandTypes.sequence(
+                  "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeseriesColumn, window, bucketPeriod, maxEntries)",
+                  OperandTypes.ANY,
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
+                  OperandTypes.POSITIVE_INTEGER_LITERAL
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,
