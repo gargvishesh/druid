@@ -22,10 +22,12 @@ import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 public class SimpleTimeSeriesComplexMetricSerde extends ComplexMetricSerde
 {
-  public static final String TYPE_NAME = BaseTimeSeriesAggregatorFactory.TYPE.getComplexTypeName();
+  public static final String TYPE_NAME =
+      Objects.requireNonNull(BaseTimeSeriesAggregatorFactory.TYPE.getComplexTypeName());
 
   static final SimpleTimeSeriesObjectStrategy SIMPLE_TIME_SERIES_OBJECT_STRATEGY =
       new SimpleTimeSeriesObjectStrategy();

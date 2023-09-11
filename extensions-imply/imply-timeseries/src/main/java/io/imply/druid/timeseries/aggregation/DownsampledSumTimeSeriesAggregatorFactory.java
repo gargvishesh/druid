@@ -90,7 +90,13 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     if (getTimeseriesColumn() != null) {
-      throw new UnsupportedOperationException();
+      BaseObjectColumnValueSelector<SimpleTimeSeriesContainer> selector = metricFactory.makeColumnValueSelector(getTimeseriesColumn());
+      return new DownsampledSumTimeSeriesMergeAggregator(
+          selector,
+          new DurationGranularity(getTimeBucketMillis(), 0),
+          getWindow(),
+          getMaxEntries()
+      );
     } else {
       BaseDoubleColumnValueSelector dataSelector = metricFactory.makeColumnValueSelector(getDataColumn());
       BaseLongColumnValueSelector timeSelector = metricFactory.makeColumnValueSelector(getTimeColumn());
@@ -155,7 +161,13 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
     if (rightSeries == null && leftSeries == null) {
       return SimpleTimeSeriesContainer.createFromInstance(null);
     } else if (rightSeries != null && leftSeries != null) {
-      leftSeries.addTimeSeries(rightSeries);
+      if (leftSeries.size() > rightSeries.size()) {
+        leftSeries.addTimeSeries(rightSeries);
+        return SimpleTimeSeriesContainer.createFromInstance(leftSeries.computeSimple());
+      } else {
+        rightSeries.addTimeSeries(leftSeries);
+        return SimpleTimeSeriesContainer.createFromInstance(rightSeries.computeSimple());
+      }
     } else if (rightSeries != null) {
       return SimpleTimeSeriesContainer.createFromInstance(rightSeries.computeSimple());
     }

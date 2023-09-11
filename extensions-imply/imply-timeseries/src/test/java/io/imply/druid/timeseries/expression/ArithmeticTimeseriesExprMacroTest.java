@@ -29,14 +29,14 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-public class ArithmeticOverTimeseriesExprMacroTest
+public class ArithmeticTimeseriesExprMacroTest
 {
   static {
     NullHandling.initializeForTests();
   }
 
   public static final ExprMacroTable MACRO_TABLE = new ExprMacroTable(
-      ImmutableList.<ExprMacroTable.ExprMacro>builder().addAll(ArithmeticOverTimeseriesExprMacro.getMacros()).build()
+      ImmutableList.<ExprMacroTable.ExprMacro>builder().addAll(ArithmeticTimeseriesExprMacro.getMacros()).build()
   );
 
   @Test
@@ -48,11 +48,11 @@ public class ArithmeticOverTimeseriesExprMacroTest
         new double[]{1, 4, 9, 16},
         new double[]{1, 1, 1, 1}
     };
-    ArithmeticOverTimeseriesExprMacro[] macros = new ArithmeticOverTimeseriesExprMacro[] {
-        new ArithmeticOverTimeseriesExprMacro.AddOverTimeseriesExprMacro(),
-        new ArithmeticOverTimeseriesExprMacro.SubtractOverTimeseriesExprMacro(),
-        new ArithmeticOverTimeseriesExprMacro.MultiplyOverTimeseriesExprMacro(),
-        new ArithmeticOverTimeseriesExprMacro.DivideOverTimeseriesExprMacro()
+    ArithmeticTimeseriesExprMacro[] macros = new ArithmeticTimeseriesExprMacro[] {
+        new ArithmeticTimeseriesExprMacro.AddTimeseriesExprMacro(),
+        new ArithmeticTimeseriesExprMacro.SubtractTimeseriesExprMacro(),
+        new ArithmeticTimeseriesExprMacro.MultiplyTimeseriesExprMacro(),
+        new ArithmeticTimeseriesExprMacro.DivideTimeseriesExprMacro()
     };
 
     for (int i = 0; i < macros.length; i++) {

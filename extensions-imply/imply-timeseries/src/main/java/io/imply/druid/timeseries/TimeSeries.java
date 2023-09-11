@@ -55,12 +55,14 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
       internalAddDataPoint(timestamp, data);
     } else {
       if (timestamp < window.getStartMillis()) {
-        if (start.timestamp < timestamp || start.timestamp == -1) {
+        // in case of a tie, last data point wins
+        if (start.timestamp <= timestamp || start.timestamp == -1) {
           start.setTimestamp(timestamp);
           start.setData(data);
         }
       } else if (timestamp >= window.getEndMillis()) {
-        if (end.timestamp > timestamp || end.timestamp == -1) {
+        // in case of a tie, last data point wins
+        if (end.timestamp >= timestamp || end.timestamp == -1) {
           end.setTimestamp(timestamp);
           end.setData(data);
         }

@@ -88,6 +88,97 @@ public class DownsampledSumTimeSeries extends SimpleTimeSeries
                    timestamp);
     }
   }
+
+  public void addSimpleTimeSeries(SimpleTimeSeries mergeSeries)
+  {
+    // merge the timestamps that are same and collected the ones in the merge series that aren't same
+    int currSeriescounter = 0, mergeSeriesCounter = 0;
+    IntArrayList leftoverPoints = new IntArrayList();
+
+    ImplyDoubleArrayList dataPoints = getDataPoints();
+    ImplyDoubleArrayList mergeSeriesDataPoints = mergeSeries.getDataPoints();
+    ImplyLongArrayList timestamps = getTimestamps();
+    ImplyLongArrayList mergeSeriesTimestamps = mergeSeries.getTimestamps();
+    while (mergeSeriesCounter < mergeSeries.size() && currSeriescounter < size()) {
+      long mergeSeriesTimestamp = timeBucketGranularity.bucketStart(mergeSeriesTimestamps.getLong(mergeSeriesCounter));
+      long currSeriesTimestamp = timestamps.getLong(currSeriescounter);
+      if (mergeSeriesTimestamp == currSeriesTimestamp) {
+        dataPoints.set(
+            currSeriescounter,
+            dataPoints.getDouble(currSeriescounter) + mergeSeriesDataPoints.getDouble(mergeSeriesCounter)
+        );
+        mergeSeriesCounter++;
+        currSeriescounter++;
+      } else if (mergeSeriesTimestamp < currSeriesTimestamp) {
+        if (getWindow().contains(mergeSeriesTimestamp)) {
+          leftoverPoints.add(mergeSeriesCounter);
+        } else {
+          addDataPoint(mergeSeriesTimestamp, mergeSeriesDataPoints.getDouble(mergeSeriesCounter));
+        }
+        mergeSeriesCounter++;
+      } else {
+        currSeriescounter++;
+      }
+    }
+    while (mergeSeriesCounter < mergeSeries.size()) {
+      long mergeSeriesTimestamp = timeBucketGranularity.bucketStart(mergeSeriesTimestamps.getLong(mergeSeriesCounter));
+      if (getWindow().contains(mergeSeriesTimestamp)) {
+        leftoverPoints.add(mergeSeriesCounter);
+      } else {
+        addDataPoint(mergeSeriesTimestamp, mergeSeriesDataPoints.getDouble(mergeSeriesCounter));
+      }
+      mergeSeriesCounter++;
+    }
+
+    // resize the current series to adjust for leftover points
+    int oldSize = size();
+    int newSize = oldSize + leftoverPoints.size();
+    timestamps.size(newSize);
+    dataPoints.size(newSize);
+
+    // put the leftover points to their correct place
+    int oldSizeCounter = oldSize - 1;
+    int leftOverCounter = leftoverPoints.size() - 1;
+    int newSeriesCounter = newSize - 1;
+    while (oldSizeCounter >= 0 && leftOverCounter >= 0) {
+      long currSeriesTimestamp = timestamps.getLong(oldSizeCounter);
+      long mergeSeriesTimestamp = timeBucketGranularity.bucketStart(
+          mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter))
+      );
+      if (currSeriesTimestamp < mergeSeriesTimestamp) {
+        timestamps.set(newSeriesCounter, mergeSeriesTimestamp);
+        dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
+        newSeriesCounter--;
+        leftOverCounter--;
+      } else if (currSeriesTimestamp > mergeSeriesTimestamp) {
+        timestamps.set(newSeriesCounter, currSeriesTimestamp);
+        dataPoints.set(newSeriesCounter, dataPoints.getDouble(oldSizeCounter));
+        newSeriesCounter--;
+        oldSizeCounter--;
+      } else {
+        throw DruidException.defensive("Expected timestamps to be different. Found same timestamp [%d] in both timeseries", currSeriesTimestamp);
+      }
+    }
+    while (leftOverCounter >= 0) {
+      timestamps.set(
+          newSeriesCounter,
+          timeBucketGranularity.bucketStart(mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter)))
+      );
+      dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
+      newSeriesCounter--;
+      leftOverCounter--;
+    }
+
+    final EdgePoint startBoundary = mergeSeries.getStart();
+    if (startBoundary != null && startBoundary.getTimestampJson() != null) {
+      addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
+    }
+
+    final EdgePoint endBoundary = mergeSeries.getEnd();
+    if (endBoundary != null && endBoundary.getTimestampJson() != null) {
+      addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
+    }
+  }
   
   public void addTimeSeries(DownsampledSumTimeSeries mergeSeries)
   {
@@ -106,80 +197,7 @@ public class DownsampledSumTimeSeries extends SimpleTimeSeries
           mergeSeries.getWindow()
       );
     }
-
-    // merge the timestamps that are same and collected the ones in the merge series that aren't same
-    int currSeriescounter = 0, mergeSeriesCounter = 0;
-    IntArrayList leftoverPoints = new IntArrayList();
-
-    ImplyDoubleArrayList dataPoints = getDataPoints();
-    ImplyDoubleArrayList mergeSeriesDataPoints = mergeSeries.getDataPoints();
-    ImplyLongArrayList timestamps = getTimestamps();
-    ImplyLongArrayList mergeSeriesTimestamps = mergeSeries.getTimestamps();
-    while (mergeSeriesCounter < mergeSeries.size() && currSeriescounter < size()) {
-      long mergeSeriesTimestamp = mergeSeriesTimestamps.getLong(mergeSeriesCounter);
-      long currSeriesTimestamp = timestamps.getLong(currSeriescounter);
-      if (mergeSeriesTimestamp == currSeriesTimestamp) {
-        dataPoints.set(
-            currSeriescounter,
-            dataPoints.getDouble(currSeriescounter) + mergeSeriesDataPoints.getDouble(mergeSeriesCounter)
-        );
-        mergeSeriesCounter++;
-        currSeriescounter++;
-      } else if (mergeSeriesTimestamp < currSeriesTimestamp) {
-        leftoverPoints.add(mergeSeriesCounter);
-        mergeSeriesCounter++;
-      } else {
-        currSeriescounter++;
-      }
-    }
-    while (mergeSeriesCounter < mergeSeries.size()) {
-      leftoverPoints.add(mergeSeriesCounter);
-      mergeSeriesCounter++;
-    }
-
-    // resize the current series to adjust for leftover points
-    int oldSize = size();
-    int newSize = oldSize + leftoverPoints.size();
-    timestamps.size(newSize);
-    dataPoints.size(newSize);
-
-    // put the leftover points to their correct place
-    int oldSizeCounter = oldSize - 1;
-    int leftOverCounter = leftoverPoints.size() - 1;
-    int newSeriesCounter = newSize - 1;
-    while (oldSizeCounter >= 0 && leftOverCounter >= 0) {
-      long currSeriesTimestamp = timestamps.getLong(oldSizeCounter);
-      long mergeSeriesTimestamp = mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter));
-      if (currSeriesTimestamp < mergeSeriesTimestamp) {
-        timestamps.set(newSeriesCounter, mergeSeriesTimestamp);
-        dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
-        newSeriesCounter--;
-        leftOverCounter--;
-      } else if (currSeriesTimestamp > mergeSeriesTimestamp) {
-        timestamps.set(newSeriesCounter, currSeriesTimestamp);
-        dataPoints.set(newSeriesCounter, dataPoints.getDouble(oldSizeCounter));
-        newSeriesCounter--;
-        oldSizeCounter--;
-      } else {
-        throw DruidException.defensive("");
-      }
-    }
-    while (leftOverCounter >= 0) {
-      timestamps.set(newSeriesCounter, mergeSeriesTimestamps.getLong(leftoverPoints.getInt(leftOverCounter)));
-      dataPoints.set(newSeriesCounter, mergeSeriesDataPoints.getDouble(leftoverPoints.getInt(leftOverCounter)));
-      newSeriesCounter--;
-      leftOverCounter--;
-    }
-
-    final EdgePoint startBoundary = mergeSeries.getStart();
-    if (startBoundary != null && startBoundary.getTimestampJson() != null) {
-      addDataPoint(startBoundary.getTimestamp(), startBoundary.getData());
-    }
-
-    final EdgePoint endBoundary = mergeSeries.getEnd();
-    if (endBoundary != null && endBoundary.getTimestampJson() != null) {
-      addDataPoint(endBoundary.getTimestamp(), endBoundary.getData());
-    }
+    addSimpleTimeSeries(mergeSeries);
   }
 
   @Override
