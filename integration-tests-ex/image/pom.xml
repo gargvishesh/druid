@@ -46,7 +46,7 @@ Reference: https://dzone.com/articles/build-docker-image-from-maven
     <parent>
         <artifactId>druid</artifactId>
         <groupId>org.apache.druid</groupId>
-        <version>2023.09.0-iap-SNAPSHOT</version>
+        <version>2023.10.0-iap-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
