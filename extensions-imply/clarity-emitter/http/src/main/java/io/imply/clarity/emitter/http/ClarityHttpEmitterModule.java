@@ -15,20 +15,25 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.inject.Binder;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
 import io.imply.clarity.emitter.BaseClarityEmitterConfig;
 import io.imply.clarity.emitter.ClarityNodeDetails;
 import org.apache.druid.guice.JsonConfigProvider;
+import org.apache.druid.guice.LazySingleton;
+import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.ManageLifecycle;
 import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.lifecycle.Lifecycle;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.emitter.core.Emitter;
 import org.apache.druid.java.util.http.client.HttpClientConfig;
 import org.apache.druid.java.util.http.client.HttpClientInit;
+import org.apache.druid.server.DruidNode;
 import org.apache.druid.utils.JvmUtils;
 
 import javax.net.ssl.SSLContext;
@@ -41,12 +46,25 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 public class ClarityHttpEmitterModule implements DruidModule
 {
+  static final String PROPERTY_JFR_PROFILER = "druid.emitter.clarity.jfrProfiler";
+
   private static final Logger log = new Logger(ClarityHttpEmitterModule.class);
   private static final String EMITTER_TYPE = "clarity";
+
+  private Properties properties;
+
+  @Inject
+  public void setProperties(Properties properties)
+  {
+    this.properties = properties;
+  }
 
   @Override
   public List<? extends Module> getJacksonModules()
@@ -60,6 +78,12 @@ public class ClarityHttpEmitterModule implements DruidModule
     JsonConfigProvider.bind(binder, "druid.emitter.clarity", ClarityHttpEmitterConfig.class);
     JsonConfigProvider.bind(binder, "druid.emitter.clarity.ssl", ClarityHttpEmitterSSLClientConfig.class);
     binder.bind(BaseClarityEmitterConfig.class).to(ClarityHttpEmitterConfig.class);
+    binder.bind(JdkVersion.class).toProvider(JdkVersionProvider.class).in(LazySingleton.class);
+
+    if (Boolean.parseBoolean(properties.getProperty(PROPERTY_JFR_PROFILER, "false"))) {
+      binder.bind(JfrProfilerManager.class).in(ManageLifecycle.class);
+      LifecycleModule.register(binder, JfrProfilerManager.class);
+    }
   }
 
   @Provides
@@ -81,6 +105,35 @@ public class ClarityHttpEmitterModule implements DruidModule
         HttpClientInit.createClient(httpClientConfig, lifecycle),
         jsonMapper
     );
+  }
+
+  @Provides
+  public JfrProfilerManagerConfig getJfrProfilerManagerConfig(
+      ClarityHttpEmitterConfig config,
+      @Self DruidNode node,
+      Properties properties
+  )
+  {
+    JfrProfilerManagerConfig.Builder builder = new JfrProfilerManagerConfig.Builder();
+    Map<String, String> autoTags = new HashMap<>();
+
+    autoTags.put("host", node.getHostAndPortToUse());
+    autoTags.put("service", node.getServiceName());
+    addIfExists(autoTags, properties, "dataSource", "druid.metrics.emitter.dimension.dataSource");
+    addIfExists(autoTags, properties, "taskId", "druid.metrics.emitter.dimension.taskId");
+    addIfExists(autoTags, properties, "taskType", "druid.metrics.emitter.dimension.taskType");
+    addIfExists(autoTags, properties, "implyCluster", "druid.emitter.clarity.clusterName");
+    builder.addTags(autoTags);
+    builder.addTags(config.getJfrProfilerTags());
+
+    return builder.build();
+  }
+
+  private void addIfExists(Map<String, String> map, Properties properties, String key, String propertyKey)
+  {
+    if (properties.containsKey(propertyKey)) {
+      map.put(key, properties.getProperty(propertyKey));
+    }
   }
 
   @VisibleForTesting
@@ -142,7 +195,8 @@ public class ClarityHttpEmitterModule implements DruidModule
       trustManagerFactory.init(keyStore);
       sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
     }
-    catch (CertificateException | KeyManagementException | IOException | KeyStoreException | NoSuchAlgorithmException e) {
+    catch (CertificateException | KeyManagementException | IOException | KeyStoreException |
+           NoSuchAlgorithmException e) {
       Throwables.propagate(e);
     }
     return sslContext;
