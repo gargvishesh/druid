@@ -20,7 +20,9 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -115,9 +117,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
 
   @JsonProperty
   private Map<String, Object> context = null;
-  
+
   @JsonProperty
   private Integer workerCount;
+
+  @JsonProperty
+  private Map<String, String> jfrProfilerTags = new HashMap<>();
 
   private ClarityHttpEmitterConfig()
   {
@@ -146,7 +151,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       Set<String> customQueryDimensions,
       HttpClientProxyConfig proxyConfig,
       Map<String, Object> context,
-      Integer workerCount
+      Integer workerCount,
+      Map<String, String> jfrProfilerTags
   )
   {
     this.flushMillis = (flushMillis != null ? flushMillis : DEFAULT_FLUSH_MILLIS);
@@ -176,6 +182,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     this.proxyConfig = proxyConfig;
     this.context = context;
     this.workerCount = workerCount;
+    this.jfrProfilerTags = jfrProfilerTags;
   }
 
   public long getFlushMillis()
@@ -298,6 +305,11 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     return workerCount;
   }
 
+  public Map<String, String> getJfrProfilerTags()
+  {
+    return jfrProfilerTags;
+  }
+
   @Override
   public String toString()
   {
@@ -324,6 +336,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
            ", proxyConfig=" + proxyConfig +
            ", context=" + context +
            ", workerCount=" + workerCount +
+           ", jfrProfilerTags=" + jfrProfilerTags +
            '}';
   }
 
@@ -356,6 +369,7 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
     private HttpClientProxyConfig proxyConfig;
     private Map<String, Object> context;
     private Integer workerCount;
+    private Map<String, String> jfrProfilerTags = new HashMap<>();
 
     public Builder(String recipientBaseUrl)
     {
@@ -488,6 +502,12 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
       return this;
     }
 
+    public Builder withJfrProfilerTags(Map<String, String> jfrProfilerTags)
+    {
+      this.jfrProfilerTags = jfrProfilerTags;
+      return this;
+    }
+
     public ClarityHttpEmitterConfig build()
     {
       return new ClarityHttpEmitterConfig(
@@ -512,7 +532,8 @@ public class ClarityHttpEmitterConfig implements BaseClarityEmitterConfig
           customQueryDimensions,
           proxyConfig,
           context,
-          workerCount
+          workerCount,
+          jfrProfilerTags
       );
     }
   }
