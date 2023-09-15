@@ -34,11 +34,11 @@ import java.util.Map;
 
 /**
  * Authenticates Imply API keys, a custom API key feature built as a Keycloak extension.
- *
+ * <p>
  * This authenticator exchanges the provided API key with a JWT token using {@link ImplyKeycloakAPIKeyAuthHelper}
  * and sets that as the authenticator result. This lets us reuse any existing Keycloak authorizers instead of
  * building a specific one for this.
- *
+ * <p>
  * This class differs from {@link ImplyKeycloakAuthenticator} in a few ways
  * - It implements a pass through filter since we do not support API keys for Druid APIs
  * - The basic keycloak authenticator does not generate any tokens while this one done.
@@ -55,6 +55,7 @@ public class ImplyAPIKeyAuthenticator implements Authenticator
   public ImplyAPIKeyAuthenticator(
       @JsonProperty("authenticatorName") String authenticatorName,
       @JsonProperty("authorizerName") String authorizerName,
+      @JsonProperty("scope") String scope,
       @JacksonInject DruidKeycloakConfigResolver configResolver
   )
   {
@@ -62,7 +63,7 @@ public class ImplyAPIKeyAuthenticator implements Authenticator
     Preconditions.checkNotNull(authorizerName, "authorizerName");
     this.configResolver = Preconditions.checkNotNull(configResolver, "configResolver");
     this.accessTokenValidator = new AccessTokenValidator(authenticatorName, authorizerName, configResolver);
-    this.apiKeyAuthHelper = new ImplyKeycloakAPIKeyAuthHelper(configResolver);
+    this.apiKeyAuthHelper = new ImplyKeycloakAPIKeyAuthHelper(configResolver, scope);
   }
 
   @VisibleForTesting

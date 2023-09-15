@@ -139,6 +139,13 @@ public class ImplyKeycloakModuleTest
         ).getClass()
     );
     Assert.assertSame(
+        ImplyAPIKeyAuthenticator.class,
+        mapper.readValue(
+            "{\"type\": \"imply-keycloak-api-keys\", \"authenticatorName\" : \"myAuthenticator\", \"authorizerName\": \"myAuthorizer\", \"scope\": \"project-a-cluster-id\"}",
+            Authenticator.class
+        ).getClass()
+    );
+    Assert.assertSame(
         ImplyKeycloakAuthorizer.class,
         mapper.readValue(
             "{\"type\": \"imply-keycloak\"}",
