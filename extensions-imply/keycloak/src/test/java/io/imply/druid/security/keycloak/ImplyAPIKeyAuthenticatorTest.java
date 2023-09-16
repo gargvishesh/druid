@@ -22,6 +22,7 @@ import org.mockito.Mockito;
 
 public class ImplyAPIKeyAuthenticatorTest
 {
+  private static final String SCOPE = "project-a-cluster-id";
   private ImplyAPIKeyAuthenticator authenticator;
 
   @Before
@@ -37,6 +38,7 @@ public class ImplyAPIKeyAuthenticatorTest
     internalConfig.setAuthServerUrl("http://internal-url");
 
     this.authenticator = new ImplyAPIKeyAuthenticator(
+        SCOPE,
         "authenticator",
         "authorizer",
         new DruidKeycloakConfigResolver(
