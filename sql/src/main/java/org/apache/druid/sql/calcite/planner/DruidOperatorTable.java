@@ -79,6 +79,7 @@ import org.apache.druid.sql.calcite.expression.builtin.ConcatOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.ContainsOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.DateExpandOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
+import org.apache.druid.sql.calcite.expression.builtin.DecodeBase64UTFOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.ExtractOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.FloorOperatorConversion;
 import org.apache.druid.sql.calcite.expression.builtin.GreatestOperatorConversion;
@@ -233,6 +234,7 @@ public class DruidOperatorTable implements SqlOperatorTable
                    .add(new CastOperatorConversion())
                    .add(new ReinterpretOperatorConversion())
                    .add(new ComplexDecodeBase64OperatorConversion())
+                   .add(new DecodeBase64UTFOperatorConversion())
                    .build();
 
   private static final List<SqlOperatorConversion> ARRAY_OPERATOR_CONVERSIONS =
