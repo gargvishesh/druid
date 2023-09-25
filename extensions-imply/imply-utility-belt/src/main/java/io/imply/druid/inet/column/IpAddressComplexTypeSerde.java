@@ -33,82 +33,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Comparator;
 
 import static io.imply.druid.inet.column.IpAddressDictionaryEncodedColumnMerger.SERIALIZER_UTILS;
 
 public class IpAddressComplexTypeSerde extends ComplexMetricSerde
 {
-  /**
-   * Compares two ByteBuffer ranges using unsigned byte ordering.
-   *
-   * Different from {@link ByteBuffer#compareTo}, which uses signed ordering.
-   */
-  public static int compareByteBuffers(
-      final ByteBuffer buf1,
-      final int position1,
-      final int length1,
-      final ByteBuffer buf2,
-      final int position2,
-      final int length2
-  )
-  {
-    final int commonLength = Math.min(length1, length2);
-
-    for (int i = 0; i < commonLength; i++) {
-      final byte byte1 = buf1.get(position1 + i);
-      final byte byte2 = buf2.get(position2 + i);
-      final int cmp = (byte1 & 0xFF) - (byte2 & 0xFF); // Unsigned comparison
-      if (cmp != 0) {
-        return cmp;
-      }
-    }
-
-    return Integer.compare(length1, length2);
-  }
-
-  /**
-   * Compares two ByteBuffers from their positions to their limits using unsigned byte ordering. Accepts null
-   * buffers, which are ordered earlier than any nonnull buffer.
-   *
-   * Different from {@link ByteBuffer#compareTo}, which uses signed ordering.
-   */
-  public static int compareByteBuffers(
-      @Nullable final ByteBuffer buf1,
-      @Nullable final ByteBuffer buf2
-  )
-  {
-    if (buf1 == null) {
-      return buf2 == null ? 0 : -1;
-    }
-
-    if (buf2 == null) {
-      return 1;
-    }
-
-    return compareByteBuffers(
-        buf1,
-        buf1.position(),
-        buf1.remaining(),
-        buf2,
-        buf2.position(),
-        buf2.remaining()
-    );
-  }
-
-  private static class UnsignedByteBufferComparator implements Comparator<ByteBuffer>
-  {
-    @Override
-    public int compare(@Nullable ByteBuffer o1, @Nullable ByteBuffer o2)
-    {
-      return compareByteBuffers(o1, o2);
-    }
-  }
-
-  private static Comparator<ByteBuffer> COMPARATOR_UNSIGNED = new UnsignedByteBufferComparator();
-
-
-
   static ObjectStrategy<ByteBuffer> NULLABLE_BYTE_BUFFER_STRATEGY = new ObjectStrategy<ByteBuffer>()
   {
     @Override
@@ -136,7 +65,7 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
       if (val == null) {
         return null;
       }
-      // This method doesn't have javadocs and I'm not sure if it is OK to modify the "val" argument. Copy defensively.
+      // copy defensively
       final ByteBuffer dup = val.duplicate();
       final byte[] bytes = new byte[dup.remaining()];
       dup.get(bytes);
@@ -146,7 +75,8 @@ public class IpAddressComplexTypeSerde extends ComplexMetricSerde
     @Override
     public int compare(ByteBuffer o1, ByteBuffer o2)
     {
-      return Comparators.<ByteBuffer>naturalNullsFirst().thenComparing(COMPARATOR_UNSIGNED).compare(o1, o2);
+      // this is signed comparison and sad, but matches the way IpAddressBlob and IpPrefixBlob comparison is implemented
+      return Comparators.<ByteBuffer>naturalNullsFirst().compare(o1, o2);
     }
   };
 
