@@ -105,8 +105,8 @@ jobs:
           ${MVN} versions:set -DnewVersion=$DRUID_VERSION -DgenerateBackupPoms=false
           echo DRUID_VERSION=${DRUID_VERSION} >> $GITHUB_ENV
           echo BUILD_VERSION=${DRUID_VERSION}-$(git rev-parse --short HEAD) >> $GITHUB_ENV
-          echo RELEASE_VERSION="Custom" >> $GITHUB_ENV
-          echo RELEASE_VERSION="Custom" >> $GITHUB_OUTPUT
+          echo RELEASE_VERSION=Custom >> $GITHUB_ENV
+          echo RELEASE_VERSION=Custom >> $GITHUB_OUTPUT
           echo HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout -P$HADOOP_PROFILE) >> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_OUTPUT
