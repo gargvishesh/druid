@@ -1,4 +1,4 @@
-name: "Build and Release an Imply bundle"
+name: "Build and Release a Custom Imply bundle"
 on:
   workflow_dispatch:
   workflow_call:
