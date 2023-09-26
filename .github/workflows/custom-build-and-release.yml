@@ -9,7 +9,6 @@ on:
       - 'helm/**'
       - '**/*.md'
     branches:
-      - polaris/*
       - custom/*
   pull_request:
     paths-ignore:
@@ -18,7 +17,6 @@ on:
       - 'helm/**'
       - '**/*.md'
     branches:
-      - polaris/*
       - custom/*
 
 concurrency:
@@ -34,7 +32,6 @@ env:
   ARTIFACTORY_IMPLY_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
   ARTIFACTORY_IMPLY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-manager/imply-manager
   CUSTOM_BRANCH: refs/heads/custom/
-  POLARIS_BRANCH: refs/heads/polaris/
 
 jobs:
   build:
@@ -285,7 +282,6 @@ jobs:
           echo PIVOT_VERSION=$(jq -r <imply-release-${PIVOT_RELEASE_VERSION}-properties.json '.properties."pivot.version"[]') >> $GITHUB_ENV
 
       - name: Create imply bundle
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         run: |
           export BUILD_TIMESTAMP=$(TZ=UTC date +%Y%m%dT%H%M%S)
           cd imply-release/
@@ -294,7 +290,6 @@ jobs:
           echo IMPLY_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
 
       - name: Upload imply bundle(s) to Artifactory
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         run: |
           find . -name "imply-${IMPLY_VERSION}.tar.gz"
           export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
@@ -308,19 +303,18 @@ jobs:
           cd imply-release/
           bash scripts/build-imply-bundle-saas.sh
           cat imply-distro.version
-          echo IMPLY_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
+          echo SAAS_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
 
       - name: Upload saas bundle(s) to Artifactory
         run: |
-          find . -name "imply-saas-${IMPLY_VERSION}.tar.gz"
+          find . -name "imply-saas-${SAAS_VERSION}.tar.gz"
           export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           # imply-saas
           cd imply-release
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${SAAS_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${SAAS_VERSION}.tar.gz" "tgz-local/imply-saas/"
 
 
       - name: Notify slack of new imply bundle
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -335,14 +329,13 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
 
       - name: Notify slack of new imply bundle
-        if: startsWith(github.ref, ${{ env.POLARIS_BRANCH }})
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
             {
               "package_name": "imply-saas",
-              "package_version": "${{ env.IMPLY_VERSION }}",
-              "dvt_artifacts": "${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
+              "package_version": "${{ env.SAAS_VERSION }}",
+              "dvt_artifacts": "${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.SAAS_VERSION }}.tar.gz",
               "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
@@ -359,15 +352,14 @@ jobs:
       
       - name: Build Saas Docker image from Imply bundle
         env: 
-          SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
+          SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.SAAS_VERSION }}"
         run: |
           cd imply-release/
           cd docker/saas-data-plane
           docker buildx create --use
-          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
+          docker buildx build --build-arg VERSION="imply-saas-${SAAS_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
 
       - name: Create Imply Manager bundle
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         run: |
           cd imply-release/
           bash scripts/build-imply-manager.sh
@@ -376,7 +368,6 @@ jobs:
           echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
 
       - name: Upload imply-manager bundle(s) to Artifactory
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         run: |
           find . -name "*.tar.gz"
           export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
@@ -385,7 +376,6 @@ jobs:
           jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
 
       - name: Notify slack of new imply-manager bundle
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -400,7 +390,6 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
 
       - name: Assume role to us-east-1 eng for s3 artifact deployment
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::422682147474:role/deployment_infra_assumed_deployment_role
@@ -408,7 +397,6 @@ jobs:
           role-duration-seconds: 1200
 
       - name: Release bundle to S3 for cloud.eng
-        if: startsWith(github.ref, ${{ env.CUSTOM_BRANCH }})
         env:
           S3_BUCKET_PREFIX: s3://imply-cloud-eng/bundles
         run:
