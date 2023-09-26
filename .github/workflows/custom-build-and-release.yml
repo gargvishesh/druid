@@ -228,7 +228,7 @@ jobs:
       druid_build_version: ${{ steps.upload.outputs.BUILD_VERSION }}
       release_version: ${{ steps.version.outputs.RELEASE_VERSION }}
 
-# ------- Enf of Druid Build and start of Bundle creation and upload ------ #
+# ------- End of Druid Build and start of Bundle creation and upload ------ #
 
   bundle-and-deploy:
     runs-on: imply-ubuntu-latest
