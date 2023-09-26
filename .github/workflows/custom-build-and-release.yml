@@ -86,10 +86,12 @@ jobs:
           "imply-saas")
             echo ARTIFACT_NAME="druid-saas" >> $GITHUB_ENV
             echo HADOOP_PROFILE="hadoop3" >> $GITHUB_ENV
+            echo BUILD_SCRIPT="build-imply-bundle-saas.sh"
             echo IMPLY_NAME="imply-saas" >> $GITHUB_ENV;;
           "dist")
             echo ARTIFACT_NAME="druid" >> $GITHUB_ENV
             echo HADOOP_PROFILE="hadoop3" >> $GITHUB_ENV
+            echo BUILD_SCRIPT="build-imply-bundle.sh"
             echo IMPLY_NAME="imply" >> $GITHUB_ENV;;
           *)
             echo "Build profile not matched";;
@@ -288,36 +290,18 @@ jobs:
         run: |
           export BUILD_TIMESTAMP=$(TZ=UTC date +%Y%m%dT%H%M%S)
           cd imply-release/
-          bash scripts/build-imply-bundle.sh
+          bash scripts/${BUILD_SCRIPT}
           cat imply-distro.version
           echo IMPLY_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
 
-      - name: Upload imply bundle(s) to Artifactory
+      - name: Upload imply bundle to Artifactory
         if: matrix.profile == 'dist'
         run: |
-          find . -name "imply-${IMPLY_VERSION}.tar.gz"
+          find . -name "${IMPLY_NAME}-${IMPLY_VERSION}.tar.gz"
           export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           # imply
           cd imply-release
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-${IMPLY_VERSION}.tar.gz" "tgz-local/imply/"
-
-      - name: Create saas bundle
-        if: matrix.profile == 'imply-saas'
-        run: |
-          export BUILD_TIMESTAMP=$(TZ=UTC date +%Y%m%dT%H%M%S)
-          cd imply-release/
-          bash scripts/build-imply-bundle-saas.sh
-          cat imply-distro.version
-          echo IMPLY_VERSION=$(cat imply-distro.version) >> $GITHUB_ENV
-
-      - name: Upload saas bundle(s) to Artifactory
-        if: matrix.profile == 'imply-saas'
-        run: |
-          find . -name "imply-saas-${IMPLY_VERSION}.tar.gz"
-          export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          # imply-saas
-          cd imply-release
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "${IMPLY_NAME}-${IMPLY_VERSION}.tar.gz" "tgz-local/${IMPLY_NAME}/"
 
       - name: Notify slack of new imply bundle
         uses: slackapi/slack-github-action@v1.24.0
@@ -360,12 +344,11 @@ jobs:
           echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
           echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
 
-      - name: Upload imply-manager bundle(s) to Artifactory
+      - name: Upload imply-manager bundle to Artifactory
         if: matrix.profile == 'dist'
         run: |
           find . -name "*.tar.gz"
           export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          # imply
           cd imply-release
           jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
 
@@ -392,6 +375,7 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 1200
 
+      # Create one for SaaS bundle or just stickl with MM-less releases?
       - name: Release bundle to S3 for cloud.eng
         if: matrix.profile == 'dist'
         env:
