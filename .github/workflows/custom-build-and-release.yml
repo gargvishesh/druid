@@ -76,6 +76,14 @@ jobs:
           echo DERBYTOOLS_VERSION=$(sed -nr 's/.*<derby.version>([0-9]{1,}.[0-9]{1,}.[0-9]{1,}.[0-9]{1,})<\/derby.version>/\1/p' pom.xml) >> $GITHUB_ENV
           echo MARIADB_CONNECTOR_VERSION=$(sed -nr 's/.*<mariadb.version>([0-9]{1,}.[0-9]{1,}.[0-9]{1,})<\/mariadb.version>/\1/p' pom.xml) >> $GITHUB_ENV
 
+      - name: Set the commit hash
+        id: commit
+        env:
+          BUILD_PROFILE: ${{ matrix.profile }}
+        run: |
+          COMMIT_HASH=$(git rev-parse --short=8 HEAD)
+          echo COMMIT_HASH=$(echo ${COMMIT_HASH:0:8}) >> $GITHUB_ENV
+
       - name: Set build profile
         id: profile
         env:
@@ -101,9 +109,9 @@ jobs:
           DRUID_VERSION=$(echo ${INIT_DRUID_VERSION} | sed -nr 's/([^-])(-iap)(-SNAPSHOT)/\1\2/p')
           ${MVN} versions:set -DnewVersion=$DRUID_VERSION -DgenerateBackupPoms=false
           echo DRUID_VERSION=${DRUID_VERSION} >> $GITHUB_ENV
-          echo BUILD_VERSION=${DRUID_VERSION}-$(git rev-parse --short HEAD) >> $GITHUB_ENV
-          echo RELEASE_VERSION="Custom" >> $GITHUB_ENV
-          echo RELEASE_VERSION="Custom" >> $GITHUB_OUTPUT
+          echo BUILD_VERSION=${DRUID_VERSION}-${COMMIT_HASH} >> $GITHUB_ENV
+          echo RELEASE_VERSION="custom" >> $GITHUB_ENV
+          echo RELEASE_VERSION="custom" >> $GITHUB_OUTPUT
           echo HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout -P$HADOOP_PROFILE) >> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_OUTPUT
@@ -204,14 +212,14 @@ jobs:
 
       - name: Prepare artifact for upload
         run: |
-          tar -C $STAGING_DIR/dist -czvf ${GITHUB_WORKSPACE}/${ARTIFACT_NAME}-${DRUID_VERSION}-$(git rev-parse --short HEAD).tar.gz druid
+          tar -C $STAGING_DIR/dist -czvf ${GITHUB_WORKSPACE}/${ARTIFACT_NAME}-${DRUID_VERSION}-${COMMIT_HASH}.tar.gz druid
 
       - name: Upload artifact to Artifactory
         id: upload
         run: |
-          echo "BUILD_VERSION=${DRUID_VERSION}-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          BUILD_VERSION="${DRUID_VERSION}-$(git rev-parse --short HEAD)"
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};BVT=InProgress;build.url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID;vcs.branch=${GITHUB_REF_NAME};build.version=${BUILD_VERSION}" "${ARTIFACT_NAME}-${DRUID_VERSION}-$(git rev-parse --short HEAD).tar.gz" "tgz-local/${ARTIFACT_NAME}/"
+          echo "BUILD_VERSION=${DRUID_VERSION}-${COMMIT_HASH}" >> $GITHUB_OUTPUT
+          BUILD_VERSION="${DRUID_VERSION}-${COMMIT_HASH}"
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};BVT=InProgress;build.url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID;vcs.branch=${GITHUB_REF_NAME};build.version=${BUILD_VERSION}" "${ARTIFACT_NAME}-${DRUID_VERSION}-${COMMIT_HASH}.tar.gz" "tgz-local/${ARTIFACT_NAME}/"
 
       - name: Notify slack of new druid build
         uses: slackapi/slack-github-action@v1.24.0
