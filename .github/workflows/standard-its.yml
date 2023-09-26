@@ -25,7 +25,7 @@ on:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     # Required permissions
     permissions:
       pull-requests: read
