@@ -4,7 +4,7 @@ on:
     - cron:  '0 */2 * * *' #Every 2 hours
 jobs:
   updateMaster:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
