@@ -24,6 +24,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  ARTIFACTORY_DOCKER_USER: ${{secrets.ARTIFACTORY_USER}}
+  ARTIFACTORY_DOCKER_PASSWORD: ${{secrets.ARTIFACTORY_PASSWORD}}
+  ARTIFACTORY_URL: https://repo.cnc.imply.io
   ARTIFACTORY_IMPLY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply
   ARTIFACTORY_POLARIS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply-saas
   ARTIFACTORY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local
@@ -310,6 +313,27 @@ jobs:
           # imply-saas
           jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
 
+      - name: Checkout imply-cloud (manager) repo
+        uses: actions/checkout@v3
+        with:
+          repository: implydata/imply-cloud
+          ref: ${{ env.MANAGER_REVISION }}
+          path: imply-release/imply-cloud
+          ssh-key: ${{ secrets.IMPLY_CLOUD_KEY }}
+      
+      - name: Artifactory Docker login
+        run: |
+          docker login -u $ARTIFACTORY_DOCKER_USER -p $ARTIFACTORY_DOCKER_PASSWORD $ARTIFACTORY_URL
+
+      - name: Build Saas Docker image from Imply bundle
+        env: 
+          SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
+        run: |
+          cd imply-release/imply-cloud
+          cd docker/saas-data-plane
+          docker buildx create --use
+          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=${ARTIFACTORY_URL}/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
+
       - name: Notify slack of new imply bundle
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -319,28 +343,12 @@ jobs:
               "package_version": "${{ env.IMPLY_VERSION }}",
               "dvt_artifacts": "${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
               "dvt_artifacts": "${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
+              "saas_docker_image": "${{ env.SAAS_DOCKER_IMAGE }}",
               "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-[saas]${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
-
-      - name: Checkout imply-cloud (manager) repo
-        uses: actions/checkout@v3
-        with:
-          repository: implydata/imply-cloud
-          ref: ${{ env.MANAGER_REVISION }}
-          path: imply-release/imply-cloud
-          ssh-key: ${{ secrets.IMPLY_CLOUD_KEY }}
-      
-      - name: Build Saas Docker image from Imply bundle
-        env: 
-          SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
-        run: |
-          cd imply-release/imply-cloud
-          cd docker/saas-data-plane
-          docker buildx create --use
-          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
 
       - name: Create Imply Manager bundle
         run: |
