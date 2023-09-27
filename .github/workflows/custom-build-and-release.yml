@@ -337,14 +337,14 @@ jobs:
         env: 
           SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
         run: |
-          cd imply-release/
+          cd imply-release/imply-cloud
           cd docker/saas-data-plane
           docker buildx create --use
           docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
 
       - name: Create Imply Manager bundle
         run: |
-          cd imply-release/
+          cd imply-release/imply-cloud
           bash scripts/build-imply-manager.sh
           echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
           echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
