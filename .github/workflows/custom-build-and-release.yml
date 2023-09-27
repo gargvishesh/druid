@@ -341,10 +341,8 @@ jobs:
             {
               "package_name": "imply",
               "package_version": "${{ env.IMPLY_VERSION }}",
-              "dvt_artifacts": "${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
-              "dvt_artifacts": "${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
-              "saas_docker_image": "${{ env.SAAS_DOCKER_IMAGE }}",
-              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-[saas]${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
+              "dvt_artifacts": "enterprise: ${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\npolaris: ${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\ndocker: ${{ env.SAAS_DOCKER_IMAGE }}",
+              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-${{ env.DRUID_VERSION }}.tar.gz\ndruid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-saas${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
@@ -352,7 +350,7 @@ jobs:
 
       - name: Create Imply Manager bundle
         run: |
-          cd imply-release/imply-cloud
+          cd imply-release
           bash scripts/build-imply-manager.sh
           echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
           echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
