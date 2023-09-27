@@ -21,7 +21,7 @@ on:
 
 jobs:
   stale:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/stale@v8
         with:

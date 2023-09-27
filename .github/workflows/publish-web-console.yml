@@ -9,7 +9,7 @@ on: workflow_dispatch
 #       - "web-console/**"
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       # Setup .npmrc file to publish to npm

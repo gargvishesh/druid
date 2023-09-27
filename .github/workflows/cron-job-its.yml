@@ -31,7 +31,7 @@ jobs:
   build:
     if: (github.event_name == 'schedule' && github.repository == 'apache/druid')
     name: build (jdk8)
-    runs-on: ubuntu-latest
+    runs-on: imply-ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v3
