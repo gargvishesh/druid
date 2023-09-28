@@ -28,8 +28,10 @@ env:
   ARTIFACTORY_DOCKER_PASSWORD: ${{secrets.ARTIFACTORY_PASSWORD}}
   ARTIFACTORY_URL: https://repo.cnc.imply.io
   ARTIFACTORY_IMPLY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply
-  ARTIFACTORY_POLARIS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply-saas
+  ARTIFACTORY_POLARIS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
   ARTIFACTORY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local
+  ARTIFACTORY_DRUID_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/druid/druid
+  ARTIFACTORY_DRUID_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/druid-saas/druid-saas
   ARTIFACTORY_PIVOT_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/pivot/pivot
   ARTIFACTORY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/manager/imply-cloud
   ARTIFACTORY_IMPLY_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
@@ -311,7 +313,7 @@ jobs:
           cd imply-release
           jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-${IMPLY_VERSION}.tar.gz" "tgz-local/imply/"
           # imply-saas
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
+          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_SAAS_TGZ}-${DRUID_VERSION}.tar.gz;" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
 
       - name: Checkout imply-cloud (manager) repo
         uses: actions/checkout@v3
@@ -343,7 +345,7 @@ jobs:
               "package_name": "imply",
               "package_version": "${{ env.IMPLY_VERSION }}",
               "dvt_artifacts": "enterprise: ${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\npolaris: ${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\ndocker: ${{ env.SAAS_DOCKER_IMAGE }}",
-              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-${{ env.DRUID_VERSION }}.tar.gz\ndruid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-saas-${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
+              "components": "druid: ${{ env.ARTIFACTORY_DRUID_TGZ }}-${{ env.DRUID_VERSION }}.tar.gz\ndruid: ${{ env.ARTIFACTORY_DRUID_SAAS_TGZ }}-${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
