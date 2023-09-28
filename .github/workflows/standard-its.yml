@@ -176,6 +176,7 @@ jobs:
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-8-${{ github.sha }}
+          restore-keys: setup-java-Linux-maven-${{ hashFiles('**/pom.xml') }}
 
       - name: Load maven settings.xml from Github Secrets (base64)
         env:
