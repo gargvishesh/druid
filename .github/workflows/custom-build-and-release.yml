@@ -24,6 +24,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  ARTIFACTORY_DOCKER_USER: ${{secrets.ARTIFACTORY_USER}}
+  ARTIFACTORY_DOCKER_PASSWORD: ${{secrets.ARTIFACTORY_PASSWORD}}
+  ARTIFACTORY_URL: https://repo.cnc.imply.io
   ARTIFACTORY_IMPLY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply
   ARTIFACTORY_POLARIS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply/imply-saas
   ARTIFACTORY_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local
@@ -110,8 +113,8 @@ jobs:
           ${MVN} versions:set -DnewVersion=$DRUID_VERSION -DgenerateBackupPoms=false
           echo DRUID_VERSION=${DRUID_VERSION} >> $GITHUB_ENV
           echo BUILD_VERSION=${DRUID_VERSION}-${COMMIT_HASH} >> $GITHUB_ENV
-          echo RELEASE_VERSION="custom" >> $GITHUB_ENV
-          echo RELEASE_VERSION="custom" >> $GITHUB_OUTPUT
+          echo RELEASE_VERSION="custom-$(echo ${DRUID_VERSION} | cut -d. -f1,2)" >> $GITHUB_ENV
+          echo RELEASE_VERSION="custom-$(echo ${DRUID_VERSION} | cut -d. -f1,2)" >> $GITHUB_OUTPUT
           echo HADOOP_VERSION=$(mvn help:evaluate -Dexpression=hadoop.compile.version -q -DforceStdout -P$HADOOP_PROFILE) >> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_ENV
           echo PIVOT_RELEASE_VERSION=$(echo ${DRUID_VERSION} | cut -d. -f1,2)>> $GITHUB_OUTPUT
@@ -310,21 +313,6 @@ jobs:
           # imply-saas
           jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_VERSION};build.url=${BUILD_URL};druid.version=${DRUID_VERSION};druid.tgz=${ARTIFACTORY_DRUID_TGZ}-${DRUID_VERSION}.tar.gz;pivot.version=${PIVOT_VERSION};pivot.tgz=${ARTIFACTORY_PIVOT_TGZ}-${PIVOT_VERSION}.tar.gz" "imply-saas-${IMPLY_VERSION}.tar.gz" "tgz-local/imply-saas/"
 
-      - name: Notify slack of new imply bundle
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "package_name": "imply",
-              "package_version": "${{ env.IMPLY_VERSION }}",
-              "dvt_artifacts": "${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
-              "dvt_artifacts": "${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz",
-              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-[saas]${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
-              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
-
       - name: Checkout imply-cloud (manager) repo
         uses: actions/checkout@v3
         with:
@@ -333,43 +321,62 @@ jobs:
           path: imply-release/imply-cloud
           ssh-key: ${{ secrets.IMPLY_CLOUD_KEY }}
       
+      - name: Artifactory Docker login
+        run: |
+          docker login -u $ARTIFACTORY_DOCKER_USER -p $ARTIFACTORY_DOCKER_PASSWORD $ARTIFACTORY_URL
+
       - name: Build Saas Docker image from Imply bundle
         env: 
           SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
         run: |
-          cd imply-release/
+          echo SAAS_DOCKER_IMAGE=${SAAS_DOCKER_IMAGE} >> $GITHUB_ENV
+          cd imply-release/imply-cloud
           cd docker/saas-data-plane
           docker buildx create --use
-          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
+          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=${ARTIFACTORY_URL}/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
 
-      - name: Create Imply Manager bundle
-        run: |
-          cd imply-release/
-          bash scripts/build-imply-manager.sh
-          echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
-          echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
-          echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
-
-      - name: Upload imply-manager bundle to Artifactory
-        run: |
-          find . -name "*.tar.gz"
-          export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          cd imply-release
-          jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
-
-      - name: Notify slack of new imply-manager bundle
+      - name: Notify slack of new imply bundle
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
             {
-              "package_name": "imply-manager",
+              "package_name": "imply",
               "package_version": "${{ env.IMPLY_VERSION }}",
-              "dvt_artifacts": "linux: ${{ env.ARTIFACTORY_IMPLY_MANAGER_TGZ }}-${{ env.IMPLY_MANAGER_VERSION }}.tar.gz",
-              "components": "imply: ${{ env.ARTIFACTORY_IMPLY_TGZ }}-${{ env.IMPLY_VERSION }}.tar.gz\nmanager: ${{ env.ARTIFACTORY_MANAGER_TGZ }}-${{ env.MANAGER_VERSION }}-bin.tar.gz",
+              "dvt_artifacts": "enterprise: ${{ env.ARTIFACTORY_IMPLY_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\npolaris: ${{ env.ARTIFACTORY_POLARIS_TGZ}}-${{ env.IMPLY_VERSION }}.tar.gz\ndocker: ${{ env.SAAS_DOCKER_IMAGE }}",
+              "components": "druid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-${{ env.DRUID_VERSION }}.tar.gz\ndruid: ${{ env.ARTIFACTORY_TGZ }}/druid/druid-saas-${{ env.DRUID_VERSION }}.tar.gz\npivot: ${{ env.ARTIFACTORY_PIVOT_TGZ }}-${{ env.PIVOT_VERSION }}.tar.gz",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
+
+      # - name: Create Imply Manager bundle
+      #   run: |
+      #     cd imply-release
+      #     bash scripts/build-imply-manager.sh
+      #     echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
+      #     echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
+      #     echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
+
+      # - name: Upload imply-manager bundle to Artifactory
+      #   run: |
+      #     find . -name "*.tar.gz"
+      #     export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+      #     cd imply-release
+      #     jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
+
+      # - name: Notify slack of new imply-manager bundle
+      #   uses: slackapi/slack-github-action@v1.24.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "package_name": "imply-manager",
+      #         "package_version": "${{ env.IMPLY_VERSION }}",
+      #         "dvt_artifacts": "linux: ${{ env.ARTIFACTORY_IMPLY_MANAGER_TGZ }}-${{ env.IMPLY_MANAGER_VERSION }}.tar.gz",
+      #         "components": "imply: ${{ env.ARTIFACTORY_IMPLY_TGZ }}-${{ env.IMPLY_VERSION }}.tar.gz\nmanager: ${{ env.ARTIFACTORY_MANAGER_TGZ }}-${{ env.MANAGER_VERSION }}-bin.tar.gz",
+      #         "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
 
       - name: Assume role to us-east-1 eng for s3 artifact deployment
         uses: aws-actions/configure-aws-credentials@v2
