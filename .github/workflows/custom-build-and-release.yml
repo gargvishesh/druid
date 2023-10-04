@@ -10,6 +10,7 @@ on:
       - '**/*.md'
     branches:
       - custom/*
+      - polaris/*
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -18,6 +19,7 @@ on:
       - '**/*.md'
     branches:
       - custom/*
+      - polaris/*
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}' # group workflows only on pull_requests and not on branch commits
@@ -36,7 +38,6 @@ env:
   ARTIFACTORY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/manager/imply-cloud
   ARTIFACTORY_IMPLY_SAAS_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-saas/imply-saas
   ARTIFACTORY_IMPLY_MANAGER_TGZ: https://repo.cnc.imply.io/ui/repos/tree/Properties/tgz-local/imply-manager/imply-manager
-  CUSTOM_BRANCH: refs/heads/custom/
 
 jobs:
   build:
@@ -387,15 +388,14 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 1200
 
-      # Create one for SaaS bundle or just stickl with MM-less releases?
       - name: Release bundle to S3 for cloud.eng
         env:
           S3_BUCKET_PREFIX: s3://imply-cloud-eng/bundles
         run:
           aws s3 cp "imply-release/imply-${IMPLY_VERSION}.tar.gz" "${S3_BUCKET_PREFIX}/imply-${IMPLY_VERSION}.tar.gz" --acl bucket-owner-full-control
 
-      # - name: Update the LTSPlus cluster in cloud.eng
+      # - name: Update the test cluster in cloud.eng
       #   env:
-      #     CLUSTER_ID: 28b61ef2-a137-492d-a06c-c053e762e6e2
+      #     CLUSTER_ID: <add cluster id>
       #   run:
       #     ./imply-release/scripts/update-cluster ${CLUSTER_ID} ROLLING ${IMPLY_VERSION} "imply-${IMPLY_VERSION}" ${IMPLY_VERSION} --environment dev
