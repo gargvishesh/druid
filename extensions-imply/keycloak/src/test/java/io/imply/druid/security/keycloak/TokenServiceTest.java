@@ -36,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -106,23 +107,28 @@ public class TokenServiceTest
   @Test
   public void testGetNotBefore() throws IOException
   {
-    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
+    final AccessTokenResponse someToken = new AccessTokenResponse();
+    someToken.setToken("accessToken");
+    someToken.setRefreshToken("refreshToken");
+    someToken.setExpiresIn(1000);
+    someToken.setRefreshExpiresIn(10000);
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password")) {
+      @Override
+      protected AccessTokenResponse requestToken(@Nullable String refreshToken)
+      {
+        return someToken;
+      }
+    };
     final Map<String, Integer> notBefore = ImmutableMap.of(
         "client1", 0,
         "client2", Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000)
     );
     TokenService.ClientTokenNotBeforeResponse expectedResponse = new TokenService.ClientTokenNotBeforeResponse(notBefore);
     mockGetNotBeforeResponse(expectedResponse);
-    final AccessTokenResponse someToken = new AccessTokenResponse();
-    someToken.setToken("accessToken");
-    someToken.setRefreshToken("refreshToken");
-    someToken.setExpiresIn(1000);
-    someToken.setRefreshExpiresIn(10000);
-    mockAccessTokenResponse(someToken);
     TokenService.ClientTokenNotBeforeResponse actualResponse = tokenService.getClientNotBefore();
 
     ArgumentCaptor<HttpGet> getCaptor = ArgumentCaptor.forClass(HttpGet.class);
-    Mockito.verify(client, Mockito.times(2)).execute(getCaptor.capture());
+    Mockito.verify(client, Mockito.times(1)).execute(getCaptor.capture());
 
     HttpGet captured = getCaptor.getValue();
     final Header[] headers = captured.getAllHeaders();
@@ -136,23 +142,28 @@ public class TokenServiceTest
   @Test
   public void testGetNotBefore_retryOnFailure() throws IOException
   {
-    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
+    final AccessTokenResponse someToken = new AccessTokenResponse();
+    someToken.setToken("accessToken");
+    someToken.setRefreshToken("refreshToken");
+    someToken.setExpiresIn(1000);
+    someToken.setRefreshExpiresIn(10000);
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password")) {
+      @Override
+      protected AccessTokenResponse requestToken(@Nullable String refreshToken)
+      {
+        return someToken;
+      }
+    };
     final Map<String, Integer> notBefore = ImmutableMap.of(
         "client1", 0,
         "client2", Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000)
     );
     TokenService.ClientTokenNotBeforeResponse expectedResponse = new TokenService.ClientTokenNotBeforeResponse(notBefore);
     mockGetNotBeforeResponseFailureThenSuccess(expectedResponse);
-    final AccessTokenResponse someToken = new AccessTokenResponse();
-    someToken.setToken("accessToken");
-    someToken.setRefreshToken("refreshToken");
-    someToken.setExpiresIn(1000);
-    someToken.setRefreshExpiresIn(10000);
-    mockAccessTokenResponse(someToken);
     TokenService.ClientTokenNotBeforeResponse actualResponse = tokenService.getClientNotBefore();
 
     ArgumentCaptor<HttpGet> getCaptor = ArgumentCaptor.forClass(HttpGet.class);
-    Mockito.verify(client, Mockito.times(4)).execute(getCaptor.capture());
+    Mockito.verify(client, Mockito.times(3)).execute(getCaptor.capture());
 
     HttpGet captured = getCaptor.getValue();
     final Header[] headers = captured.getAllHeaders();

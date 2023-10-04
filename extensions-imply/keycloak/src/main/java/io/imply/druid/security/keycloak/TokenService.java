@@ -124,7 +124,7 @@ public class TokenService
 
   }
 
-  private AccessTokenResponse requestToken(@Nullable String refreshToken)
+  protected AccessTokenResponse requestToken(@Nullable String refreshToken)
   {
     HttpClient client = deployment.getClient();
 
