@@ -1,6 +1,6 @@
 name: "Build and Release a Custom Imply bundle"
 on:
-  workflow_dispatch:
+  # workflow_dispatch:
   workflow_call:
   push:
     paths-ignore:
