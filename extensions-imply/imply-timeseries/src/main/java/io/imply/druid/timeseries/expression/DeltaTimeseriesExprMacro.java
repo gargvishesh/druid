@@ -49,12 +49,12 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
     long finalBucketMillis = bucketPeriod.toStandardDuration().getMillis();
     final DurationGranularity durationGranularity = new DurationGranularity(finalBucketMillis, 0);
 
-    class DeltaTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+    class DeltaTimeseriesExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
     {
 
-      public DeltaTimeseriesExpr(Expr arg)
+      public DeltaTimeseriesExpr(List<Expr> args)
       {
-        super(NAME, arg);
+        super(NAME, args);
       }
 
       @Override
@@ -199,7 +199,7 @@ public class DeltaTimeseriesExprMacro implements ExprMacroTable.ExprMacro
         }
       }
     }
-    return new DeltaTimeseriesExpr(arg);
+    return new DeltaTimeseriesExpr(args);
   }
 
   @Override

@@ -806,7 +806,50 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                   + "\"startEstimate\":\"0.1\",\"startValue\":\"1.0\",\"window\":\"2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z\"}",
                 -0.32287565553229536D
             }
-        )
+        ));
+  }
+
+  @Test
+  public void testSumAndQuantileOverTimeseries()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT\n"
+        + "  sum_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z')),\n"
+        + "  quantile_over_timeseries(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'), 0.50)\n"
+        + "FROM foo",
+        Collections.singletonList(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
+                  .granularity(Granularities.ALL)
+                  .aggregators(ImmutableList.of(
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a0:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          null
+                      )
+                  ))
+                  .postAggregators(
+                      new ExpressionPostAggregator(
+                          "p0",
+                          "sum_over_timeseries(\"a0:agg\")",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p1",
+                          "quantile_over_timeseries(\"a0:agg\",0.5)",
+                          null,
+                          Util.makeTimeSeriesMacroTable()
+                      )
+                  )
+                  .build()
+        ),
+        ImmutableList.of(new Object[]{6D, 0D})
     );
   }
 }
