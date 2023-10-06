@@ -12,6 +12,7 @@ package io.imply.druid.timeseries;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
@@ -22,6 +23,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Base64;
+import java.util.Map;
 
 public class SimpleTimeSeriesContainer
 {
@@ -32,6 +34,7 @@ public class SimpleTimeSeriesContainer
   private final SimpleTimeSeriesBuffer simpleTimeSeriesBuffer;
   private final SimpleTimeSeries simpleTimeSeries;
   private static final Base64.Decoder DECODER = Base64.getDecoder();
+  private Map<String, Object> cacheMap;
 
   private SimpleTimeSeriesContainer(SimpleTimeSeriesBuffer simpleTimeSeriesBuffer)
   {
@@ -182,6 +185,7 @@ public class SimpleTimeSeriesContainer
   public void pushInto(SimpleTimeSeries simpleTimeSeries)
   {
     Preconditions.checkNotNull(simpleTimeSeries, "merge series is null");
+    maybeClearCacheMap();
     SimpleTimeSeries thisSimpleTimeSeries = getSimpleTimeSeries();
     simpleTimeSeries.addTimeSeries(thisSimpleTimeSeries);
   }
@@ -195,6 +199,7 @@ public class SimpleTimeSeriesContainer
   {
     Preconditions.checkNotNull(simpleByteBufferTimeSeries, "simple time series is null");
     Preconditions.checkNotNull(window, "window is null");
+    maybeClearCacheMap();
     simpleByteBufferTimeSeries.mergeSeriesBuffered(writableMemory, pos, getSimpleTimeSeries().copyWithWindow(window));
   }
 
@@ -205,6 +210,7 @@ public class SimpleTimeSeriesContainer
       int maxEntries
   )
   {
+    maybeClearCacheMap();
     // apply query window to properly filter data points and compute edges
     SimpleTimeSeries windowFilteredTimeSeries;
     if (window == null) {
@@ -247,6 +253,31 @@ public class SimpleTimeSeriesContainer
     long maxTimestamp = timestamps.getLong(timestamps.size() - 1);
 
     return maxTimestamp - minTimestamp <= Integer.MAX_VALUE;
+  }
+
+  public void addToCache(String key, Object value)
+  {
+    getCacheMap().put(key, value);
+  }
+
+  public Object getFromCache(String key)
+  {
+    return getCacheMap().get(key);
+  }
+
+  private Map<String, Object> getCacheMap()
+  {
+    if (cacheMap == null) {
+      cacheMap = Maps.newHashMapWithExpectedSize(1);
+    }
+    return cacheMap;
+  }
+
+  private void maybeClearCacheMap()
+  {
+    if (cacheMap != null) {
+      cacheMap.clear();
+    }
   }
 
   @Override

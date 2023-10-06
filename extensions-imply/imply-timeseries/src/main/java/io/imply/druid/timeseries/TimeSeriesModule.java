@@ -24,6 +24,8 @@ import io.imply.druid.timeseries.expression.IRRDebugOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.QuantileOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.SumOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesSizeExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
@@ -36,6 +38,8 @@ import io.imply.druid.timeseries.sql.expression.ArithmeticTimeseriesOperatorConv
 import io.imply.druid.timeseries.sql.expression.DeltaTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.InterpolationOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.MaxOverTimeseriesOperatorConversion;
+import io.imply.druid.timeseries.sql.expression.QuantilesOverTimeseriesOperatorConversion;
+import io.imply.druid.timeseries.sql.expression.SumOverTimeseriesOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeWeightedAverageOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeseriesSizeOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeseriesToJSONOperatorConversion;
@@ -101,6 +105,8 @@ public class TimeSeriesModule implements DruidModule
       SqlBindings.addOperatorConversion(binder, sqlOperatorConversion.getClass());
     }
     SqlBindings.addOperatorConversion(binder, TimeseriesSizeOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, SumOverTimeseriesOperatorConversion.class);
+    SqlBindings.addOperatorConversion(binder, QuantilesOverTimeseriesOperatorConversion.class);
 
     // add expressions
     ExpressionModule.addExprMacro(binder, MaxOverTimeseriesExprMacro.class);
@@ -116,6 +122,8 @@ public class TimeSeriesModule implements DruidModule
     ExpressionModule.addExprMacro(binder, IRROverTimeseriesExprMacro.class);
     ExpressionModule.addExprMacro(binder, IRRDebugOverTimeseriesExprMacro.class);
     ExpressionModule.addExprMacro(binder, TimeseriesSizeExprMacro.class);
+    ExpressionModule.addExprMacro(binder, SumOverTimeseriesExprMacro.class);
+    ExpressionModule.addExprMacro(binder, QuantileOverTimeseriesExprMacro.class);
   }
 
   public static void registerSerde()

@@ -16,6 +16,8 @@ import io.imply.druid.timeseries.expression.IRRDebugOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.InterpolationTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.MaxOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.QuantileOverTimeseriesExprMacro;
+import io.imply.druid.timeseries.expression.SumOverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeWeightedAverageTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesSizeExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
@@ -63,7 +65,9 @@ public class Util
                          new DeltaTimeseriesExprMacro(),
                          new IRROverTimeseriesExprMacro(),
                          new IRRDebugOverTimeseriesExprMacro(),
-                         new TimeseriesSizeExprMacro()
+                         new TimeseriesSizeExprMacro(),
+                         new SumOverTimeseriesExprMacro(),
+                         new QuantileOverTimeseriesExprMacro()
                      )
                      .addAll(InterpolationTimeseriesExprMacro.getMacros())
                      .addAll(ArithmeticTimeseriesExprMacro.getMacros())

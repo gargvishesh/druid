@@ -43,13 +43,13 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
     );
     long bucketMillis = new Period(TimeseriesExprUtil.expectLiteral(args.get(2), NAME, 3)).toStandardDuration().getMillis();
 
-    class TimeWeightedAverageTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+    class TimeWeightedAverageTimeseriesExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
     {
       private final TimeWeightedAvgTimeSeriesFn timeWeightedAvgTimeSeriesFn;
 
-      public TimeWeightedAverageTimeseriesExpr(Expr arg)
+      public TimeWeightedAverageTimeseriesExpr(List<Expr> args)
       {
-        super(NAME, arg);
+        super(NAME, args);
         this.timeWeightedAvgTimeSeriesFn = new TimeWeightedAvgTimeSeriesFn(bucketMillis, interpolator);
       }
 
@@ -96,7 +96,7 @@ public class TimeWeightedAverageTimeseriesExprMacro implements ExprMacroTable.Ex
         return OUTPUT_TYPE;
       }
     }
-    return new TimeWeightedAverageTimeseriesExpr(arg);
+    return new TimeWeightedAverageTimeseriesExpr(args);
   }
 
   @Override

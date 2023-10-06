@@ -12,21 +12,15 @@ package io.imply.druid.timeseries.expression;
 import io.imply.druid.timeseries.SimpleTimeSeriesContainer;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExpressionType;
-import org.apache.druid.segment.column.ColumnType;
 
-import java.util.Objects;
-
-public class TimeseriesToJSONExprMacro extends UnaryTimeseriesExprMacro
+public class SumOverTimeseriesExprMacro extends UnaryTimeseriesExprMacro
 {
-  public static final String NAME = "timeseries_to_json";
-  public static final ColumnType TYPE = ColumnType.ofComplex("imply-ts-json");
-  private static final ExpressionType OUTPUT_TYPE =
-      Objects.requireNonNull(ExpressionType.fromColumnType(TYPE), "type is null");
+  public static final String NAME = "sum_over_timeseries";
 
   @Override
   public ExpressionType getType()
   {
-    return OUTPUT_TYPE;
+    return ExpressionType.DOUBLE;
   }
 
   @Override
@@ -38,15 +32,10 @@ public class TimeseriesToJSONExprMacro extends UnaryTimeseriesExprMacro
   @Override
   public ExprEval compute(SimpleTimeSeriesContainer simpleTimeSeriesContainer)
   {
-    if (simpleTimeSeriesContainer.isNull()) {
-      return ExprEval.ofComplex(
-          OUTPUT_TYPE,
-          null
-      );
+    double result = 0;
+    for (double dataPoint : simpleTimeSeriesContainer.computeSimple().getDataPoints()) {
+      result += dataPoint;
     }
-    return ExprEval.ofComplex(
-        OUTPUT_TYPE,
-        simpleTimeSeriesContainer.computeSimple()
-    );
+    return ExprEval.ofDouble(result);
   }
 }

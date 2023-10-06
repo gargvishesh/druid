@@ -48,13 +48,13 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
     Expr arg = args.get(0);
     long bucketMillis = new Period(TimeseriesExprUtil.expectLiteral(args.get(1), name, 2)).toStandardDuration().getMillis();
 
-    class InterpolationTimeseriesExpr extends ExprMacroTable.BaseScalarUnivariateMacroFunctionExpr
+    class InterpolationTimeseriesExpr extends ExprMacroTable.BaseScalarMacroFunctionExpr
     {
       private final InterpolatorTimeSeriesFn interpolatorTimeSeriesFn;
 
-      public InterpolationTimeseriesExpr(Expr arg)
+      public InterpolationTimeseriesExpr(List<Expr> args)
       {
-        super(InterpolationTimeseriesExprMacro.this.name, arg);
+        super(InterpolationTimeseriesExprMacro.this.name, args);
         this.interpolatorTimeSeriesFn = new InterpolatorTimeSeriesFn(
             bucketMillis,
             interpolator,
@@ -105,7 +105,7 @@ public abstract class InterpolationTimeseriesExprMacro implements ExprMacroTable
         return OUTPUT_TYPE;
       }
     }
-    return new InterpolationTimeseriesExpr(arg);
+    return new InterpolationTimeseriesExpr(args);
   }
 
   @Override
