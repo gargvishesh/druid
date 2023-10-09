@@ -13,6 +13,7 @@ import org.apache.druid.java.util.emitter.core.Event;
 import org.apache.druid.java.util.emitter.core.EventMap;
 import org.apache.druid.java.util.emitter.core.NoopEmitter;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.apache.druid.utils.JvmUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,7 +72,11 @@ public class ThreadDumpMonitorTest
       Assert.assertTrue(eventMap.get("stack") instanceof String[]);
 
       String[] stack = (String[]) eventMap.get("stack");
-      Assert.assertTrue(stack[1].startsWith(getClass().getName() + "$ThreadBlocked.run(ThreadDumpMonitorTest.java:"));
+      if (JvmUtils.majorVersion() < 20) {
+        Assert.assertTrue(stack[1], stack[1].startsWith(getClass().getName() + "$ThreadBlocked.run(ThreadDumpMonitorTest.java:"));
+      } else {
+        Assert.assertTrue(stack[2], stack[2].startsWith(getClass().getName() + "$ThreadBlocked.run(ThreadDumpMonitorTest.java:"));
+      }
     }
   }
 
