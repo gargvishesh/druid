@@ -208,6 +208,9 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
 
     SimpleTimeSeriesContainer simpleTimeSeriesContainer =
         SimpleTimeSeriesContainer.createFromObject(object, window, maxEntries);
+    if (simpleTimeSeriesContainer.isNull()) {
+      return null;
+    }
     SimpleTimeSeries simpleTimeSeries = simpleTimeSeriesContainer.getSimpleTimeSeries().computeSimple();
     return new DownsampledSumTimeSeries(
         simpleTimeSeries.getTimestamps(),
