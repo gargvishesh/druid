@@ -275,15 +275,16 @@ jobs:
         run: |
           set -eo pipefail
           #### Manager ####
-          echo "Get current production release of imply-manager"
-          jfrog rt search --props "build.name=imply-manager;released=imply-manager-*" tgz-local |jq -r 'map(select(.props.released[] |test("^imply-manager-[0-9]{4,}.[0-9]{2,}$")))| last' | tee imply-manager-properties.json
-          echo MANAGER_VERSION=$(jq -r < imply-manager-properties.json '.props."manager.version"[]') >> $GITHUB_ENV
-          # Get manager revision
-          MANAGER_URL=$(jq -r < imply-manager-properties.json '.props."manager.tgz"[]')
-          echo "Manager URL: $MANAGER_URL"
-          MANAGER_URI=$(echo ${MANAGER_URL} | sed -nr 's/.*(tgz-local\/manager\/imply-cloud-[0-9]{4,}\.[0-9]{2,}-[0-9a-z]*-bin\.tar\.gz)$/\1/p')
-          jfrog rt curl -XGET "/api/storage/${MANAGER_URI}?properties" | tee manager-properties.json
-          echo MANAGER_REVISION=$(jq -r < manager-properties.json '.properties."vcs.revision"[]') >> $GITHUB_ENV
+          # We don't build manager for Polaris and we are using themain branch for docker build
+          # echo "Get current production release of imply-manager"
+          # jfrog rt search --props "build.name=imply-manager;released=imply-manager-*" tgz-local |jq -r 'map(select(.props.released[] |test("^imply-manager-[0-9]{4,}.[0-9]{2,}$")))| last' | tee imply-manager-properties.json
+          # echo MANAGER_VERSION=$(jq -r < imply-manager-properties.json '.props."manager.version"[]') >> $GITHUB_ENV
+          # # Get manager revision
+          # MANAGER_URL=$(jq -r < imply-manager-properties.json '.props."manager.tgz"[]')
+          # echo "Manager URL: $MANAGER_URL"
+          # MANAGER_URI=$(echo ${MANAGER_URL} | sed -nr 's/.*(tgz-local\/manager\/imply-cloud-[0-9]{4,}\.[0-9]{2,}-[0-9a-z]*-bin\.tar\.gz)$/\1/p')
+          # jfrog rt curl -XGET "/api/storage/${MANAGER_URI}?properties" | tee manager-properties.json
+          # echo MANAGER_REVISION=$(jq -r < manager-properties.json '.properties."vcs.revision"[]') >> $GITHUB_ENV
           #### Pivot ####
           echo "Get list of all production imply artifacts for Pivot release"
           jfrog rt curl -XGET "/api/search/prop?repos=tgz-local&build.name=imply&release.version=${PIVOT_RELEASE_VERSION}&released=" | tee imply-releases-${PIVOT_RELEASE_VERSION}.json
@@ -320,7 +321,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: implydata/imply-cloud
-          ref: ${{ env.MANAGER_REVISION }}
+          ref: git reset --hard origin/master
           path: imply-release/imply-cloud
           ssh-key: ${{ secrets.IMPLY_CLOUD_KEY }}
       
