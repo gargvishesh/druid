@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries;
 
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.druid.java.util.common.Intervals;
@@ -80,6 +81,42 @@ public class DownsampledSumTimeSeriesTest extends DownsampledSumTimeSeriesBaseTe
           2L
         ),
         initSeries.computeSimple()
+    );
+  }
+
+  @Test
+  public void testMakeDownsampledSumTimeseriesFromObject()
+  {
+    Assert.assertNull(DownsampledSumTimeSeriesAggregatorFactory.makeDownsampledSumTimeSeriesFromObject(
+        null,
+        Intervals.ETERNITY,
+        100,
+        1L
+    ));
+
+    Assert.assertNull(DownsampledSumTimeSeriesAggregatorFactory.makeDownsampledSumTimeSeriesFromObject(
+        SimpleTimeSeriesContainer.createFromInstance(null),
+        Intervals.ETERNITY,
+        100,
+        1L
+    ));
+
+    Assert.assertEquals(
+        new DownsampledSumTimeSeries(
+            new ImplyLongArrayList(),
+            new ImplyDoubleArrayList(),
+            new DurationGranularity(1L, 0),
+            Intervals.ETERNITY,
+            null,
+            null,
+            100
+        ),
+        DownsampledSumTimeSeriesAggregatorFactory.makeDownsampledSumTimeSeriesFromObject(
+            SimpleTimeSeriesContainer.createFromInstance(new SimpleTimeSeries(Intervals.ETERNITY, 100)),
+            Intervals.ETERNITY,
+            100,
+            1L
+        )
     );
   }
 }
