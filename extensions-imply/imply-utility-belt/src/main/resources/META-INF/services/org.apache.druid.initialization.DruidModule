@@ -7,3 +7,4 @@
 
 io.imply.druid.UtilityBeltModule
 io.imply.druid.inet.IpAddressModule
+io.imply.druid.query.union.SingleQueryUnionModule
