@@ -96,7 +96,7 @@ public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncod
     };
   }
 
-  public Iterable<ImmutableBitmap> getBitmapsForPredicateFactory(DruidPredicateFactory predicateFactory)
+  public Iterable<ImmutableBitmap> getBitmapsForPredicateFactory(DruidPredicateFactory predicateFactory, boolean includeUnknown)
   {
     return () -> new Iterator<ImmutableBitmap>()
     {
@@ -140,7 +140,7 @@ public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncod
         while (!nextSet && iterator.hasNext()) {
           ByteBuffer nextValue = iterator.next();
           if (nextValue == null) {
-            nextSet = stringPredicate.apply(null);
+            nextSet = (includeUnknown && predicateFactory.isNullInputUnknown()) || stringPredicate.apply(null);
           } else {
             final IpAddressBlob blob = IpAddressBlob.ofByteBuffer(nextValue);
             nextSet = stringPredicate.apply(blob.asCompressedString());

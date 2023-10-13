@@ -10,9 +10,10 @@
 package io.imply.druid.inet.column;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.imply.druid.inet.IpAddressModule;
 import org.apache.druid.query.extraction.ExtractionFn;
+import org.apache.druid.query.filter.DruidPredicateFactory;
+import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.AbstractDimensionSelector;
@@ -26,7 +27,7 @@ import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
 import org.apache.druid.segment.data.SingleIndexedInt;
-import org.apache.druid.segment.filter.BooleanValueMatcher;
+import org.apache.druid.segment.filter.ValueMatchers;
 import org.apache.druid.segment.historical.SingleValueHistoricalDimensionSelector;
 import org.apache.druid.segment.vector.MultiValueDimensionVectorSelector;
 import org.apache.druid.segment.vector.ReadableVectorInspector;
@@ -142,13 +143,18 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       {
         if (extractionFn == null) {
           final int valueId = lookupId(value);
+          final int nullId = lookupId(null);
           if (valueId >= 0) {
             return new ValueMatcher()
             {
               @Override
-              public boolean matches()
+              public boolean matches(boolean includeUnknown)
               {
-                return getRowValue() == valueId;
+                final int rowId = getRowValue();
+                if (includeUnknown && rowId == nullId) {
+                  return true;
+                }
+                return rowId == valueId;
               }
 
               @Override
@@ -158,32 +164,35 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
               }
             };
           } else {
-            return BooleanValueMatcher.of(false);
+            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
-          return makeValueMatcher(Predicates.equalTo(value));
+          return makeValueMatcher(StringPredicateDruidPredicateFactory.equalTo(value));
         }
       }
 
       @Override
-      public ValueMatcher makeValueMatcher(final Predicate<String> predicate)
+      public ValueMatcher makeValueMatcher(final DruidPredicateFactory predicateFactory)
       {
         final BitSet checkedIds = new BitSet(getCardinality());
         final BitSet matchingIds = new BitSet(getCardinality());
+        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
         {
           @Override
-          public boolean matches()
+          public boolean matches(boolean includeUnknown)
           {
             final int id = getRowValue();
 
             if (checkedIds.get(id)) {
               return matchingIds.get(id);
             } else {
-              final boolean matches = predicate.apply(lookupName(id));
+              final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
+              final String value = lookupName(id);
+              final boolean matches = (matchNull && value == null) || predicate.apply(null);
               checkedIds.set(id);
               if (matches) {
                 matchingIds.set(id);

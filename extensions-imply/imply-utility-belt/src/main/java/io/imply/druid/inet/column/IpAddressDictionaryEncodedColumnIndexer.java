@@ -10,7 +10,6 @@
 package io.imply.druid.inet.column;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.imply.druid.inet.IpAddressModule;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import org.apache.druid.collections.bitmap.BitmapFactory;
@@ -19,6 +18,8 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.extraction.ExtractionFn;
+import org.apache.druid.query.filter.DruidPredicateFactory;
+import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.DictionaryEncodedColumnIndexer;
@@ -30,7 +31,7 @@ import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnCapabilitiesImpl;
 import org.apache.druid.segment.data.ArrayBasedIndexedInts;
 import org.apache.druid.segment.data.IndexedInts;
-import org.apache.druid.segment.filter.BooleanValueMatcher;
+import org.apache.druid.segment.filter.ValueMatchers;
 import org.apache.druid.segment.incremental.IncrementalIndex;
 import org.apache.druid.segment.incremental.IncrementalIndexRow;
 import org.apache.druid.segment.incremental.IncrementalIndexRowHolder;
@@ -146,16 +147,16 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
             return new ValueMatcher()
             {
               @Override
-              public boolean matches()
+              public boolean matches(boolean includeUnknown)
               {
                 Object[] dims = currEntry.get().getDims();
                 if (dimIndex >= dims.length) {
-                  return value == null;
+                  return includeUnknown || value == null;
                 }
 
                 Integer dimsInt = (Integer) dims[dimIndex];
                 if (dimsInt == null) {
-                  return value == null;
+                  return includeUnknown || value == null;
                 }
 
                 if (dimsInt == valueId) {
@@ -171,35 +172,37 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
               }
             };
           } else {
-            return BooleanValueMatcher.of(false);
+            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
-          return makeValueMatcher(Predicates.equalTo(value));
+          return makeValueMatcher(StringPredicateDruidPredicateFactory.equalTo(value));
         }
       }
 
       @Override
-      public ValueMatcher makeValueMatcher(final Predicate<String> predicate)
+      public ValueMatcher makeValueMatcher(final DruidPredicateFactory predicateFactory)
       {
         final BitSet checkedIds = new BitSet(maxId);
         final BitSet matchingIds = new BitSet(maxId);
-        final boolean matchNull = predicate.apply(null);
+        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
+        final boolean predicateMatchesNull = predicate.apply(null);
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
         {
           @Override
-          public boolean matches()
+          public boolean matches(boolean includeUnknown)
           {
+            final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
             Object[] dims = currEntry.get().getDims();
             if (dimIndex >= dims.length) {
-              return matchNull;
+              return matchNull || predicateMatchesNull;
             }
 
             Integer dimsInt = (Integer) dims[dimIndex];
             if (dimsInt == null) {
-              return matchNull;
+              return matchNull || predicateMatchesNull;
             }
 
             if (checkedIds.get(dimsInt)) {
@@ -207,7 +210,8 @@ public class IpAddressDictionaryEncodedColumnIndexer extends DictionaryEncodedCo
                 return true;
               }
             } else {
-              final boolean matches = predicate.apply(lookupName(dimsInt));
+              final String value = lookupName(dimsInt);
+              final boolean matches = (includeUnknown && matchNull) || predicate.apply(value);
               checkedIds.set(dimsInt);
               if (matches) {
                 matchingIds.set(dimsInt);

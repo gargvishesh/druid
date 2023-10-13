@@ -12,11 +12,13 @@ package io.imply.druid.query.aggregation.datasketches.virtual;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.imply.druid.query.aggregation.ImplyAggregationUtil;
 import io.imply.druid.query.aggregation.datasketches.tuple.ImplyArrayOfDoublesSketchModule;
 import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
@@ -228,6 +230,7 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
     @Override
     public BitmapColumnIndex forValue(@Nullable String value)
     {
+      final boolean hasNull = NullHandling.isNullOrEquivalent(delegate.getValue(0));
       return new BitmapColumnIndex()
       {
         @Override
@@ -243,8 +246,13 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
         }
 
         @Override
-        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
+          if (includeUnknown && hasNull && value != null) {
+            return bitmapResultFactory.unionDimensionValueBitmaps(
+                ImmutableList.of(getBitmap(getIndex(value)), getBitmap(0))
+            );
+          }
           return bitmapResultFactory.wrapDimensionValue(getBitmap(getIndex(value)));
         }
       };

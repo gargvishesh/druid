@@ -241,10 +241,10 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
           final StringValueSetIndexes dictIndexes = lookupHolder.getAsStringValueSetIndexes(filterColumns.get(i));
           final String specPartValue = specParts[2 + i];
           if (filterBitmapM == null) {
-            filterBitmapM = dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory);
+            filterBitmapM = dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory, false);
           } else {
             filterBitmapM = filterBitmapM.intersection(
-                dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory)
+                dictIndexes.forValue(specPartValue).computeBitmapResult(bitmapResultFactory, false)
             );
           }
         }
@@ -446,7 +446,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         final StringValueSetIndexes keyColumnIndexes = lookupHolder.getAsStringValueSetIndexes(keyColumn);
         final DictionaryEncodedColumn<String> valueCol = lookupHolder.getDictionaryColumn(valueColumn);
 
-        ImmutableBitmap bitmap = keyColumnIndexes.forValue(key).computeBitmapResult(bitmapResultFactory);
+        ImmutableBitmap bitmap = keyColumnIndexes.forValue(key).computeBitmapResult(bitmapResultFactory, false);
         if (bitmap.isEmpty()) {
           return null;
         }
@@ -482,7 +482,7 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
         final StringValueSetIndexes valueColumnIndexes = lookupHolder.getAsStringValueSetIndexes(valueColumn);
         final DictionaryEncodedColumn<String> keyCol = lookupHolder.getDictionaryColumn(keyColumn);
 
-        ImmutableBitmap bitmap = valueColumnIndexes.forValue(value).computeBitmapResult(bitmapResultFactory);
+        ImmutableBitmap bitmap = valueColumnIndexes.forValue(value).computeBitmapResult(bitmapResultFactory, false);
         if (bitmap.isEmpty()) {
           return Collections.emptyList();
         }
