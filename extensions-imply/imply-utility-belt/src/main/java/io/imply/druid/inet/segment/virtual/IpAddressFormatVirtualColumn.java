@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import io.imply.druid.inet.column.DictionaryEncodedIpAddressBlobValueIndex;
 import io.imply.druid.inet.column.IpAddressBlob;
@@ -26,6 +26,7 @@ import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.filter.DruidPredicateFactory;
+import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.AbstractDimensionSelector;
@@ -46,8 +47,8 @@ import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
-import org.apache.druid.segment.filter.BooleanValueMatcher;
 import org.apache.druid.segment.filter.Filters;
+import org.apache.druid.segment.filter.ValueMatchers;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
 import org.apache.druid.segment.index.BitmapColumnIndex;
 import org.apache.druid.segment.index.SimpleImmutableBitmapIndex;
@@ -65,6 +66,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -207,9 +209,9 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       }
 
       @Override
-      public ValueMatcher makeValueMatcher(final Predicate<String> predicate)
+      public ValueMatcher makeValueMatcher(final DruidPredicateFactory predicateFactory)
       {
-        return delegateSelector.makeValueMatcher(predicate);
+        return delegateSelector.makeValueMatcher(predicateFactory);
       }
     }
 
@@ -289,13 +291,18 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       {
         if (dimensionSpec.getExtractionFn() == null) {
           final int valueId = lookupId(value);
+          final int nullId = lookupId(null);
           if (valueId >= 0) {
             return new ValueMatcher()
             {
               @Override
-              public boolean matches()
+              public boolean matches(boolean includeUnknown)
               {
-                return encodedValuesColumn.get(offset.getOffset()) == valueId;
+                final int rowId = encodedValuesColumn.get(offset.getOffset());
+                if (includeUnknown && rowId == nullId) {
+                  return true;
+                }
+                return rowId == valueId;
               }
 
               @Override
@@ -305,32 +312,35 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
               }
             };
           } else {
-            return BooleanValueMatcher.of(false);
+            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
-          return makeValueMatcher(Predicates.equalTo(value));
+          return makeValueMatcher(StringPredicateDruidPredicateFactory.equalTo(value));
         }
       }
 
       @Override
-      public ValueMatcher makeValueMatcher(final Predicate<String> predicate)
+      public ValueMatcher makeValueMatcher(final DruidPredicateFactory predicateFactory)
       {
         final BitSet checkedIds = new BitSet(ipAddressColumn.getCardinality());
         final BitSet matchingIds = new BitSet(ipAddressColumn.getCardinality());
+        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
         {
           @Override
-          public boolean matches()
+          public boolean matches(boolean includeUnknown)
           {
             final int id = encodedValuesColumn.get(offset.getOffset());
 
             if (checkedIds.get(id)) {
               return matchingIds.get(id);
             } else {
-              final boolean matches = predicate.apply(lookupName(id));
+              final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
+              final String value = lookupName(id);
+              final boolean matches = (matchNull && value == null) || predicate.apply(value);
               checkedIds.set(id);
               if (matches) {
                 matchingIds.set(id);
@@ -705,8 +715,13 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
         }
 
         @Override
-        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
+          if (includeUnknown && blob != null) {
+            return bitmapResultFactory.unionDimensionValueBitmaps(
+                ImmutableList.of(delegate.getBitmapForValue(blob), delegate.getBitmapForValue(null))
+            );
+          }
           return bitmapResultFactory.wrapDimensionValue(delegate.getBitmapForValue(blob));
         }
       };
@@ -716,10 +731,19 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     public BitmapColumnIndex forSortedValues(SortedSet<String> values)
     {
       final Set<ByteBuffer> blobs = Sets.newHashSetWithExpectedSize(values.size());
+      boolean hasNull = false;
       for (String value : values) {
         final IpAddressBlob addr = IpAddressBlob.ofString(value);
-        blobs.add(addr == null ? null : ByteBuffer.wrap(addr.getBytes()));
+        final ByteBuffer buffer;
+        if (addr == null) {
+          buffer = null;
+          hasNull = true;
+        } else {
+          buffer = ByteBuffer.wrap(addr.getBytes());
+        }
+        blobs.add(buffer);
       }
+      final boolean containsNull = hasNull;
       return new SimpleBitmapColumnIndex()
       {
         @Override
@@ -729,8 +753,13 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
         }
 
         @Override
-        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
+          if (includeUnknown && !containsNull) {
+            final Set<ByteBuffer> copy = new HashSet<>(blobs);
+            copy.add(null);
+            return bitmapResultFactory.unionDimensionValueBitmaps(delegate.getBitmapsForValues(copy));
+          }
           return bitmapResultFactory.unionDimensionValueBitmaps(delegate.getBitmapsForValues(blobs));
         }
       };
@@ -754,13 +783,15 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
         @Override
         public double estimateSelectivity(int totalRows)
         {
-          return Filters.estimateSelectivity(delegate.getBitmapsForPredicateFactory(matcherFactory).iterator(), totalRows);
+          return Filters.estimateSelectivity(delegate.getBitmapsForPredicateFactory(matcherFactory, false).iterator(), totalRows);
         }
 
         @Override
-        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory)
+        public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
-          return bitmapResultFactory.unionDimensionValueBitmaps(delegate.getBitmapsForPredicateFactory(matcherFactory));
+          return bitmapResultFactory.unionDimensionValueBitmaps(
+              delegate.getBitmapsForPredicateFactory(matcherFactory, includeUnknown)
+          );
         }
       };
     }
