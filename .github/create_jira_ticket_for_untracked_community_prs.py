@@ -20,7 +20,7 @@ def imply_authors():
 
 def filter_pr_with_no_jira(prs):
     no_jira_prs = []
-    past = datetime.now() - timedelta(days=1)  # datetime object for 24 hours before
+    past = datetime.now().astimezone() - timedelta(days=1)  # datetime object for 24 hours before
     for pr in prs:
         if pr.created_at < past:
             break  # stop parsing the sorted listed if created_at is olders than past
