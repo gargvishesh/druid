@@ -171,7 +171,11 @@ def buildArtifacts(stageName) {
 }
 
 def resetWs() {
-    sh script: "git clean -fdx", label: "Clean up everything but files from git"
+    sh script: '''
+    git config --global --add safe.directory "${WORKSPACE}"
+    git clean -fdx
+    ''',
+    label: "Clean up everything but files from git"
 }
 
 def isEligibleToNotify() {
@@ -610,7 +614,7 @@ pipeline {
         stage('set build version') {
             agent {
                 docker {
-                    image 'docker/buildabear:20200923'
+                    image 'repo.cnc.imply.io/docker/maven:3.8.7-eclipse-temurin-8-focal'
                     args '-u root:root'
                     label "${DOCKER_AGENT_LABEL}"
                     registryUrl "${RT_REGISTRY_URL}"
@@ -622,10 +626,7 @@ pipeline {
                     setupMavenSettings()
                     env.BUILD_VERSION = sh(
                             script: '''#!/bin/bash -eux
-                            echo -e '#!/bin/bash\\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                            chmod u+x /usr/bin/mvn
-
-
+                            git config --global --add safe.directory "${WORKSPACE}"
                             COMMIT_SHA=$(git rev-parse HEAD)
                             if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
                                 UPSTREAM_COMMIT_SHA=$COMMIT_SHA
@@ -693,7 +694,7 @@ pipeline {
                         }
                         agent {
                             docker {
-                                image 'docker/buildabear:20200923'
+                                image 'repo.cnc.imply.io/docker/maven:3.8.7-eclipse-temurin-8-focal'
                                 args '-u root:root'
                                 label "${DOCKER_AGENT_LABEL}"
                                 registryUrl "${RT_REGISTRY_URL}"
@@ -707,9 +708,6 @@ pipeline {
                                         def gitCredsId = scm.getUserRemoteConfigs()[0].getCredentialsId()
                                         withCredentials([usernamePassword(credentialsId: gitCredsId, usernameVariable: 'GIT_CREDS_USR', passwordVariable: 'GIT_CREDS_PSW')]) {
                                             sh script:'''#!/bin/bash -eux
-                                                echo -e '#!/bin/bash\nPATH=/opt/maven/apache-maven-3.5.4/bin:$PATH exec mvn -B $@' > /usr/bin/mvn
-                                                chmod u+x /usr/bin/mvn
-
                                                 cat <<EOF > "${GIT_ASKPASS}"
                                                 #!/bin/sh
                                                 case "\\$1" in
@@ -736,6 +734,7 @@ pipeline {
                                 steps {
                                     setupMavenSettings()
                                     sh script:'''#!/bin/bash -eux
+                                        git config --global --add safe.directory "${WORKSPACE}"
                                         COMMIT_SHA=$(git rev-parse HEAD)
                                         if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
                                             UPSTREAM_COMMIT_SHA=$COMMIT_SHA
@@ -748,6 +747,10 @@ pipeline {
                                                 exit 1
                                             fi
                                         fi
+
+                                        # Install python3
+                                        apt-get update
+                                        apt-get install python3 python3-yaml python3-requests -y
 
                                         # Matching the version from pom.xml
                                         DERBYTOOLS_VERSION="10.14.2.0"
@@ -768,7 +771,7 @@ pipeline {
                                         current_java_version=$(java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}')
                                         echo "Compiling Druid with current Java version set. Java version=$current_java_version"
 
-                                        mvn clean install \
+                                        ${MVN} clean install \
                                             -Dhadoop.compile.version="$HADOOP_VERSION" \
                                             -Danimal.sniffer.skip=true \
                                             -Dcheckstyle.skip=true \
@@ -858,6 +861,7 @@ pipeline {
                                 steps {
                                     setupMavenSettings()
                                     sh script:'''#!/bin/bash -eux
+                                        git config --global --add safe.directory "${WORKSPACE}"
                                         COMMIT_SHA=$(git rev-parse HEAD)
                                         if [[ $(git branch origin/${BRANCH_NAME} -r --contains $COMMIT_SHA) ]]; then
                                             UPSTREAM_COMMIT_SHA=$COMMIT_SHA
@@ -1109,7 +1113,7 @@ pipeline {
                         }
                         agent {
                             docker {
-                                image 'docker/buildabear:20200923'
+                                image 'repo.cnc.imply.io/docker/maven:3.8.7-eclipse-temurin-8-focal'
                                 args '-u root:root'
                                 label "${DOCKER_AGENT_LABEL}"
                                 registryUrl "${RT_REGISTRY_URL}"
