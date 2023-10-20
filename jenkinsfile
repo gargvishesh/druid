@@ -535,8 +535,9 @@ pipeline {
         RELEASE_BRANCH_PREFIX_REGEX = '^release\\/'
         RELEASE_BRANCH_SUFFIX_REGEX = '[^/]+$'
 
-        IMAGE_JDK8 = "docker/druid-ci-jdk8:latest"
-        IMAGE_JDK11 = "docker/druid-ci-jdk11:latest"
+        IMAGE_JDK8 = "docker/druid-ci-jdk8:1647252999"
+        IMAGE_JDK11 = "docker/druid-ci-jdk11:1620827975"
+        IMAGE_JDK15 = "docker/druid-ci-jdk15:1625878101"
         DOCKER_TAG = "${BUILD_TAG}".replaceAll(~/[^A-Za-z0-9_-]/,'_')
         RT_REGISTRY_URL = "https://repo.cnc.imply.io/artifactory"
         RT_REGISTRY_CREDS = "repo.qa.imply.io"
