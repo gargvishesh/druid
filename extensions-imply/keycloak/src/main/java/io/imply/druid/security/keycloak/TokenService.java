@@ -17,6 +17,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
@@ -107,7 +108,7 @@ public class TokenService
               return JsonSerialization.readValue(json, ClientTokenNotBeforeResponse.class);
             }
           },
-          (throwable) -> throwable instanceof KeycloakRetriableServerException,
+          (throwable) -> throwable instanceof KeycloakRetriableServerException || throwable instanceof NoHttpResponseException,
           KEYCLOAK_INTERNAL_RETRIES,
           KEYCLOAK_INTERNAL_RETRIES,
           null,
@@ -187,7 +188,7 @@ public class TokenService
               return JsonSerialization.readValue(json, AccessTokenResponse.class);
             }
           },
-          (throwable) -> throwable instanceof KeycloakRetriableServerException,
+          (throwable) -> throwable instanceof KeycloakRetriableServerException || throwable instanceof NoHttpResponseException,
           KEYCLOAK_INTERNAL_RETRIES,
           KEYCLOAK_INTERNAL_RETRIES,
           null,

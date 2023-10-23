@@ -239,7 +239,17 @@ public class DownsampledSumTimeSeriesAggregatorFactory extends BaseTimeSeriesAgg
   @Override
   public int getMaxIntermediateSize()
   {
-    return (int) (maxEntries * Double.BYTES + Math.ceil((double) maxEntries / Byte.SIZE) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET);
+    return getTimeseriesBytesSize(getMaxEntries());
+  }
+
+  public static int getTimeseriesBytesSize(int maxEntries)
+  {
+    return maxEntries * Double.BYTES + getTimeseriesBitmapBytesSize(maxEntries) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET;
+  }
+
+  public static int getTimeseriesBitmapBytesSize(int maxEntries)
+  {
+    return (int) Math.ceil((double) maxEntries / Byte.SIZE);
   }
 
   @Override
