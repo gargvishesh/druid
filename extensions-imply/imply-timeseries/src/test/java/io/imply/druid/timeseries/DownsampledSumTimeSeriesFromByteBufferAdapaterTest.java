@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries;
 
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.granularity.DurationGranularity;
 import org.joda.time.Interval;
@@ -22,8 +23,12 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapaterTest extends Downsamp
   @Override
   public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window, DurationGranularity durationGranularity)
   {
-    WritableMemory mem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600)); // simulate the real deal
-    WritableMemory finalMem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600));
+    WritableMemory mem = WritableMemory.writableWrap(
+        ByteBuffer.allocateDirect(DownsampledSumTimeSeriesAggregatorFactory.getTimeseriesBytesSize(MAX_ENTRIES))
+    ); // simulate the real deal, keeping the size as tight as possible to check out-of-bounds accesses
+    WritableMemory finalMem = WritableMemory.writableWrap(
+        ByteBuffer.allocateDirect(DownsampledSumTimeSeriesAggregatorFactory.getTimeseriesBytesSize(MAX_ENTRIES))
+    );
     int buffStartPosition = 0;
     DownsampledSumTimeSeriesFromByteBufferAdapter timeSeries = new DownsampledSumTimeSeriesFromByteBufferAdapter(durationGranularity, window, MAX_ENTRIES);
     timeSeries.init(finalMem, buffStartPosition);

@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries;
 
+import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
@@ -19,21 +20,21 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
 {
   private final DurationGranularity timeBucketGranularity;
   private final long windowStartBucket;
+  private final byte[] bitsetInitState;
 
   public DownsampledSumTimeSeriesFromByteBufferAdapter(DurationGranularity timeBucketGranularity, Interval window, int maxEntries)
   {
     super(window, maxEntries);
     this.timeBucketGranularity = timeBucketGranularity;
     this.windowStartBucket = timeBucketGranularity.bucketStart(getWindow().getStartMillis());
+    this.bitsetInitState = new byte[DownsampledSumTimeSeriesAggregatorFactory.getTimeseriesBitmapBytesSize(getMaxEntries())];
   }
 
   @Override
   public void init(WritableMemory mem, int buffStartPosition)
   {
     super.init(mem, buffStartPosition);
-    for (int i = 0; i < Math.ceil((double) getMaxEntries() / Long.BYTES); i++) {
-      mem.putLong(buffStartPosition + DATA_OFFSET + (long) getMaxEntries() * Double.BYTES + (long) i * Long.BYTES, 0);
-    }
+    mem.putByteArray(getBitmapStartByte(buffStartPosition), bitsetInitState, 0, bitsetInitState.length);
   }
 
   private void addDownsampledSumSeriesEntry(WritableMemory mem, int buffStartPosition, long timestamp, double sumPoint)
@@ -107,7 +108,7 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
 
   private boolean isBucketInitialized(WritableMemory mem, int position, int bucketId)
   {
-    int startByte = position + DATA_OFFSET + getMaxEntries() * Double.BYTES;
+    int startByte = getBitmapStartByte(position);
     int targetByte = startByte + bucketId / Byte.SIZE;
     int targetBit = bucketId % Byte.SIZE;
     return (mem.getByte(targetByte) & (1 << targetBit)) != 0;
@@ -118,10 +119,15 @@ public class DownsampledSumTimeSeriesFromByteBufferAdapter extends TimeSeriesFro
     if (isBucketInitialized(mem, position, bucketId)) {
       return;
     }
-    int startByte = position + DATA_OFFSET + getMaxEntries() * Double.BYTES;
+    int startByte = getBitmapStartByte(position);
     int targetByte = startByte + bucketId / Byte.SIZE;
     int targetBit = bucketId % Byte.SIZE;
     byte newValue = (byte) (mem.getByte(targetByte) | ((byte) 1 << targetBit));
     mem.putByte(targetByte, newValue);
+  }
+
+  private int getBitmapStartByte(int position)
+  {
+    return position + DATA_OFFSET + getMaxEntries() * Double.BYTES;
   }
 }
