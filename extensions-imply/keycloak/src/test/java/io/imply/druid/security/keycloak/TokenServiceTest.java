@@ -18,6 +18,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NoHttpResponseException;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -175,6 +176,44 @@ public class TokenServiceTest
   }
 
   @Test
+  public void testGetNotBefore_retryOnNoHttpResponse() throws IOException
+  {
+    final AccessTokenResponse someToken = new AccessTokenResponse();
+    someToken.setToken("accessToken");
+    someToken.setRefreshToken("refreshToken");
+    someToken.setExpiresIn(1000);
+    someToken.setRefreshExpiresIn(10000);
+    tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password")) {
+      @Override
+      protected AccessTokenResponse requestToken(@Nullable String refreshToken)
+      {
+        return someToken;
+      }
+    };
+    final Map<String, Integer> notBefore = ImmutableMap.of(
+        "client1", 0,
+        "client2", Ints.checkedCast(DateTimes.nowUtc().plusHours(1).getMillis() / 1000)
+    );
+    TokenService.ClientTokenNotBeforeResponse expectedResponse = new TokenService.ClientTokenNotBeforeResponse(notBefore);
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(200);
+    Mockito.when(entity.getContent())
+        .thenReturn(new ByteArrayInputStream(jsonMapper.writeValueAsString(expectedResponse).getBytes(StringUtils.UTF8_STRING)));
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new NoHttpResponseException("Exception test")).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+    tokenService.getClientNotBefore();
+    Mockito.verify(client, Mockito.times(2)).execute(ArgumentMatchers.any());
+
+
+
+  }
+
+  @Test
   public void testGrantTokenPasswordGrantTypeVerifyHttpPost() throws IOException
   {
     tokenService = new TokenService(deployment, new HashMap<>(), ImmutableMap.of("grant_type", "password"));
@@ -313,6 +352,26 @@ public class TokenServiceTest
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Service token grant failed. Exception occured. See server.log for details.");
     tokenService.grantToken();
+  }
+
+  @Test
+  public void testRequestTokenNoHTTPResponseExceptionThrown_retries() throws IOException
+  {
+    final AccessTokenResponse expectedResponse = new AccessTokenResponse();
+    final StatusLine statusLine = Mockito.mock(StatusLine.class);
+    final HttpEntity entity = Mockito.mock(HttpEntity.class);
+    Mockito.when(statusLine.getStatusCode()).thenReturn(200);
+    Mockito.when(entity.getContent())
+        .thenReturn(new ByteArrayInputStream(jsonMapper.writeValueAsString(expectedResponse).getBytes(StringUtils.UTF8_STRING)));
+    final HttpResponse response = Mockito.mock(HttpResponse.class);
+    Mockito.when(response.getStatusLine()).thenReturn(statusLine);
+    Mockito.when(response.getEntity()).thenReturn(entity);
+
+    Mockito.when(client.execute(ArgumentMatchers.any())).thenThrow(new NoHttpResponseException("Exception test")).thenReturn(response);
+    Mockito.when(deployment.getClient()).thenReturn(client);
+    tokenService.grantToken();
+    Mockito.verify(client, Mockito.times(2)).execute(ArgumentMatchers.any());
+
   }
 
   private void mockAccessTokenResponse(AccessTokenResponse tokenResponse) throws IOException
