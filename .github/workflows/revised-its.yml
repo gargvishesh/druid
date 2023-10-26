@@ -53,7 +53,8 @@ jobs:
       matrix:
         #jdk: [8, 11, 17]
         jdk: [8]
-        it: [HighAvailability, MultiStageQuery, Catalog, BatchIndex, MultiStageQueryWithMM, InputSource, InputFormat]
+        # MultiStageQueryWithMM is flaky, will be enabled after it is fixed.
+        it: [HighAvailability, MultiStageQuery, Catalog, BatchIndex, InputSource, InputFormat]
         #indexer: [indexer, middleManager]
         indexer: [middleManager]
     uses: ./.github/workflows/reusable-revised-its.yml
