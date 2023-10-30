@@ -124,7 +124,7 @@ public class TokenManager
       }
     }
     catch (KeycloakSecurityBadRequestException e) {
-      LOG.error(e, "Token refresh failed");
+      LOG.warn("Token refresh failed with '%s'. Attempting new token fetch.", e.getMessage());
       grantToken();
     }
   }
