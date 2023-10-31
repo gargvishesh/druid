@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class SimpleTimeSeriesComplexMetricSerdeTest
+public class SimpleTimeSeriesContainerComplexMetricSerdeTest
 {
   private static final DateTime START_DATE_TIME = DateTimes.of("2020-01-01");
 
@@ -47,7 +47,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   private final Random random = new Random(100);
 
   private SimpleTimeSeriesColumnSerializer columnSerializer;
-  private SimpleTimeSeriesComplexMetricSerde complexMetricSerde;
+  private SimpleTimeSeriesContainerComplexMetricSerde complexMetricSerde;
 
 
   @BeforeClass
@@ -61,7 +61,7 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
   public void setup() throws Exception
   {
     SegmentWriteOutMedium writeOutMedium = new OnHeapMemorySegmentWriteOutMedium();
-    complexMetricSerde = new SimpleTimeSeriesComplexMetricSerde();
+    complexMetricSerde = new SimpleTimeSeriesContainerComplexMetricSerde();
     columnSerializer = (SimpleTimeSeriesColumnSerializer) complexMetricSerde.getSerializer(writeOutMedium, "unused");
     columnSerializer.open();
   }
@@ -246,6 +246,54 @@ public class SimpleTimeSeriesComplexMetricSerdeTest
       Assert.assertEquals(SIMPLE_TIME_SERIES_2.asSimpleTimeSeriesData(), row2.asSimpleTimeSeriesData());
     }
 
+  }
+
+
+  @Test
+  public void testNull()
+  {
+    byte[] bytes = complexMetricSerde.toBytes(null);
+    Assert.assertEquals(bytes.length, 0);
+  }
+
+  @Test
+  public void testTSSerde()
+  {
+    int rowCount = 500;
+    int maxDataPointCount = 16 * 1024;
+    int totalCount = 0;
+
+    for (int i = 0; i < rowCount; i++) {
+      int dataPointCount = random.nextInt(maxDataPointCount);
+      SimpleTimeSeries simpleTimeSeries = SimpleTimeSeriesTestUtil.buildTimeSeries(dataPointCount, totalCount);
+      totalCount += dataPointCount;
+      totalCount = Math.max(totalCount, 0);
+
+      byte[] bytes = complexMetricSerde.toBytes(SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries));
+      SimpleTimeSeries deserialized =
+          ((SimpleTimeSeriesContainer) complexMetricSerde.fromBytes(bytes, 0, bytes.length)).getSimpleTimeSeries();
+      Assert.assertEquals(simpleTimeSeries.asSimpleTimeSeriesData(), deserialized.asSimpleTimeSeriesData());
+    }
+
+    // null series
+    byte[] bytes = complexMetricSerde.toBytes(SimpleTimeSeriesContainer.createFromInstance(null));
+    SimpleTimeSeries deserialized =
+        ((SimpleTimeSeriesContainer) complexMetricSerde.fromBytes(bytes, 0, bytes.length)).getSimpleTimeSeries();
+    Assert.assertNull(deserialized);
+
+    // empty series is also serialized as null
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(Intervals.ETERNITY, 100);
+    bytes = complexMetricSerde.toBytes(SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries));
+    deserialized =
+        ((SimpleTimeSeriesContainer) complexMetricSerde.fromBytes(bytes, 0, bytes.length)).getSimpleTimeSeries();
+    Assert.assertNull(deserialized);
+
+    // empty series is also serialized as null
+    simpleTimeSeries = new SimpleTimeSeries(Intervals.ETERNITY, 100);
+    bytes = complexMetricSerde.toBytes(SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries));
+    deserialized =
+        ((SimpleTimeSeriesContainer) complexMetricSerde.fromBytes(bytes, 0, bytes.length)).getSimpleTimeSeries();
+    Assert.assertNull(deserialized);
   }
 
   private static SimpleTimeSeries getSimpleTimeSeries(SimpleTimeSeriesComplexColumn complexColumn, int rowNum)

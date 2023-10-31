@@ -54,7 +54,7 @@ public class SimpleTimeSeriesComplexColumn implements ComplexColumn
   @Override
   public String getTypeName()
   {
-    return SimpleTimeSeriesComplexMetricSerde.TYPE_NAME;
+    return SimpleTimeSeriesContainerComplexMetricSerde.TYPE_NAME;
   }
 
   @Override

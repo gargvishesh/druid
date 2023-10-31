@@ -9,7 +9,7 @@
 
 package io.imply.druid.timeseries.sql.aggregation;
 
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesContainerComplexMetricSerde;
 import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -104,7 +104,7 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
           timeseriesColumn,
           virtualColumnRegistry,
           plannerContext,
-          ColumnType.ofComplex(SimpleTimeSeriesComplexMetricSerde.TYPE_NAME)
+          ColumnType.ofComplex(SimpleTimeSeriesContainerComplexMetricSerde.TYPE_NAME)
       );
       argCounter++;
     } else {
