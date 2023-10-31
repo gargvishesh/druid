@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesComplexMetricSerde;
+import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesContainerComplexMetricSerde;
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
@@ -129,8 +129,8 @@ public class TimeSeriesModule implements DruidModule
   public static void registerSerde()
   {
     ComplexMetrics.registerSerde(
-        SimpleTimeSeriesComplexMetricSerde.TYPE_NAME,
-        new SimpleTimeSeriesComplexMetricSerde()
+        SimpleTimeSeriesContainerComplexMetricSerde.TYPE_NAME,
+        new SimpleTimeSeriesContainerComplexMetricSerde()
     );
   }
 }

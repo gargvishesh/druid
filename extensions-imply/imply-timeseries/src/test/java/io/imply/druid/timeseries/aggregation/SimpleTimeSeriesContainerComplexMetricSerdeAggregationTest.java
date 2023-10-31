@@ -56,7 +56,7 @@ import java.util.List;
 
 import static io.imply.druid.timeseries.SimpleTimeSeriesBaseTest.MAX_ENTRIES;
 
-public class SimpleTimeSeriesComplexMetricSerdeAggregationTest extends InitializedNullHandlingTest
+public class SimpleTimeSeriesContainerComplexMetricSerdeAggregationTest extends InitializedNullHandlingTest
 {
   public static final DateTime DAY1 = DateTimes.of("2014-10-20T00:00:00.000Z");
   private static AggregationTestHelper timeseriesHelper;
