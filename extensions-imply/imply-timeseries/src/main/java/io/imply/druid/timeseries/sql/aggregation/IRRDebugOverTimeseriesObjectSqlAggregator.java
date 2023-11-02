@@ -15,12 +15,12 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class IRRDebugOverTimeseriesObjectSqlAggregator extends IRROverTimeseriesObjectSqlAggregator
 {
   private static final String NAME = "IRR_DEBUG";
-  private static final SqlAggFunction FUNCTION_INSTANCE = new IRROverTimeSeriesSqlAggFunction(NAME, SqlTypeName.OTHER);
+  private static final SqlAggFunction DEBUG_FUNCTION_INSTANCE = new IRROverTimeSeriesSqlAggFunction(NAME, SqlTypeName.OTHER);
 
   @Override
   public SqlAggFunction calciteFunction()
   {
-    return FUNCTION_INSTANCE;
+    return DEBUG_FUNCTION_INSTANCE;
   }
 
   @Override
