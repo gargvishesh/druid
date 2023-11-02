@@ -10,7 +10,6 @@
 package io.imply.druid;
 
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
@@ -21,6 +20,8 @@ import io.imply.druid.fastrack.GeoIpSqlOperator;
 import io.imply.druid.polaris.PolarisExplainTableOperatorConversion;
 import io.imply.druid.spatial.GeohashExprMacro;
 import io.imply.druid.spatial.GeohashSqlOperatorConversion;
+import io.imply.druid.stringmatch.StringMatchAggregatorFactory;
+import io.imply.druid.stringmatch.StringMatchSqlAggregator;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LifecycleModule;
@@ -35,10 +36,12 @@ public class UtilityBeltModule implements DruidModule
   public List<? extends Module> getJacksonModules()
   {
     return ImmutableList.of(
-        new SimpleModule(getClass().getSimpleName()).registerSubtypes(
-            new NamedType(CloudWatchInputRowParser.class, CloudWatchInputRowParser.TYPE_NAME),
-            new NamedType(CurrencySumAggregatorFactory.class, CurrencySumAggregatorFactory.TYPE_NAME)
-        )
+        new SimpleModule(getClass().getSimpleName())
+            .registerSubtypes(
+                CloudWatchInputRowParser.class,
+                CurrencySumAggregatorFactory.class,
+                StringMatchAggregatorFactory.class
+            )
     );
   }
 
@@ -49,6 +52,7 @@ public class UtilityBeltModule implements DruidModule
     LifecycleModule.register(binder, GeoIpExprMacro.class);
     ExpressionModule.addExprMacro(binder, GeoIpExprMacro.class);
     ExpressionModule.addExprMacro(binder, GeohashExprMacro.class);
+    SqlBindings.addAggregator(binder, StringMatchSqlAggregator.class);
     SqlBindings.addOperatorConversion(binder, GeoIpSqlOperator.class);
     SqlBindings.addOperatorConversion(binder, GeohashSqlOperatorConversion.class);
     SqlBindings.addOperatorConversion(binder, PolarisExplainTableOperatorConversion.class);

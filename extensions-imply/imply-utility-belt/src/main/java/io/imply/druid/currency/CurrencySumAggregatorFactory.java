@@ -11,6 +11,7 @@ package io.imply.druid.currency;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+@JsonTypeName(CurrencySumAggregatorFactory.TYPE_NAME)
 public class CurrencySumAggregatorFactory extends AggregatorFactory
 {
   public static final String TYPE_NAME = "currencySum";
