@@ -33,6 +33,7 @@ import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.ExpressionLambdaAggregatorFactory;
 import org.apache.druid.query.aggregation.LongSumAggregatorFactory;
 import org.apache.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
@@ -272,10 +273,12 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
                         .setPostAggregatorSpecs(
-                            expressionPostAgg(
+                            new ExpressionPostAggregator(
                                 "p0",
                                 "ip_parse('1.2.3.4')",
-                                IpAddressModule.ADDRESS_TYPE
+                                null,
+                                IpAddressModule.ADDRESS_TYPE,
+                                queryFramework().macroTable()
                             )
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)
