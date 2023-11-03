@@ -204,17 +204,20 @@ public class TimeSeriesAggregationTest extends InitializedNullHandlingTest
                 "timeseries-pa",
                 "timeseries_to_json(\"timeseries\")",
                 null,
+                null,
                 Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "timeseries-interpolation",
                 "linear_interpolation(\"timeseries\", 'PT30M')",
                 null,
+                null,
                 Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "downsampledSumTimeseries-interpolation",
                 "padding_interpolation(\"downsampledSumTimeseries\", 'PT30M')",
+                null,
                 null,
                 Util.makeTimeSeriesMacroTable()
             )

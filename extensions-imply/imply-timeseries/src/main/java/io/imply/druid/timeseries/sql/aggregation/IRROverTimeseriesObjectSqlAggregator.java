@@ -11,6 +11,7 @@ package io.imply.druid.timeseries.sql.aggregation;
 
 import com.google.common.collect.ImmutableList;
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
@@ -267,6 +268,7 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
                 initEstimate
             ),
             null,
+            getPostAggregatorName().equals(NAME) ? ColumnType.DOUBLE : IRROverTimeseriesExprMacro.IRR_DEBUG_TYPE,
             plannerContext.getPlannerToolbox().exprMacroTable()
         )
     );

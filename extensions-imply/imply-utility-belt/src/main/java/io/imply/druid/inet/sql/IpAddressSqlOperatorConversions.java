@@ -25,6 +25,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.InputBindings;
 import org.apache.druid.math.expr.Parser;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
@@ -75,8 +76,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.AddressParseExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.ADDRESS_TYPE,
+              IpAddressExpressions.AddressParseExprMacro.NAME,
+              operands
           )
       );
     }
@@ -117,8 +120,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.PrefixParseExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.PREFIX_TYPE,
+              IpAddressExpressions.PrefixParseExprMacro.NAME,
+              operands
           )
       );
     }
@@ -159,8 +164,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.AddressTryParseExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.ADDRESS_TYPE,
+              IpAddressExpressions.AddressTryParseExprMacro.NAME,
+              operands
           )
       );
     }
@@ -201,8 +208,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.PrefixTryParseExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.PREFIX_TYPE,
+              IpAddressExpressions.PrefixTryParseExprMacro.NAME,
+              operands
           )
       );
     }
@@ -337,8 +346,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.PrefixExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.PREFIX_TYPE,
+              IpAddressExpressions.PrefixExprMacro.NAME,
+              operands
           )
       );
     }
@@ -379,8 +390,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.HostExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              IpAddressModule.ADDRESS_TYPE,
+              IpAddressExpressions.HostExprMacro.NAME,
+              operands
           )
       );
     }
@@ -413,8 +426,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.MatchExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              ColumnType.LONG,
+              IpAddressExpressions.MatchExprMacro.NAME,
+              operands
           )
       );
     }
@@ -447,8 +462,10 @@ public class IpAddressSqlOperatorConversions
           plannerContext,
           rowSignature,
           rexNode,
-          operands -> DruidExpression.fromExpression(
-              DruidExpression.functionCall(IpAddressExpressions.SearchExprMacro.NAME, operands)
+          operands -> DruidExpression.ofFunctionCall(
+              ColumnType.LONG,
+              IpAddressExpressions.SearchExprMacro.NAME,
+              operands
           )
       );
     }

@@ -273,13 +273,12 @@ public class IpAddressCalciteQueryTest extends BaseCalciteQueryTest
                         )
                         .setAggregatorSpecs(aggregators(new LongSumAggregatorFactory("a0", "cnt")))
                         .setPostAggregatorSpecs(
-                            ImmutableList.of(
-                                new ExpressionPostAggregator(
-                                    "p0",
-                                    "ip_parse('1.2.3.4')",
-                                    null,
-                                    queryFramework().macroTable()
-                                )
+                            new ExpressionPostAggregator(
+                                "p0",
+                                "ip_parse('1.2.3.4')",
+                                null,
+                                IpAddressModule.ADDRESS_TYPE,
+                                queryFramework().macroTable()
                             )
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)

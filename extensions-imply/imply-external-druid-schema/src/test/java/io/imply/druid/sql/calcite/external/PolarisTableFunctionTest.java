@@ -99,6 +99,7 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       null,
       null,
       null,
+      null,
       null
   );
 

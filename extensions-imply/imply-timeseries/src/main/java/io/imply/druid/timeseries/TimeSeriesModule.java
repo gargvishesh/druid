@@ -43,13 +43,21 @@ import io.imply.druid.timeseries.sql.expression.SumOverTimeseriesOperatorConvers
 import io.imply.druid.timeseries.sql.expression.TimeWeightedAverageOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeseriesSizeOperatorConversion;
 import io.imply.druid.timeseries.sql.expression.TimeseriesToJSONOperatorConversion;
+import org.apache.druid.error.DruidException;
 import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.java.util.common.logger.Logger;
+import org.apache.druid.segment.column.ColumnBuilder;
+import org.apache.druid.segment.column.ColumnType;
+import org.apache.druid.segment.data.ObjectStrategy;
+import org.apache.druid.segment.serde.ComplexMetricExtractor;
+import org.apache.druid.segment.serde.ComplexMetricSerde;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.guice.SqlBindings;
 
+import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public class TimeSeriesModule implements DruidModule
@@ -132,5 +140,74 @@ public class TimeSeriesModule implements DruidModule
         SimpleTimeSeriesContainerComplexMetricSerde.TYPE_NAME,
         new SimpleTimeSeriesContainerComplexMetricSerde()
     );
+    ComplexMetrics.registerSerde(
+        TimeseriesToJSONExprMacro.TYPE.getComplexTypeName(),
+        new NoSerde(TimeseriesToJSONExprMacro.TYPE)
+    );
+    ComplexMetrics.registerSerde(
+        IRROverTimeseriesExprMacro.IRR_DEBUG_TYPE.getComplexTypeName(),
+        new NoSerde(IRROverTimeseriesExprMacro.IRR_DEBUG_TYPE)
+    );
+  }
+
+  private static class NoSerde extends ComplexMetricSerde
+  {
+    private final ColumnType type;
+
+    NoSerde(ColumnType columnType)
+    {
+      this.type = columnType;
+    }
+
+    @Override
+    public String getTypeName()
+    {
+      return type.getComplexTypeName();
+    }
+
+    @Override
+    public ComplexMetricExtractor getExtractor()
+    {
+      throw DruidException.defensive("Type[%s] does not support ComplexMetricExtractor", type);
+    }
+
+    @Override
+    public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+    {
+      throw DruidException.defensive("Type[%s] cannot be deserialized from a column", type);
+    }
+
+    @Override
+    public ObjectStrategy getObjectStrategy()
+    {
+      return new ObjectStrategy()
+      {
+        @Override
+        public Class getClazz()
+        {
+          throw DruidException.defensive("Type[%s] is not associated with a Class", type);
+        }
+
+        @Nullable
+        @Override
+        public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
+        {
+          throw DruidException.defensive("Type[%s] cannot be read from a ByteBuffer", type);
+        }
+
+        @Nullable
+        @Override
+        public byte[] toBytes(@Nullable Object val)
+        {
+          throw DruidException.defensive("Type[%s] cannot be serialized to a byte array", type);
+        }
+
+        @Override
+        public int compare(Object o1, Object o2)
+        {
+          throw DruidException.defensive("Type[%s] does not support comparison", type);
+        }
+      };
+    }
   }
 }

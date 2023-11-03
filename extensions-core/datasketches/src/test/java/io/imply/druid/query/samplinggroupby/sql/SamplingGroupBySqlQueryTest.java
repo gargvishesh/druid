@@ -39,10 +39,8 @@ import org.apache.druid.query.QueryRunnerTestHelper;
 import org.apache.druid.query.TableDataSource;
 import org.apache.druid.query.TestBufferPool;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
-import org.apache.druid.query.aggregation.post.ExpressionPostAggregator;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
-import org.apache.druid.query.expression.TestExprMacroTable;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.ResultRow;
 import org.apache.druid.query.scan.ScanQuery;
@@ -58,7 +56,7 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Set;
 
-public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
+public class SamplingGroupBySqlQueryTest extends BaseCalciteQueryTest
 {
   @Override
   public QueryRunnerFactoryConglomerate createCongolmerate(
@@ -282,14 +280,13 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
                         .setAggregatorSpecs(ImmutableList.of(
                             new DoubleSumAggregatorFactory("_a0", "a0")
                         ))
-                        .setPostAggregatorSpecs(ImmutableList.of(
-                            new ExpressionPostAggregator(
+                        .setPostAggregatorSpecs(
+                            expressionPostAgg(
                                 "p0",
                                 "(\"_a0\" / \"d0\")",
-                                null,
-                                TestExprMacroTable.INSTANCE
+                                ColumnType.DOUBLE
                             )
-                        ))
+                        )
                         .setInterval(querySegmentSpec(Intervals.ETERNITY))
                         .setGranularity(Granularities.ALL)
                         .build()
@@ -420,14 +417,13 @@ public class SamplingGroupByQueryTest extends BaseCalciteQueryTest
                         .setAggregatorSpecs(ImmutableList.of(
                             new DoubleSumAggregatorFactory("a0", "m1")
                         ))
-                        .setPostAggregatorSpecs(ImmutableList.of(
-                            new ExpressionPostAggregator(
+                        .setPostAggregatorSpecs(
+                            expressionPostAgg(
                                 "p0",
                                 "(\"a0\" / \"d0\")",
-                                null,
-                                TestExprMacroTable.INSTANCE
+                                ColumnType.DOUBLE
                             )
-                        ))
+                        )
                         .setInterval(querySegmentSpec(Intervals.ETERNITY))
                         .setGranularity(Granularities.ALL)
                         .build()
