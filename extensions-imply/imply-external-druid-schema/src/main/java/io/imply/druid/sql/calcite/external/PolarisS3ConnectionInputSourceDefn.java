@@ -234,7 +234,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
   private SystemFields getValidSystemFieldsFromArg(@Nullable final List<String> systemFieldsStrs)
   {
     try {
-      return systemFieldsStrs != null
+      return !CollectionUtils.isNullOrEmpty(systemFieldsStrs)
           ? new SystemFields(EnumSet.copyOf(systemFieldsStrs.stream()
           .map(SystemField::fromFieldName)
           .collect(Collectors.toList())))
