@@ -18,6 +18,8 @@ import org.apache.druid.common.aws.AWSModule;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.impl.CsvInputFormat;
 import org.apache.druid.data.input.impl.JsonInputFormat;
+import org.apache.druid.data.input.impl.systemfield.SystemField;
+import org.apache.druid.data.input.impl.systemfield.SystemFields;
 import org.apache.druid.data.input.s3.S3InputSource;
 import org.apache.druid.data.input.s3.S3InputSourceDruidModule;
 import org.apache.druid.error.DruidException;
@@ -44,6 +46,7 @@ import org.apache.druid.storage.s3.NoopServerSideEncryption;
 import org.apache.druid.storage.s3.S3InputDataConfig;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
+import org.apache.druid.utils.CollectionUtils;
 import org.easymock.EasyMock;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
@@ -51,6 +54,7 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
@@ -75,6 +79,23 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       null,
       null,
       null,
+      SystemFields.none(),
+      null,
+      null,
+      null,
+      null
+  );
+
+  protected final S3InputSource s3InputSourceWithSystemFields = new S3InputSource(
+      S3_SERVICE,
+      SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+      S3_INPUT_DATA_CONFIG,
+      null,
+      CatalogUtils.stringListToUriList(Collections.singletonList("s3://foo/bar/file.csv")),
+      null,
+      null,
+      null,
+      new SystemFields(EnumSet.of(SystemField.BUCKET, SystemField.PATH, SystemField.URI)),
       null,
       null,
       null,
@@ -111,6 +132,12 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
 
   protected final ExternalDataSource polarisS3ConnectionDataSource = new ExternalDataSource(
       s3InputSource,
+      jsonInputFormat,
+      rowSignature
+  );
+
+  protected final ExternalDataSource polarisS3ConnectionDataSourceWithSystemFields = new ExternalDataSource(
+      s3InputSourceWithSystemFields,
       jsonInputFormat,
       rowSignature
   );
@@ -164,8 +191,17 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
         if (polarisS3ConnFunctionSpec.getConnectionName().contains(INVALID_POLARIS_S3_CONN_NAME)) {
           throw InvalidInput.exception(RESOLVER_FAILURE_MESSAGE);
         }
+
+        if (polarisS3ConnFunctionSpec.getSystemFields() != null
+            && !polarisS3ConnFunctionSpec.getSystemFields().equals(SystemFields.none())) {
+          return new PolarisExternalTableSpec(
+              polarisS3ConnectionDataSourceWithSystemFields.getInputSource(),
+              null,
+              null
+          );
+        }
         return new PolarisExternalTableSpec(
-            polarisSourceDataSource.getInputSource(),
+            polarisS3ConnectionDataSource.getInputSource(),
             null,
             null
         );
@@ -399,15 +435,20 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
                                 "                          connectionName => '%s'," +
                                 "                          uris => ARRAY['%s']," +
-                                "                          format => 'json'))\n" +
+                                "                          format => 'json',\n" +
+                                "                          systemFields => ARRAY[%s]))\n" +
                                 "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
-                                "PARTITIONED BY ALL TIME", VALID_POLARIS_S3_CONN_NAME, "s3://foo/bar.json"))
+                                "PARTITIONED BY ALL TIME",
+            VALID_POLARIS_S3_CONN_NAME,
+            "s3://foo/bar.json",
+            "'__file_uri', '__file_bucket', '__file_path'"
+        ))
         .authentication(CalciteTests.SUPER_USER_AUTH_RESULT)
         .expectTarget("dst", polarisS3ConnectionDataSource.getSignature())
         .expectResources(dataSourceWrite("dst"), Externals.EXTERNAL_RESOURCE_ACTION)
         .expectQuery(
             newScanQueryBuilder()
-                .dataSource(polarisS3ConnectionDataSource)
+                .dataSource(polarisS3ConnectionDataSourceWithSystemFields)
                 .intervals(querySegmentSpec(Filtration.eternity()))
                 .columns("x", "y", "z")
                 .context(CalciteIngestionDmlTest.PARTITIONED_BY_ALL_TIME_QUERY_CONTEXT)
@@ -511,6 +552,30 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
                                 "PARTITIONED BY ALL TIME", INVALID_POLARIS_S3_CONN_NAME))
         .expectValidationError(
             DruidExceptionMatcher.invalidInput().expectMessageIs(RESOLVER_FAILURE_MESSAGE)
+        )
+        .verify();
+  }
+
+  @Test
+  public void test_PolarisS3Connection_badSystemFields_validationError() {
+    testIngestionQuery()
+        .sql(StringUtils.format(
+            "INSERT INTO dst SELECT *\n" +
+            "FROM TABLE(POLARIS_S3_CONNECTION(\n" +
+            "                          connectionName => '%s'," +
+            "                          uris => ARRAY['%s']," +
+            "                          format => 'json',\n" +
+            "                          systemFields => ARRAY[%s]))\n" +
+            "     EXTEND (x VARCHAR, y VARCHAR, z BIGINT)\n" +
+            "PARTITIONED BY ALL TIME",
+            VALID_POLARIS_S3_CONN_NAME,
+            "s3://foo/bar.json",
+            "'__bad_system_field'"
+        ))
+        .expectValidationError(
+            DruidExceptionMatcher.invalidInput()
+                .expectMessageIs(
+                    "Invalid value specified for [systemFields] parameter. No such system field[__bad_system_field]")
         )
         .verify();
   }
