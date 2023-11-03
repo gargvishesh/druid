@@ -19,9 +19,6 @@
 
 package io.imply.druid.stringmatch;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
 import org.apache.druid.segment.DimensionSelector;
@@ -29,19 +26,13 @@ import org.junit.Assert;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.TreeSet;
 
 public class StringMatchBufferAggregatorTest extends BaseStringMatchAggregatorTest
 {
   @Override
   protected SerializablePairLongString aggregateMultiValue(final List<List<String>> data, final int maxLength)
   {
-    final TreeSet<String> dictionarySet = Sets.newTreeSet(Comparators.naturalNullsFirst());
-    for (List<String> row : data) {
-      dictionarySet.addAll(row);
-    }
-    final List<String> dictionary = Lists.newArrayList(dictionarySet);
-    final StringMatchTestDimensionSelector selector = new StringMatchTestDimensionSelector(dictionary);
+    final StringMatchTestDimensionSelector selector = new StringMatchTestDimensionSelector(makeDictionary(data));
     final BufferAggregator aggregator = makeAggregator(selector, maxLength);
     final int capacity = new StringMatchAggregatorFactory("foo", "foo", maxLength).getMaxIntermediateSize() + 2;
     final ByteBuffer buf = ByteBuffer.allocate(capacity);

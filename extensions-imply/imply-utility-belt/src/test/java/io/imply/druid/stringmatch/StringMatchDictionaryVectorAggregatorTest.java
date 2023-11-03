@@ -19,9 +19,6 @@
 
 package io.imply.druid.stringmatch;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
 import org.apache.druid.query.aggregation.VectorAggregator;
 import org.junit.Assert;
@@ -33,7 +30,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TreeSet;
 
 @RunWith(Enclosed.class)
 public class StringMatchDictionaryVectorAggregatorTest
@@ -43,12 +39,7 @@ public class StringMatchDictionaryVectorAggregatorTest
     @Override
     protected SerializablePairLongString aggregateMultiValue(List<List<String>> data, int maxLength)
     {
-      final TreeSet<String> dictionarySet = Sets.newTreeSet(Comparators.naturalNullsFirst());
-      for (List<String> row : data) {
-        dictionarySet.addAll(row);
-      }
-      final List<String> dictionary = Lists.newArrayList(dictionarySet);
-      final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(dictionary);
+      final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(makeDictionary(data));
       final VectorAggregator aggregator = new StringMatchDictionaryVectorAggregator(selector, maxLength);
       final int capacity = new StringMatchAggregatorFactory("foo", "foo", maxLength).getMaxIntermediateSize() + 2;
       final ByteBuffer buf = ByteBuffer.allocate(capacity);

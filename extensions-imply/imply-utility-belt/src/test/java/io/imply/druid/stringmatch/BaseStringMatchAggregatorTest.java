@@ -19,7 +19,10 @@
 
 package io.imply.druid.stringmatch;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.druid.common.config.NullHandling;
+import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
 import org.apache.druid.testing.InitializedNullHandlingTest;
 import org.junit.Assert;
@@ -28,6 +31,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public abstract class BaseStringMatchAggregatorTest extends InitializedNullHandlingTest
@@ -176,4 +180,13 @@ public abstract class BaseStringMatchAggregatorTest extends InitializedNullHandl
   }
 
   protected abstract SerializablePairLongString aggregateMultiValue(final List<List<String>> data, final int maxLength);
+
+  protected final List<String> makeDictionary(final List<List<String>> data)
+  {
+    final TreeSet<String> dictionarySet = Sets.newTreeSet(Comparators.naturalNullsFirst());
+    for (List<String> row : data) {
+      dictionarySet.addAll(row);
+    }
+    return Lists.newArrayList(dictionarySet);
+  }
 }
