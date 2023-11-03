@@ -18,6 +18,7 @@ import org.apache.druid.catalog.model.table.BaseTableFunction;
 import org.apache.druid.catalog.model.table.TableFunction;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.impl.systemfield.SystemField;
+import org.apache.druid.data.input.impl.systemfield.SystemFieldInputSource;
 import org.apache.druid.data.input.impl.systemfield.SystemFields;
 import org.apache.druid.error.InvalidInput;
 import org.apache.druid.java.util.common.IAE;
@@ -33,8 +34,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.apache.druid.data.input.impl.systemfield.SystemFieldInputSource.SYSTEM_FIELDS_PROPERTY;
-
 public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDefn
 {
   public static final String CONNECTION_NAME_PARAMETER = "connectionName";
@@ -42,7 +41,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
   public static final String PREFIXES_PARAMETER = "prefixes";
   public static final String OBJECTS_PARAMETER = "objects";
   public static final String PATTERN_PARAMETER = "pattern";
-  public static final String SYSTEM_FIELDS_PARAMETER = SYSTEM_FIELDS_PROPERTY;
+  public static final String SYSTEM_FIELDS_PARAMETER = SystemFieldInputSource.SYSTEM_FIELDS_PROPERTY;
 
   private static final TableFunction.ParameterDefn CONNECTION_NAME_PARAM_DEFN = new BaseTableFunction.Parameter(CONNECTION_NAME_PARAMETER, TableFunction.ParameterType.VARCHAR, false);
   private static final TableFunction.ParameterDefn URI_PARAM_DEFN = new BaseTableFunction.Parameter(URIS_PARAMETER, TableFunction.ParameterType.VARCHAR_ARRAY, true);
@@ -69,7 +68,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
         @JsonProperty("prefixes") @Nullable List<String> prefixes,
         @JsonProperty("objects") @Nullable List<String> objects,
         @JsonProperty("pattern") @Nullable String pattern,
-        @JsonProperty(SYSTEM_FIELDS_PROPERTY) @Nullable SystemFields systemFields)
+        @JsonProperty(SystemFieldInputSource.SYSTEM_FIELDS_PROPERTY) @Nullable SystemFields systemFields)
     {
       this.connectionName = connectionName;
       this.uris = uris;
@@ -115,7 +114,7 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
     }
 
     @NotNull
-    @JsonProperty(SYSTEM_FIELDS_PROPERTY)
+    @JsonProperty(SystemFieldInputSource.SYSTEM_FIELDS_PROPERTY)
     public SystemFields getSystemFields()
     {
       return systemFields;
@@ -232,14 +231,16 @@ public class PolarisS3ConnectionInputSourceDefn extends BasePolarisInputSourceDe
   }
 
   @Nonnull
-  private SystemFields getValidSystemFieldsFromArg(@Nullable final List<String> systemFieldsStrs) {
+  private SystemFields getValidSystemFieldsFromArg(@Nullable final List<String> systemFieldsStrs)
+  {
     try {
       return systemFieldsStrs != null
           ? new SystemFields(EnumSet.copyOf(systemFieldsStrs.stream()
           .map(SystemField::fromFieldName)
           .collect(Collectors.toList())))
           : SystemFields.none();
-    } catch (IAE e) {
+    }
+    catch (IAE e) {
       throw InvalidInput.exception(
           "Invalid value specified for [%s] parameter. %s",
           SYSTEM_FIELDS_PARAMETER,

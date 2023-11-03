@@ -46,7 +46,6 @@ import org.apache.druid.storage.s3.NoopServerSideEncryption;
 import org.apache.druid.storage.s3.S3InputDataConfig;
 import org.apache.druid.storage.s3.S3StorageDruidModule;
 import org.apache.druid.storage.s3.ServerSideEncryptingAmazonS3;
-import org.apache.druid.utils.CollectionUtils;
 import org.easymock.EasyMock;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
@@ -96,7 +95,6 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
       null,
       null,
       new SystemFields(EnumSet.of(SystemField.BUCKET, SystemField.PATH, SystemField.URI)),
-      null,
       null,
       null,
       null,
@@ -558,7 +556,8 @@ public class PolarisTableFunctionTest extends CalciteIngestionDmlTest
   }
 
   @Test
-  public void test_PolarisS3Connection_badSystemFields_validationError() {
+  public void test_PolarisS3Connection_badSystemFields_validationError()
+  {
     testIngestionQuery()
         .sql(StringUtils.format(
             "INSERT INTO dst SELECT *\n" +

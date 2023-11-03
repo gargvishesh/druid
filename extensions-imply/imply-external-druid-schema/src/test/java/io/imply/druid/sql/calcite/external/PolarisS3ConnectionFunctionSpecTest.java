@@ -9,8 +9,6 @@
 
 package io.imply.druid.sql.calcite.external;
 
-import java.util.EnumSet;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -20,12 +18,15 @@ import org.apache.druid.data.input.impl.systemfield.SystemFields;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.EnumSet;
+
 public class PolarisS3ConnectionFunctionSpecTest
 {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @Test
-  public void testSerde() throws JsonProcessingException {
+  public void testSerde() throws JsonProcessingException
+  {
     PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec spec =
         new PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec(
             "sampleConn",
