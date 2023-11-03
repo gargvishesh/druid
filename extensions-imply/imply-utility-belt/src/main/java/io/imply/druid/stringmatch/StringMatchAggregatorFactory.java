@@ -96,7 +96,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     final DimensionSelector selector =
         columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
 
-    if (selector.nameLookupPossibleInAdvance() && selector.idLookup() != null) {
+    if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
       return new StringMatchDictionaryAggregator(selector, getMaxStringBytesOrDefault());
     } else {
       return new StringMatchAggregator(selector, getMaxStringBytesOrDefault());
@@ -109,7 +109,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     final DimensionSelector selector =
         columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
 
-    if (selector.nameLookupPossibleInAdvance() && selector.idLookup() != null) {
+    if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
       return new StringMatchDictionaryBufferAggregator(selector, getMaxStringBytesOrDefault());
     } else {
       return new StringMatchBufferAggregator(selector, getMaxStringBytesOrDefault());
@@ -125,6 +125,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     if (capabilities == null) {
       selector = NilVectorSelector.create(selectorFactory.getReadableVectorInspector());
     } else {
+      // canVectorize ensures that nonnull capabilities => dict-encoded singly-valued string
       selector = selectorFactory.makeSingleValueDimensionSelector(DefaultDimensionSpec.of(fieldName));
     }
 
