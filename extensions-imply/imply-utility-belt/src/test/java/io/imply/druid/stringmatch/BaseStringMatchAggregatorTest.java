@@ -137,10 +137,18 @@ public abstract class BaseStringMatchAggregatorTest extends InitializedNullHandl
   {
     Assert.assertEquals(
         new SerializablePairLongString(
-            (long) StringMatchUtil.NOT_MATCHING,
+            NullHandling.sqlCompatible() ? (long) StringMatchUtil.NOT_MATCHING : (long) StringMatchUtil.MATCHING,
             NullHandling.sqlCompatible() ? null : "foo"
         ),
-        aggregate(Arrays.asList("", "foo", "", "foo"), 100)
+        aggregate(
+            Arrays.asList(
+                NullHandling.emptyToNullIfNeeded(""),
+                "foo",
+                NullHandling.emptyToNullIfNeeded(""),
+                "foo"
+            ),
+            100
+        )
     );
   }
 
@@ -148,10 +156,7 @@ public abstract class BaseStringMatchAggregatorTest extends InitializedNullHandl
   public void test_variousValues()
   {
     Assert.assertEquals(
-        new SerializablePairLongString(
-            (long) StringMatchUtil.NOT_MATCHING,
-            NullHandling.sqlCompatible() ? null : "foo"
-        ),
+        new SerializablePairLongString((long) StringMatchUtil.NOT_MATCHING, null),
         aggregate(Arrays.asList("bar", "foo", "baz"), 100)
     );
   }
