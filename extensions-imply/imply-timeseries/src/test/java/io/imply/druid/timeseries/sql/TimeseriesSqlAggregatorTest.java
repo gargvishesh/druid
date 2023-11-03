@@ -19,6 +19,7 @@ import io.imply.druid.timeseries.Util;
 import io.imply.druid.timeseries.aggregation.DownsampledSumTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.aggregation.SumTimeSeriesAggregatorFactory;
+import io.imply.druid.timeseries.expression.IRROverTimeseriesExprMacro;
 import io.imply.druid.timeseries.expression.TimeseriesToJSONExprMacro;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.DruidInjectorBuilder;
@@ -60,9 +61,14 @@ import java.util.Collections;
 
 public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
 {
+  static {
+    TimeSeriesModule.registerSerde();
+  }
+
   @Override
   public void configureGuice(DruidInjectorBuilder builder)
   {
+
     super.configureGuice(builder);
     builder.addModules(new TimeSeriesModule());
   }
@@ -222,36 +228,42 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "p0",
                           "timeseries_to_json(\"a0:agg\")",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p1",
                           "timeseries_to_json(\"a1:agg\")",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p2",
                           "timeseries_to_json(delta_timeseries(\"a0:agg\",'P1D'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p3",
                           "timeseries_to_json(linear_interpolation(\"a0:agg\",'PT12H'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p4",
                           "timeseries_to_json(padding_interpolation(\"a2:agg\",'PT12H'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p5",
                           "timeseries_to_json(time_weighted_average(\"a0:agg\",'linear','P1D'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
@@ -259,54 +271,63 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "timeseries_to_json(time_weighted_average(backfill_interpolation"
                           + "(delta_timeseries(\"a3:agg\",'P1D'),'PT12H'),'linear','P1D'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p7",
                           "timeseries_to_json(linear_boundary(\"a0:agg\",'PT12H'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p8",
                           "timeseries_to_json(padded_boundary(\"a0:agg\",'PT12H'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p9",
                           "timeseries_to_json(backfill_boundary(\"a0:agg\",'PT12H'))",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p10",
                           "timeseries_to_json(\"a4:agg\")",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p11",
                           "max_over_timeseries(\"a0:agg\")",
                           null,
+                          ColumnType.DOUBLE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p12",
                           "timeseries_size(\"a0:agg\")",
                           null,
+                          ColumnType.LONG,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p13",
                           "timeseries_to_json(\"a5:agg\")",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p14",
                           "timeseries_to_json(\"a6:agg\")",
                           null,
+                          TimeseriesToJSONExprMacro.TYPE,
                           Util.makeTimeSeriesMacroTable()
                       )
                   )
@@ -447,6 +468,7 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                               "p0",
                               "max_over_timeseries(\"_a0:agg\")",
                               null,
+                              ColumnType.DOUBLE,
                               Util.makeTimeSeriesMacroTable()
                           )
                       )
@@ -672,18 +694,21 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                         "p0",
                         "timeseries_to_json(add_timeseries(\"a0:agg\",\"a1:agg\"))",
                         null,
+                        TimeseriesToJSONExprMacro.TYPE,
                         Util.makeTimeSeriesMacroTable()
                     ),
                     new ExpressionPostAggregator(
                         "p1",
                         "timeseries_to_json(add_timeseries(\"a0:agg\",\"a2:agg\"))",
                         null,
+                        TimeseriesToJSONExprMacro.TYPE,
                         Util.makeTimeSeriesMacroTable()
                     ),
                     new ExpressionPostAggregator(
                         "p2",
                         "timeseries_to_json(add_timeseries(\"a0:agg\",\"a2:agg\",'true'))",
                         null,
+                        TimeseriesToJSONExprMacro.TYPE,
                         Util.makeTimeSeriesMacroTable()
                     )
                 ))
@@ -779,12 +804,14 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "a0",
                           "IRR_DEBUG(\"a0:downsampledSum\",\"a0:startInvestment\",\"a0:endInvestment\",'2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z')",
                           null,
+                          IRROverTimeseriesExprMacro.IRR_DEBUG_TYPE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "a1",
                           "IRR(\"a1:downsampledSum\",\"a1:startInvestment\",\"a1:endInvestment\",'2000-01-01T00:00:00.000Z/2000-01-03T00:00:00.000Z')",
                           null,
+                          ColumnType.DOUBLE,
                           Util.makeTimeSeriesMacroTable()
                       )
                   ))
@@ -838,12 +865,14 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
                           "p0",
                           "sum_over_timeseries(\"a0:agg\")",
                           null,
+                          ColumnType.DOUBLE,
                           Util.makeTimeSeriesMacroTable()
                       ),
                       new ExpressionPostAggregator(
                           "p1",
                           "quantile_over_timeseries(\"a0:agg\",0.5)",
                           null,
+                          ColumnType.DOUBLE,
                           Util.makeTimeSeriesMacroTable()
                       )
                   )

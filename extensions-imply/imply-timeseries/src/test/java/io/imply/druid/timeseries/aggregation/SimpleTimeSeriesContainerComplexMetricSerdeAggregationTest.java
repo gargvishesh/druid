@@ -145,6 +145,7 @@ public class SimpleTimeSeriesContainerComplexMetricSerdeAggregationTest extends 
                 "timeseries-name-pa",
                 "timeseries_to_json(\"timeseries-name\")",
                 null,
+                null,
                 Util.makeTimeSeriesMacroTable()
             )
         )
@@ -201,11 +202,13 @@ public class SimpleTimeSeriesContainerComplexMetricSerdeAggregationTest extends 
                 "bar",
                 "timeseries_to_json(\"timeseries-name\")",
                 null,
+                null,
                 Util.makeTimeSeriesMacroTable()
             ),
             new ExpressionPostAggregator(
                 "baz",
                 "linear_interpolation(\"timeseries-name\",'PT30M')",
+                null,
                 null,
                 Util.makeTimeSeriesMacroTable()
             )
