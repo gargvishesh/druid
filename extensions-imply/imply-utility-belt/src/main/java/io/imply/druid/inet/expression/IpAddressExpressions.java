@@ -73,6 +73,13 @@ public class IpAddressExpressions
           Expr newArg = arg.visit(shuttle);
           return shuttle.visit(new ParseExpr(newArg));
         }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return IP_ADDRESS_TYPE;
+        }
       }
       return new ParseExpr(args.get(0));
     }
@@ -109,6 +116,13 @@ public class IpAddressExpressions
         {
           Expr newArg = arg.visit(shuttle);
           return shuttle.visit(new PrefixParseExpr(newArg));
+        }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return IP_PREFIX_TYPE;
         }
       }
       return new PrefixParseExpr(args.get(0));
@@ -147,6 +161,13 @@ public class IpAddressExpressions
           Expr newArg = arg.visit(shuttle);
           return shuttle.visit(new TryParseExpr(newArg));
         }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return IP_ADDRESS_TYPE;
+        }
       }
       return new TryParseExpr(args.get(0));
     }
@@ -183,6 +204,13 @@ public class IpAddressExpressions
         {
           Expr newArg = arg.visit(shuttle);
           return shuttle.visit(new PrefixTryParseExpr(newArg));
+        }
+
+        @Nullable
+        @Override
+        public ExpressionType getOutputType(InputBindingInspector inspector)
+        {
+          return IP_PREFIX_TYPE;
         }
       }
       return new PrefixTryParseExpr(args.get(0));
