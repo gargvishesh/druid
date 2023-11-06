@@ -28,7 +28,9 @@ public class PolarisTableFunctionTestUtil
           null,
           null,
           Collections.singletonList(
-              new File("/tmp/84c90e1d-3430-4814-bfa6-d256487419c6/b90145b3-1ce8-4246-8d6a-b7f58f28076e"))
+              new File("/tmp/84c90e1d-3430-4814-bfa6-d256487419c6/b90145b3-1ce8-4246-8d6a-b7f58f28076e")
+          ),
+          null
       ),
       new JsonInputFormat(null, null, null, true, null),
       null
