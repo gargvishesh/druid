@@ -19,6 +19,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
@@ -189,7 +190,7 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
                   OperandTypes.sequence(SIGNATURE1, OperandTypes.ANY, OperandTypes.ANY),
                   OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY)),
               OperandTypes.and(
-                  OperandTypes.sequence(SIGNATURE2, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.POSITIVE_INTEGER_LITERAL),
+                  OperandTypes.sequence(SIGNATURE2, OperandTypes.ANY, OperandTypes.ANY, CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL),
                   OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.EXACT_NUMERIC)
               ),
               OperandTypes.and(
@@ -197,7 +198,7 @@ public class SessionAvgScoreObjectSqlAggregator implements SqlAggregator
                   OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.BOOLEAN)
               ),
               OperandTypes.and(
-                  OperandTypes.sequence(SIGNATURE4, OperandTypes.ANY, OperandTypes.ANY, OperandTypes.POSITIVE_INTEGER_LITERAL, OperandTypes.BOOLEAN),
+                  OperandTypes.sequence(SIGNATURE4, OperandTypes.ANY, OperandTypes.ANY, CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL, OperandTypes.BOOLEAN),
                   OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY, SqlTypeFamily.EXACT_NUMERIC, SqlTypeFamily.BOOLEAN)
               )
           ),
