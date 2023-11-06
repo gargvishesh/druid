@@ -18,7 +18,7 @@ import org.apache.druid.query.TableDataSource;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.schema.SegmentMetadataCache;
+import org.apache.druid.sql.calcite.schema.BrokerSegmentMetadataCache;
 import org.apache.druid.sql.calcite.table.DatasourceTable;
 import org.apache.druid.sql.calcite.table.DatasourceTable.PhysicalDatasourceMetadata;
 import org.apache.druid.sql.calcite.table.DruidTable;
@@ -40,7 +40,7 @@ public class ExternalDruidSchemaUtils
 
   public static ConcurrentMap<String, DruidTable> convertTableSchemasToDruidTables(
       Map<String, TableSchema> tableSchemaMap,
-      SegmentMetadataCache segmentMetadataCache
+      BrokerSegmentMetadataCache segmentMetadataCache
   )
   {
     if (tableSchemaMap == null) {
@@ -73,10 +73,10 @@ public class ExternalDruidSchemaUtils
           }
         } else {
           // combine columns from external table and segment metadata cache, prioritizing those from external table
-          for (String colName : dsMetadata.rowSignature().getColumnNames()) {
+          for (String colName : dsMetadata.getRowSignature().getColumnNames()) {
             // default to string but should never happen if the name is present in the row signature
             if (!externalColumnNames.contains(colName)) {
-              ColumnType colType = dsMetadata.rowSignature().getColumnType(colName).orElse(ColumnType.STRING);
+              ColumnType colType = dsMetadata.getRowSignature().getColumnType(colName).orElse(ColumnType.STRING);
               rowSignatureBuilder.add(colName, colType);
             }
           }
