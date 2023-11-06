@@ -26,8 +26,8 @@ import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
 import org.apache.druid.sql.calcite.filtration.Filtration;
+import org.apache.druid.sql.calcite.schema.BrokerSegmentMetadataCache;
 import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
-import org.apache.druid.sql.calcite.schema.SegmentMetadataCache;
 import org.apache.druid.sql.calcite.table.DatasourceTable;
 import org.apache.druid.sql.calcite.table.DruidTable;
 import org.apache.druid.sql.calcite.util.CalciteTests;
@@ -46,7 +46,7 @@ public class ImplyDruidSchemaManagerTest extends BaseCalciteQueryTest
 {
   private CoordinatorPollingExternalDruidSchemaCacheManager schemaCacheManager;
   private ImplyDruidSchemaManager schemaManager;
-  private SegmentMetadataCache segmentMetadataCache = Mockito.mock(SegmentMetadataCache.class);
+  private BrokerSegmentMetadataCache segmentMetadataCache = Mockito.mock(BrokerSegmentMetadataCache.class);
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();

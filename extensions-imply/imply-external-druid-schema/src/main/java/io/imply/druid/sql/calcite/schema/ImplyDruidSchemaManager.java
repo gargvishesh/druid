@@ -11,8 +11,8 @@ package io.imply.druid.sql.calcite.schema;
 
 import com.google.inject.Inject;
 import io.imply.druid.sql.calcite.schema.tables.state.cache.CoordinatorPollingExternalDruidSchemaCacheManager;
+import org.apache.druid.sql.calcite.schema.BrokerSegmentMetadataCache;
 import org.apache.druid.sql.calcite.schema.DruidSchemaManager;
-import org.apache.druid.sql.calcite.schema.SegmentMetadataCache;
 import org.apache.druid.sql.calcite.table.DruidTable;
 
 import java.util.Set;
@@ -37,7 +37,7 @@ public class ImplyDruidSchemaManager implements DruidSchemaManager
   }
 
   @Override
-  public DruidTable getTable(String name, SegmentMetadataCache segmentMetadataCache)
+  public DruidTable getTable(String name, BrokerSegmentMetadataCache segmentMetadataCache)
   {
     final ConcurrentMap<String, DruidTable> tableMap =
         ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas(), segmentMetadataCache);
@@ -45,7 +45,7 @@ public class ImplyDruidSchemaManager implements DruidSchemaManager
   }
 
   @Override
-  public Set<String> getTableNames(SegmentMetadataCache segmentMetadataCache)
+  public Set<String> getTableNames(BrokerSegmentMetadataCache segmentMetadataCache)
   {
     final ConcurrentMap<String, DruidTable> tableMap =
         ExternalDruidSchemaUtils.convertTableSchemasToDruidTables(cacheManager.getTableSchemas(), segmentMetadataCache);
