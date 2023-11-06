@@ -20,6 +20,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
@@ -308,8 +309,8 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
                       SIGNATURE1,
                       OperandTypes.ANY,
                       OperandTypes.ANY,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL
+                      CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL,
+                      CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL
                   ),
                   OperandTypes.family(
                       SqlTypeFamily.ANY,
@@ -324,7 +325,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
                       SIGNATURE2,
                       OperandTypes.ANY,
                       OperandTypes.ANY,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL
+                      CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL
                   ),
                   OperandTypes.family(
                       SqlTypeFamily.ANY,
@@ -349,7 +350,7 @@ public class AdTechInventorySqlAggregator implements SqlAggregator
                   OperandTypes.sequence(
                       SIGNATURE4,
                       OperandTypes.ANY,
-                      OperandTypes.POSITIVE_INTEGER_LITERAL
+                      CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL
                   ),
                   OperandTypes.family(
                       SqlTypeFamily.ANY,

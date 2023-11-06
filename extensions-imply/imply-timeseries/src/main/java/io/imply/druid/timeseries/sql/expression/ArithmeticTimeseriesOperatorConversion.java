@@ -14,6 +14,7 @@ import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.RowSignature;
@@ -51,7 +52,7 @@ public class ArithmeticTimeseriesOperatorConversion implements SqlOperatorConver
                     "'" + name + "'(timeseries, timeseries2, shouldNullPoison)",
                     TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
                     TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
-                    OperandTypes.LITERAL
+                    CastedLiteralOperandTypeCheckers.LITERAL
                 )
             )
         )

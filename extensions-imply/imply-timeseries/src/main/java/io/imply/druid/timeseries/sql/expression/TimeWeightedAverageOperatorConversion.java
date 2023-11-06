@@ -13,6 +13,7 @@ import io.imply.druid.timeseries.aggregation.BaseTimeSeriesAggregatorFactory;
 import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.RowSignature;
@@ -31,8 +32,8 @@ public class TimeWeightedAverageOperatorConversion implements SqlOperatorConvers
       .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
       .operandTypeChecker(OperandTypes.sequence("'" + FUNCTION_NAME + "'(timeseries, interpolator, bucketPeriod)",
                                                 TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
-                                                OperandTypes.LITERAL,
-                                                OperandTypes.LITERAL))
+                                                CastedLiteralOperandTypeCheckers.LITERAL,
+                                                CastedLiteralOperandTypeCheckers.LITERAL))
       .returnTypeInference(opBinding -> RowSignatures.makeComplexType(
           opBinding.getTypeFactory(),
           BaseTimeSeriesAggregatorFactory.TYPE,

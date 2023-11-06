@@ -20,6 +20,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -327,17 +328,17 @@ public class IRROverTimeseriesObjectSqlAggregator implements SqlAggregator
                   OperandTypes.or(OperandTypes.DATETIME, OperandTypes.NUMERIC),
                   OperandTypes.NUMERIC,
                   OperandTypes.NUMERIC,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING)
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING)
               ),
               OperandTypes.sequence(
                   "'" + name + "'(time, cashFlow, aum, window, bucketPeriod, initEstimate)",
                   OperandTypes.or(OperandTypes.DATETIME, OperandTypes.NUMERIC),
                   OperandTypes.NUMERIC,
                   OperandTypes.NUMERIC,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.NUMERIC)
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.NUMERIC)
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,
