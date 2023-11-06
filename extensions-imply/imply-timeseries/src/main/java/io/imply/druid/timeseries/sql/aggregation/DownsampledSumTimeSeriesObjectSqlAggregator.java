@@ -21,6 +21,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.util.Optionality;
 import org.apache.druid.java.util.common.Intervals;
@@ -269,29 +270,29 @@ public class DownsampledSumTimeSeriesObjectSqlAggregator implements SqlAggregato
                   "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod)",
                   OperandTypes.ANY,
                   OperandTypes.ANY,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING)
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING)
               ),
               OperandTypes.sequence(
                   "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeColumn, dataColumn, window, bucketPeriod, maxEntries)",
                   OperandTypes.ANY,
                   OperandTypes.ANY,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.POSITIVE_INTEGER_LITERAL
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL
               ),
               OperandTypes.sequence(
                   "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeseriesColumn, window, bucketPeriod)",
                   OperandTypes.ANY,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING)
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING)
               ),
               OperandTypes.sequence(
                   "'" + DOWNSAMPLED_SUM_TIMESERIES + "'(timeseriesColumn, window, bucketPeriod, maxEntries)",
                   OperandTypes.ANY,
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.and(OperandTypes.LITERAL, OperandTypes.STRING),
-                  OperandTypes.POSITIVE_INTEGER_LITERAL
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  OperandTypes.and(CastedLiteralOperandTypeCheckers.LITERAL, OperandTypes.STRING),
+                  CastedLiteralOperandTypeCheckers.POSITIVE_INTEGER_LITERAL
               )
           ),
           SqlFunctionCategory.USER_DEFINED_FUNCTION,

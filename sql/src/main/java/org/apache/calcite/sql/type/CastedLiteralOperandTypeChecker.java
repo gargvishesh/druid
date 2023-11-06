@@ -71,7 +71,7 @@ public class CastedLiteralOperandTypeChecker implements SqlSingleOperandTypeChec
       }
       return false;
     }
-    // The following line of code is the only difference between the OperandTypes.LITERAL and this type checker
+    // The following line of code is the only difference between the CastedLiteralOperandTypeCheckers.LITERAL and this type checker
     if (!SqlUtil.isLiteral(node, true) && !SqlUtil.isLiteralChain(node)) {
       if (throwOnFailure) {
         throw callBinding.newError(

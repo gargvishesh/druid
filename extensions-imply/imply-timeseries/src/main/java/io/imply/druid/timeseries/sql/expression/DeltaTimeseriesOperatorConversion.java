@@ -14,6 +14,7 @@ import io.imply.druid.timeseries.expression.DeltaTimeseriesExprMacro;
 import io.imply.druid.timeseries.sql.TypeUtils;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.CastedLiteralOperandTypeCheckers;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.segment.column.RowSignature;
@@ -39,7 +40,7 @@ public class DeltaTimeseriesOperatorConversion implements SqlOperatorConversion
                 OperandTypes.sequence(
                     StringUtils.format("%s(timeseriesColumn, bucketPeriod)", DeltaTimeseriesExprMacro.NAME),
                     TypeUtils.complexTypeChecker(BaseTimeSeriesAggregatorFactory.TYPE),
-                    OperandTypes.LITERAL
+                    CastedLiteralOperandTypeCheckers.LITERAL
                 )
             )
         )
