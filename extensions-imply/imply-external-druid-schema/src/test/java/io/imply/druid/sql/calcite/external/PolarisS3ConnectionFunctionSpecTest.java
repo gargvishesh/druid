@@ -13,8 +13,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import nl.jqno.equalsverifier.EqualsVerifier;
+import org.apache.druid.data.input.impl.systemfield.SystemField;
+import org.apache.druid.data.input.impl.systemfield.SystemFields;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.EnumSet;
 
 public class PolarisS3ConnectionFunctionSpecTest
 {
@@ -24,11 +28,14 @@ public class PolarisS3ConnectionFunctionSpecTest
   public void testSerde() throws JsonProcessingException
   {
     PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec spec =
-        new PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec("sampleConn",
-                                                                               ImmutableList.of("foo"),
-                                                                               null,
-                                                                               ImmutableList.of("obj1"),
-                                                                               "foo/*.json");
+        new PolarisS3ConnectionInputSourceDefn.PolarisS3ConnectionFunctionSpec(
+            "sampleConn",
+            ImmutableList.of("foo"),
+            null,
+            ImmutableList.of("obj1"),
+            "foo/*.json",
+            new SystemFields(EnumSet.of(SystemField.BUCKET, SystemField.PATH, SystemField.URI))
+        );
 
     PolarisTableFunctionSpec specSerde = MAPPER.readValue(
         MAPPER.writeValueAsString(spec),
