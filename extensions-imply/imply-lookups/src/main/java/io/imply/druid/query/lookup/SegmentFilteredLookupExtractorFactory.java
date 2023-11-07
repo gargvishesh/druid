@@ -159,6 +159,18 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
   }
 
   @Override
+  public void awaitInitialization()
+  {
+
+  }
+
+  @Override
+  public boolean isInitialized()
+  {
+    return true;
+  }
+
+  @Override
   public SegmentFilteredLookupExtractor get()
   {
     throw new UOE("lookup over table [%s] requires specialization, cannot use directly.", table);
@@ -279,6 +291,18 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
       public LookupIntrospectHandler getIntrospectHandler()
       {
         return null;
+      }
+
+      @Override
+      public void awaitInitialization()
+      {
+
+      }
+
+      @Override
+      public boolean isInitialized()
+      {
+        return true;
       }
 
       @Override
@@ -572,6 +596,18 @@ public class SegmentFilteredLookupExtractorFactory implements LookupExtractorFac
     public LookupIntrospectHandler getIntrospectHandler()
     {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void awaitInitialization()
+    {
+
+    }
+
+    @Override
+    public boolean isInitialized()
+    {
+      return true;
     }
 
     @Override
