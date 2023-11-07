@@ -16,6 +16,7 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.lookup.LookupExtractor;
+import org.apache.druid.query.lookup.LookupExtractorFactory;
 import org.apache.druid.segment.loading.SegmentLoadingException;
 import org.apache.druid.timeline.DataSegment;
 import org.joda.time.Duration;
@@ -31,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings("ALL")
@@ -132,6 +134,8 @@ public class SegmentFilteredLookupExtractorFactoryTest
     try {
       Assert.assertTrue(factory.start());
       Assert.assertTrue(scheduled.get());
+      factory.awaitInitialization();
+      Assert.assertTrue(factory.isInitialized());
 
       loadLookup("nonFiltered");
 
@@ -171,7 +175,7 @@ public class SegmentFilteredLookupExtractorFactoryTest
   }
 
   @Test
-  public void testFilteredLookup() throws SegmentLoadingException
+  public void testFilteredLookup() throws SegmentLoadingException, InterruptedException, TimeoutException
   {
     SegmentFilteredLookupExtractorFactory factory = buildFilterableFactory();
 
@@ -181,9 +185,12 @@ public class SegmentFilteredLookupExtractorFactoryTest
 
       loadLookup("filterable");
 
-      final LookupExtractor lookup = factory.specialize(
+      final LookupExtractorFactory lookupExtractorFactory = factory.specialize(
           SpecializableLookup.LookupSpec.parseString("lookupName[colB][colC][B]")
-      ).get();
+      );
+      lookupExtractorFactory.awaitInitialization();
+      Assert.assertTrue(lookupExtractorFactory.isInitialized());
+      final LookupExtractor lookup = lookupExtractorFactory.get();
 
       Assert.assertEquals("bob", lookup.apply("a"));
       Assert.assertEquals("bill", lookup.apply("b"));
