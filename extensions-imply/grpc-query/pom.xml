@@ -48,7 +48,7 @@
     <dependency>
       <groupId>io.imply</groupId>
       <artifactId>grpc-shaded</artifactId>
-      <version>1.0.3</version>
+      <version>1.55.1-shaded-1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.druid</groupId>
