@@ -129,6 +129,18 @@ public class ImplyLookupProviderTest
     }
 
     @Override
+    public void awaitInitialization()
+    {
+
+    }
+
+    @Override
+    public boolean isInitialized()
+    {
+      return true;
+    }
+
+    @Override
     public LookupExtractor get()
     {
       throw new UnsupportedOperationException();
