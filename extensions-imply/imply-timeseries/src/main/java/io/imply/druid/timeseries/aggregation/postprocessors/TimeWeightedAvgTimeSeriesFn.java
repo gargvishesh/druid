@@ -41,13 +41,14 @@ public class TimeWeightedAvgTimeSeriesFn implements TimeSeriesFn
     ImplyLongArrayList timestamps = input.getTimestamps();
     ImplyDoubleArrayList dataPoints = input.getDataPoints();
     DurationGranularity durationGranularity = new DurationGranularity(timeBucketMillis, 0);
-    SimpleTimeSeries computedSeries = new SimpleTimeSeries(new ImplyLongArrayList(maxEntries),
-                                                           new ImplyDoubleArrayList(maxEntries),
-                                                           input.getWindow(),
-                                                           null,
-                                                           null,
-                                                           maxEntries,
-                                                           timeBucketMillis
+    SimpleTimeSeries computedSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(maxEntries),
+        new ImplyDoubleArrayList(maxEntries),
+        input.getWindow(),
+        null,
+        null,
+        maxEntries,
+        timeBucketMillis
     );
     // compute initial recordings
     long currentTimestamp = timestamps.getLong(0);

@@ -83,7 +83,7 @@ public class InterpolatorTest
         {3, 3, 4, 5, 6},
         {3, 3, 4, 5, 5}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.LINEAR,
         new DurationGranularity(2, 0),
         false,
@@ -136,7 +136,7 @@ public class InterpolatorTest
         {3, 4, 6},
         {3, 4, 5}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.LINEAR,
         new DurationGranularity(2, 0),
         true,
@@ -150,19 +150,19 @@ public class InterpolatorTest
   {
     long[][] expectedTimestampsList = new long[][]{
         {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7}
+        {2, 3, 4, 5, 6, 7},
+        {1, 2, 3, 4, 5, 6, 7},
+        {2, 3, 4, 5, 6, 7},
+        {2, 3, 4, 5, 6, 7},
+        {1, 2, 3, 4, 5, 6, 7}
     };
     double[][] expectedDataPointsList = new double[][]{
         {0, 1, 2, 3, 4, 5, 6, 7},
-        {2, 2, 2, 3, 4, 5, 6, 7},
-        {1, 1, 2, 3, 4, 5, 6, 6},
-        {2, 2, 2, 3, 4, 5, 6, 6},
-        {2, 2, 2, 2, 4, 4, 6, 6},
-        {1, 1, 2, 2, 2, 5, 6, 7}
+        {2, 3, 4, 5, 6, 7},
+        {1, 2, 3, 4, 5, 6, 6},
+        {2, 3, 4, 5, 6, 6},
+        {2, 2, 4, 4, 6, 6},
+        {1, 2, 2, 2, 5, 6, 7}
     };
     runOverInputs(
         Interpolator.PADDING,
@@ -179,17 +179,17 @@ public class InterpolatorTest
     long[][] expectedTimestampsList = new long[][] {
         {2, 3, 4, 5, 6},
         {2, 3, 4, 5, 6},
-        {2, 3, 4, 5, 6},
-        {2, 3, 4, 5, 6}
+        {3, 4, 5, 6},
+        {3, 4, 5, 6}
     };
     // input {3, 4, 5}
     double[][] expectedDataPointsList = new double[][] {
         {0, 3, 4, 5, 5},
         {0, 3, 4, 5, 5},
-        {3, 3, 4, 5, 5},
-        {3, 3, 4, 5, 5}
+        {3, 4, 5, 5},
+        {3, 4, 5, 5}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.PADDING,
         new DurationGranularity(2, 0),
         false,
@@ -203,19 +203,19 @@ public class InterpolatorTest
   {
     long[][] expectedTimestampsList = new long[][]{
         {0, 2, 4, 6},
-        {0, 2, 4, 6},
-        {0, 2, 4, 6},
-        {0, 2, 4, 6},
-        {0, 2, 4, 6},
-        {0, 2, 4, 6}
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6}
     };
     double[][] expectedDataPointsList = new double[][]{
         {0, 2, 4, 6},
-        {2, 2, 4, 6},
-        {1, 2, 4, 6},
-        {2, 2, 4, 6},
-        {2, 2, 4, 6},
-        {1, 2, 2, 6}
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 4, 6},
+        {2, 2, 6}
     };
     runOverInputs(
         Interpolator.PADDING,
@@ -232,17 +232,17 @@ public class InterpolatorTest
     long[][] expectedTimestampsList = new long[][] {
         {2, 4, 6},
         {2, 4, 6},
-        {2, 4, 6},
-        {2, 4, 6}
+        {4, 6},
+        {4, 6}
     };
     // input {3, 4, 5}
     double[][] expectedDataPointsList = new double[][] {
         {0, 4, 5},
         {0, 4, 5},
-        {3, 4, 5},
-        {3, 4, 5}
+        {4, 5},
+        {4, 5}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.PADDING,
         new DurationGranularity(2, 0),
         true,
@@ -257,17 +257,17 @@ public class InterpolatorTest
     long[][] expectedTimestampsList = new long[][]{
         {0, 1, 2, 3, 4, 5, 6, 7},
         {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6},
+        {0, 1, 2, 3, 4, 5, 6},
+        {0, 1, 2, 3, 4, 5, 6},
         {0, 1, 2, 3, 4, 5, 6, 7}
     };
     double[][] expectedDataPointsList = new double[][]{
         {0, 1, 2, 3, 4, 5, 6, 7},
         {2, 2, 2, 3, 4, 5, 6, 7},
-        {1, 1, 2, 3, 4, 5, 6, 6},
-        {2, 2, 2, 3, 4, 5, 6, 6},
-        {2, 2, 2, 4, 4, 6, 6, 6},
+        {1, 1, 2, 3, 4, 5, 6},
+        {2, 2, 2, 3, 4, 5, 6},
+        {2, 2, 2, 4, 4, 6, 6},
         {1, 1, 2, 5, 5, 5, 6, 7}
     };
     runOverInputs(
@@ -284,18 +284,18 @@ public class InterpolatorTest
   {
     long[][] expectedTimestampsList = new long[][] {
         {2, 3, 4, 5, 6},
+        {2, 3, 4, 5},
         {2, 3, 4, 5, 6},
-        {2, 3, 4, 5, 6},
-        {2, 3, 4, 5, 6}
+        {2, 3, 4, 5}
     };
     // input {3, 4, 5}
     double[][] expectedDataPointsList = new double[][] {
         {3, 3, 4, 5, 8},
-        {3, 3, 4, 5, 5},
+        {3, 3, 4, 5},
         {3, 3, 4, 5, 8},
-        {3, 3, 4, 5, 5}
+        {3, 3, 4, 5}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.BACKFILL,
         new DurationGranularity(2, 0),
         false,
@@ -337,18 +337,18 @@ public class InterpolatorTest
   {
     long[][] expectedTimestampsList = new long[][] {
         {2, 4, 6},
+        {2, 4},
         {2, 4, 6},
-        {2, 4, 6},
-        {2, 4, 6}
+        {2, 4}
     };
     // input {3, 4, 5}
     double[][] expectedDataPointsList = new double[][] {
         {3, 4, 8},
-        {3, 4, 5},
+        {3, 4},
         {3, 4, 8},
-        {3, 4, 5}
+        {3, 4}
     };
-    runOverInputs_WithWindow(
+    runOverInputs_WithEdgePointsAndWindowOneToEight(
         Interpolator.BACKFILL,
         new DurationGranularity(2, 0),
         true,
@@ -391,11 +391,11 @@ public class InterpolatorTest
           MAX_ENTRIES,
           keepBoundaries ? interpolationBucket.getDurationMillis() : 1L
       );
-      Assert.assertEquals(interpolatedSeries, expectedSeries);
+      Assert.assertEquals(String.valueOf(i), interpolatedSeries, expectedSeries);
     }
   }
 
-  private void runOverInputs_WithWindow(
+  private void runOverInputs_WithEdgePointsAndWindowOneToEight(
       Interpolator interpolator,
       DurationGranularity durationGranularity,
       boolean keepBoundaries,
@@ -444,7 +444,7 @@ public class InterpolatorTest
           MAX_ENTRIES,
           keepBoundaries ? durationGranularity.getDurationMillis() : 1L
       );
-      Assert.assertEquals(expectedLinearInterpolatedSeries, linearInterpolatedSeries);
+      Assert.assertEquals(String.valueOf(i), expectedLinearInterpolatedSeries, linearInterpolatedSeries);
     }
   }
 
