@@ -74,6 +74,18 @@ public enum Interpolator
     {
       return previousTimestampData * (nextTimestamp - previousTimestamp);
     }
+
+    @Nullable
+    @Override
+    public Double interpolateStart(SimpleTimeSeries inputSeries, long startTime)
+    {
+      if (inputSeries.hasStartEdge()) {
+        return super.interpolateStart(inputSeries, startTime);
+      } else {
+        // We do not have an edgepoint, so no interpolation
+        return null;
+      }
+    }
   },
   BACKFILL {
     @Override
@@ -97,6 +109,17 @@ public enum Interpolator
     )
     {
       return nextTimestampData * (nextTimestamp - previousTimestamp);
+    }
+
+    @Nullable
+    @Override
+    public Double interpolateEnd(SimpleTimeSeries inputSeries, long endTime)
+    {
+      if (inputSeries.hasEndEdge()) {
+        return super.interpolateEnd(inputSeries, endTime);
+      } else {
+        return null;
+      }
     }
   };
 

@@ -98,6 +98,49 @@ public class SimpleTimeSeriesContainerTest extends SimpleTimeSeriesSerdeTestBase
   }
 
   @Test
+  public void testEmtpySeriesWithEdges()
+  {
+    // time interval from hour 1 to hour 2
+    Interval interval = Intervals.of("2020-01-01T01:00/2020-01-01T02:00");
+    TimeSeries.EdgePoint[] lefts = new TimeSeries.EdgePoint[]{
+        null,
+        null,
+        new TimeSeries.EdgePoint(DateTimes.of("2020-01-01T00:00").getMillis(), 0),
+        new TimeSeries.EdgePoint(DateTimes.of("2020-01-01T00:00").getMillis(), 0)
+    };
+    TimeSeries.EdgePoint[] rights = new TimeSeries.EdgePoint[]{
+        null,
+        new TimeSeries.EdgePoint(DateTimes.of("2020-01-01T02:00").getMillis(), 0),
+        null,
+        new TimeSeries.EdgePoint(DateTimes.of("2020-01-01T02:00").getMillis(), 0)
+    };
+    int[] serializedBytes = new int[]{1, 33, 33, 33};
+    for (int i = 0; i < lefts.length; i++) {
+      SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+          new ImplyLongArrayList(),
+          new ImplyDoubleArrayList(),
+          interval,
+          lefts[i],
+          rights[i],
+          100,
+          1L
+      );
+      byte[] bytes = SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries).getSerializedBytes();
+      Assert.assertEquals(serializedBytes[i], bytes.length);
+      SimpleTimeSeries deserialized = SimpleTimeSeriesContainer.createFromByteBuffer(
+          ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()),
+          interval,
+          100
+      ).getSimpleTimeSeries();
+      if (lefts[i] == null && rights[i] == null) {
+        Assert.assertNull(deserialized); // fully empty series are deserialized to nulls
+      } else {
+        Assert.assertEquals(simpleTimeSeries, deserialized);
+      }
+    }
+  }
+
+  @Test
   public void testIsNullInstance()
   {
     SimpleTimeSeriesContainer container = SimpleTimeSeriesContainer.createFromInstance(null);

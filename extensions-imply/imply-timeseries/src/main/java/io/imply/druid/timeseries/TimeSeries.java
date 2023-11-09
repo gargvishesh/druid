@@ -102,9 +102,19 @@ public abstract class TimeSeries<T extends TimeSeries<T>>
     return start;
   }
 
+  public boolean hasStartEdge()
+  {
+    return start.getTimestamp() != -1;
+  }
+
   public EdgePoint getEnd()
   {
     return end;
+  }
+
+  public boolean hasEndEdge()
+  {
+    return end.getTimestamp() != -1;
   }
 
   public int getMaxEntries()

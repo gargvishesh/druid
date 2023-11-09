@@ -14,8 +14,11 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.imply.druid.segment.serde.simpletimeseries.SimpleTimeSeriesSerde;
+import io.imply.druid.timeseries.utils.ImplyDoubleArrayList;
 import io.imply.druid.timeseries.utils.ImplyLongArrayList;
 import org.apache.datasketches.memory.WritableMemory;
+import org.apache.druid.error.DruidException;
+import org.apache.druid.java.util.common.NonnullPair;
 import org.apache.druid.segment.serde.cell.StorableBuffer;
 import org.joda.time.Interval;
 
@@ -85,21 +88,32 @@ public class SimpleTimeSeriesContainer
 
   public static SimpleTimeSeriesContainer createFromByteBuffer(ByteBuffer byteBuffer, Interval window, int maxEntries)
   {
-    boolean isNull = byteBuffer.get() == 1;
+    byte tsStatus = byteBuffer.get();
 
-    if (isNull) {
+    if (tsStatus == (byte) 1) { // full empty
       return SimpleTimeSeriesContainer.createFromInstance(null);
+    } else if (tsStatus == (byte) -1) { // empty series with edge points
+      NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> edges = readEdgesFromBuffer(byteBuffer);
+      return SimpleTimeSeriesContainer.createFromInstance(
+          new SimpleTimeSeries(
+              new ImplyLongArrayList(),
+              new ImplyDoubleArrayList(),
+              window,
+              edges.lhs,
+              edges.rhs,
+              maxEntries,
+              1L
+          )
+      );
     }
 
+    // non-empty series
+    if (tsStatus != 0) {
+      throw DruidException.defensive("Corrupted tsStatus byte in the timeseries. The found byte is [%d]", tsStatus);
+    }
     long minTimestamp = byteBuffer.getLong();
     boolean useInteger = byteBuffer.get() == 1;
-    long edgePointStartTimestamp = byteBuffer.getLong();
-    double edgePointStartData = byteBuffer.getDouble();
-    long edgePointEndTimestamp = byteBuffer.getLong();
-    double edgePointEndData = byteBuffer.getDouble();
-
-    TimeSeries.EdgePoint edgePointStart = new TimeSeries.EdgePoint(edgePointStartTimestamp, edgePointStartData);
-    TimeSeries.EdgePoint edgePointEnd = new TimeSeries.EdgePoint(edgePointEndTimestamp, edgePointEndData);
+    NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> edges = readEdgesFromBuffer(byteBuffer);
     SimpleTimeSeriesSerde timeSeriesSerde = SimpleTimeSeriesSerde.create(minTimestamp, useInteger);
     // we know this cannot be null because our header before this verifies non-null timeSeries
     SimpleTimeSeries rawSimpleTimeSeries = timeSeriesSerde.deserialize(byteBuffer);
@@ -108,8 +122,8 @@ public class SimpleTimeSeriesContainer
         rawSimpleTimeSeries.getTimestamps(),
         rawSimpleTimeSeries.getDataPoints(),
         window,
-        edgePointStart,
-        edgePointEnd,
+        edges.lhs,
+        edges.rhs,
         maxEntries,
         1L
     );
@@ -117,21 +131,44 @@ public class SimpleTimeSeriesContainer
     return SimpleTimeSeriesContainer.createFromInstance(simpleTimeSeries);
   }
 
+  private static NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> readEdgesFromBuffer(ByteBuffer byteBuffer)
+  {
+    long edgePointStartTimestamp = byteBuffer.getLong();
+    double edgePointStartData = byteBuffer.getDouble();
+    long edgePointEndTimestamp = byteBuffer.getLong();
+    double edgePointEndData = byteBuffer.getDouble();
+
+    TimeSeries.EdgePoint edgePointStart = new TimeSeries.EdgePoint(edgePointStartTimestamp, edgePointStartData);
+    TimeSeries.EdgePoint edgePointEnd = new TimeSeries.EdgePoint(edgePointEndTimestamp, edgePointEndData);
+    return new NonnullPair<>(edgePointStart, edgePointEnd);
+  }
+
   @JsonValue
   public byte[] getSerializedBytes()
   {
     SimpleTimeSeries timeSeries = getSimpleTimeSeries();
 
-    if (timeSeries == null || timeSeries.size() == 0) {
-      return NULL_BYTES;
-    } else {
+    if (timeSeries == null) {
+      return NULL_BYTES; // null series tsStatus
+    } else if (timeSeries.size() == 0) { // empty series but might have edge points
+      if (timeSeries.getStart().getTimestampJson() == null && timeSeries.getEnd().getTimestampJson() == null) {
+        return NULL_BYTES; // no edge points, fully emtpy series
+      }
+      // tsStatus + 2 * edge{long, double}
+      ByteBuffer byteBuffer = ByteBuffer.allocate(Byte.BYTES + 2 * (Long.BYTES + Double.BYTES))
+                                        .order(ByteOrder.nativeOrder());
+
+      byteBuffer.put((byte) -1); // tsStatus = empty but with edge points
+      writeEdgesToBuffer(byteBuffer, new NonnullPair<>(timeSeries.getStart(), timeSeries.getEnd()));
+      return byteBuffer.array();
+    } else { // non-empty series
       timeSeries.computeSimple();
       ImplyLongArrayList timestamps = timeSeries.getTimestamps();
       long minTimestamp = timestamps.getLong(0);
       boolean useInteger = getUseInteger(timestamps);
       SimpleTimeSeriesSerde timeSeriesSerde = SimpleTimeSeriesSerde.create(minTimestamp, useInteger);
       StorableBuffer storableBuffer = timeSeriesSerde.serializeDelayed(timeSeries);
-      // isNull + minTimestamp + useInteger(byte) + 2 * edge{long, double} + bytes
+      // tsStatus + minTimestamp + useInteger(byte) + 2 * edge{long, double} + bytes
       ByteBuffer byteBuffer = ByteBuffer.allocate(Byte.BYTES
                                                   + Long.BYTES
                                                   + Byte.BYTES
@@ -139,23 +176,24 @@ public class SimpleTimeSeriesContainer
                                                   + storableBuffer.getSerializedSize())
                                         .order(ByteOrder.nativeOrder());
 
-      byteBuffer.put((byte) 0); // isNull = false
+      byteBuffer.put((byte) 0); // tsStatus = non-empty series
       byteBuffer.putLong(minTimestamp);
       byteBuffer.put((byte) (useInteger ? 1 : 0));
-
-      TimeSeries.EdgePoint start = timeSeries.getStart();
-
-      byteBuffer.putLong(start.getTimestamp());
-      byteBuffer.putDouble(start.data);
-
-      TimeSeries.EdgePoint end = timeSeries.getEnd();
-
-      byteBuffer.putLong(end.getTimestamp());
-      byteBuffer.putDouble(end.data);
+      writeEdgesToBuffer(byteBuffer, new NonnullPair<>(timeSeries.getStart(), timeSeries.getEnd()));
       storableBuffer.store(byteBuffer);
-
       return byteBuffer.array();
     }
+  }
+
+  private void writeEdgesToBuffer(ByteBuffer byteBuffer, NonnullPair<TimeSeries.EdgePoint, TimeSeries.EdgePoint> edges)
+  {
+    TimeSeries.EdgePoint start = edges.lhs;
+    byteBuffer.putLong(start.getTimestamp());
+    byteBuffer.putDouble(start.data);
+
+    TimeSeries.EdgePoint end = edges.rhs;
+    byteBuffer.putLong(end.getTimestamp());
+    byteBuffer.putDouble(end.data);
   }
 
   @SuppressWarnings("ConstantConditions")

@@ -881,4 +881,145 @@ public class TimeseriesSqlAggregatorTest extends BaseCalciteQueryTest
         ImmutableList.of(new Object[]{6D, 0D})
     );
   }
+
+  @Test
+  public void testTimeseriesWithEdges()
+  {
+    cannotVectorize();
+    testQuery(
+        "SELECT\n"
+        // time range of data is in 2000 year. So, keeping the timeseries filter as 2020 and 1990 to check edges with empty series
+        + "  timeseries_to_json(timeseries(__time, m1, '2020-01-01T00:00:00Z/2020-01-04T00:00:00Z'))\n"
+        + " ,timeseries_to_json(timeseries(__time, m1, '1990-01-01T00:00:00Z/1990-01-04T00:00:00Z'))\n"
+        // non-empty series, but will have edges on one side
+        + " ,timeseries_to_json(timeseries(__time, m1, '2000-01-01T00:00:00Z/2000-01-04T00:00:00Z'))\n"
+        + " ,timeseries_to_json(timeseries(__time, m1, '2000-01-03T00:00:00Z/2002-01-07T00:00:00Z'))\n"
+        // remaining-cases
+        + " ,timeseries_to_json(timeseries(__time, m1, '2000/2020'))\n" // all data and no edges
+        + " ,timeseries_to_json(timeseries(__time, m1, '2000-01-03T00:00:00Z/2001-01-02T00:00:00Z'))\n" // some data and both edges
+        + "FROM foo",
+        Collections.singletonList(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .intervals(new MultipleIntervalSegmentSpec(ImmutableList.of(Filtration.eternity())))
+                  .granularity(Granularities.ALL)
+                  .aggregators(ImmutableList.of(
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a0:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2020-01-01T00:00:00Z/2020-01-04T00:00:00Z"),
+                          null
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a1:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("1990-01-01T00:00:00Z/1990-01-04T00:00:00Z"),
+                          null
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a2:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2000-01-01T00:00:00Z/2000-01-04T00:00:00Z"),
+                          null
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a3:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2000-01-03T00:00:00Z/2002-01-07T00:00:00Z"),
+                          null
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a4:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2000/2020"),
+                          null
+                      ),
+                      SimpleTimeSeriesAggregatorFactory.getTimeSeriesAggregationFactory(
+                          "a5:agg",
+                          "m1",
+                          "__time",
+                          null,
+                          Intervals.of("2000-01-03T00:00:00Z/2001-01-02T00:00:00Z"),
+                          null
+                      )
+                  ))
+                  .postAggregators(
+                      new ExpressionPostAggregator(
+                          "p0",
+                          "timeseries_to_json(\"a0:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p1",
+                          "timeseries_to_json(\"a1:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p2",
+                          "timeseries_to_json(\"a2:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p3",
+                          "timeseries_to_json(\"a3:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p4",
+                          "timeseries_to_json(\"a4:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      ),
+                      new ExpressionPostAggregator(
+                          "p5",
+                          "timeseries_to_json(\"a5:agg\")",
+                          null,
+                          TimeseriesToJSONExprMacro.TYPE,
+                          Util.makeTimeSeriesMacroTable()
+                      )
+                  )
+                  .build()
+        ),
+        ImmutableList.of(new Object[]{
+            "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":6.0,\"timestamp\":978480000000}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
+              + "\"window\":\"2020-01-01T00:00:00.000Z/2020-01-04T00:00:00.000Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":1.0,\"timestamp\":946684800000},\"start\":{\"data\":null,\"timestamp\":null}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[],\"timestamps\":[],"
+              + "\"window\":\"1990-01-01T00:00:00.000Z/1990-01-04T00:00:00.000Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":4.0,\"timestamp\":978307200000},\"start\":{\"data\":null,\"timestamp\":null}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0],\"timestamps\":[946684800000,946771200000,946857600000],"
+              + "\"window\":\"2000-01-01T00:00:00.000Z/2000-01-04T00:00:00.000Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":2.0,\"timestamp\":946771200000}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[3.0,4.0,5.0,6.0],\"timestamps\":[946857600000,978307200000,978393600000,978480000000],"
+              + "\"window\":\"2000-01-03T00:00:00.000Z/2002-01-07T00:00:00.000Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":null,\"timestamp\":null},\"start\":{\"data\":null,\"timestamp\":null}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[1.0,2.0,3.0,4.0,5.0,6.0],"
+              + "\"timestamps\":[946684800000,946771200000,946857600000,978307200000,978393600000,978480000000],"
+              + "\"window\":\"2000-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z\"}",
+            "{\"bounds\":{\"end\":{\"data\":5.0,\"timestamp\":978393600000},\"start\":{\"data\":2.0,\"timestamp\":946771200000}},"
+              + "\"bucketMillis\":1,\"dataPoints\":[3.0,4.0],\"timestamps\":[946857600000,978307200000],"
+              + "\"window\":\"2000-01-03T00:00:00.000Z/2001-01-02T00:00:00.000Z\"}"
+        })
+    );
+  }
 }
