@@ -9,6 +9,7 @@
 
 package io.imply.druid.timeseries;
 
+import io.imply.druid.timeseries.aggregation.SimpleTimeSeriesAggregatorFactory;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.druid.java.util.common.Intervals;
 import org.joda.time.Interval;
@@ -22,8 +23,12 @@ public class SimpleTimeSeriesFromByteBufferAdapaterTest extends SimpleTimeSeries
   @Override
   public SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window)
   {
-    WritableMemory mem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600)); // simulate the real deal
-    WritableMemory finalMem = WritableMemory.writableWrap(ByteBuffer.allocateDirect(600));
+    WritableMemory mem = WritableMemory.writableWrap(
+        ByteBuffer.allocateDirect(SimpleTimeSeriesAggregatorFactory.getTimeseriesBytesSize(MAX_ENTRIES))
+    ); // simulate the real deal
+    WritableMemory finalMem = WritableMemory.writableWrap(
+        ByteBuffer.allocateDirect(SimpleTimeSeriesAggregatorFactory.getTimeseriesBytesSize(MAX_ENTRIES))
+    );
     int buffStartPosition = 0;
     SimpleTimeSeriesFromByteBufferAdapter timeSeries = new SimpleTimeSeriesFromByteBufferAdapter(window, MAX_ENTRIES);
     timeSeries.init(finalMem, buffStartPosition);
@@ -36,10 +41,12 @@ public class SimpleTimeSeriesFromByteBufferAdapaterTest extends SimpleTimeSeries
       bufferSeriesList[i].setStartBuffered(mem, buffStartPosition, seriesList[i].getStart());
       bufferSeriesList[i].setEndBuffered(mem, buffStartPosition, seriesList[i].getEnd());
       for (int j = 0; j < seriesList[i].size(); j++) {
-        bufferSeriesList[i].addDataPointBuffered(mem,
-                                                 buffStartPosition,
-                                                 seriesList[i].getTimestamps().getLong(j),
-                                                 seriesList[i].getDataPoints().getDouble(j));
+        bufferSeriesList[i].addDataPointBuffered(
+            mem,
+            buffStartPosition,
+            seriesList[i].getTimestamps().getLong(j),
+            seriesList[i].getDataPoints().getDouble(j)
+        );
       }
       seriesToMerge[i] = bufferSeriesList[i].computeSimpleBuffered(mem, buffStartPosition);
     }
@@ -49,5 +56,33 @@ public class SimpleTimeSeriesFromByteBufferAdapaterTest extends SimpleTimeSeries
     }
 
     return timeSeries.computeSimpleBuffered(finalMem, buffStartPosition);
+  }
+
+  @Override
+  public SimpleTimeSeries timeseriesBuilder(
+      long[] timestamps,
+      double[] dataPoints,
+      TimeSeries.EdgePoint left,
+      TimeSeries.EdgePoint right,
+      Interval window
+  )
+  {
+    WritableMemory mem = WritableMemory.writableWrap(
+        ByteBuffer.allocateDirect(SimpleTimeSeriesAggregatorFactory.getTimeseriesBytesSize(MAX_ENTRIES))
+    ); // simulate the real deal
+    int buffStartPosition = 0;
+    SimpleTimeSeriesFromByteBufferAdapter timeSeries = new SimpleTimeSeriesFromByteBufferAdapter(window, MAX_ENTRIES);
+    timeSeries.init(mem, buffStartPosition);
+    assert timestamps.length == dataPoints.length;
+    for (int i = 0; i < timestamps.length; i++) {
+      timeSeries.addDataPointBuffered(mem, buffStartPosition, timestamps[i], dataPoints[i]);
+    }
+    if (left != null) {
+      timeSeries.addDataPointBuffered(mem, buffStartPosition, left.getTimestamp(), left.getData());
+    }
+    if (right != null) {
+      timeSeries.addDataPointBuffered(mem, buffStartPosition, right.getTimestamp(), right.getData());
+    }
+    return timeSeries.computeSimpleBuffered(mem, buffStartPosition);
   }
 }

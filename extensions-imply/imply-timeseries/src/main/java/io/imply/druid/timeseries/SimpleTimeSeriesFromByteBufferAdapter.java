@@ -87,13 +87,14 @@ public class SimpleTimeSeriesFromByteBufferAdapter extends TimeSeriesFromByteBuf
     Arrays.sort(indices, Comparator.comparingLong(lhs -> mem.getLong(buffStartPosition + DATA_OFFSET + lhs * Long.BYTES)));
     ImplyLongArrayList ts = new ImplyLongArrayList(indices.length);
     ImplyDoubleArrayList dp = new ImplyDoubleArrayList(indices.length);
-    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(ts,
-                                                             dp,
-                                                             getWindow(),
-                                                             getStartBuffered(mem, buffStartPosition),
-                                                             getEndBuffered(mem, buffStartPosition),
-                                                             getMaxEntries(),
-                                                             getBucketMillis(mem, buffStartPosition)
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+        ts,
+        dp,
+        getWindow(),
+        getStartBuffered(mem, buffStartPosition),
+        getEndBuffered(mem, buffStartPosition),
+        getMaxEntries(),
+        getBucketMillis(mem, buffStartPosition)
     );
     for (int idx : indices) {
       simpleTimeSeries.addDataPoint(mem.getLong(buffStartPosition + DATA_OFFSET + idx * Long.BYTES),

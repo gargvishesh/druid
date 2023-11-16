@@ -50,6 +50,37 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
     return initSeries.computeSimple();
   }
 
+  @Override
+  public SimpleTimeSeries timeseriesBuilder(
+      long[] timestamps,
+      double[] dataPoints,
+      TimeSeries.EdgePoint left,
+      TimeSeries.EdgePoint right,
+      Interval window
+  )
+  {
+    SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(),
+        new ImplyDoubleArrayList(),
+        window,
+        null,
+        null,
+        MAX_ENTRIES,
+        1L
+    );
+    assert timestamps.length == dataPoints.length;
+    for (int i = 0; i < timestamps.length; i++) {
+      simpleTimeSeries.addDataPoint(timestamps[i], dataPoints[i]);
+    }
+    if (left != null) {
+      simpleTimeSeries.addDataPoint(left.getTimestamp(), left.getData());
+    }
+    if (right != null) {
+      simpleTimeSeries.addDataPoint(right.getTimestamp(), right.getData());
+    }
+    return simpleTimeSeries;
+  }
+
   @Test
   public void testSorted()
   {
@@ -72,6 +103,5 @@ public class SimpleTimeSeriesTest extends SimpleTimeSeriesBaseTest
       Assert.assertTrue(timestamps.getLong(i) > lastTimestamp);
       lastTimestamp = timestamps.getLong(i);
     }
-
   }
 }
