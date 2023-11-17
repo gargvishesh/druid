@@ -20,7 +20,6 @@
 package io.imply.druid.stringmatch;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
@@ -188,7 +187,7 @@ public abstract class BaseStringMatchAggregatorTest extends InitializedNullHandl
 
   protected final List<String> makeDictionary(final List<List<String>> data)
   {
-    final TreeSet<String> dictionarySet = Sets.newTreeSet(Comparators.naturalNullsFirst());
+    final TreeSet<String> dictionarySet = new TreeSet<>(Comparators.naturalNullsFirst());
     for (List<String> row : data) {
       dictionarySet.addAll(row);
     }
