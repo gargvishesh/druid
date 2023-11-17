@@ -186,6 +186,11 @@ public class SimpleTimeSeriesAggregatorFactory extends BaseTimeSeriesAggregatorF
   @Override
   public int getMaxIntermediateSize()
   {
+    return getTimeseriesBytesSize(maxEntries);
+  }
+
+  public static int getTimeseriesBytesSize(int maxEntries)
+  {
     return maxEntries * (Long.BYTES + Double.BYTES) + TimeSeriesFromByteBufferAdapter.DATA_OFFSET;
   }
 

@@ -25,23 +25,40 @@ public abstract class SimpleTimeSeriesBaseTest
   @Test
   public void testSimpleTS()
   {
-    SimpleTimeSeries input = Util.makeSimpleTS(new long[]{0, 1}, new double[]{0, 0});
+    SimpleTimeSeries input = timeseriesBuilder(new long[]{0, 1}, new double[]{0, 0}, null, null, VISIBLE_WINDOW);
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{input}, VISIBLE_WINDOW);
-    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{0, 1}, new double[]{0, 0});
+    SimpleTimeSeries expectedSeries = timeseriesBuilder(new long[]{0, 1}, new double[]{0, 0}, null, null, VISIBLE_WINDOW);
     Assert.assertEquals(2, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
 
   @Test
+  public void testSimpleTSWithEdges()
+  {
+    Interval window = Intervals.utc(2, 3);
+    SimpleTimeSeries actualSeries = timeseriesBuilder(new long[]{0, 1, 2, 3, 4}, new double[]{0, 1, 2, 3, 4}, null, null, window);
+    SimpleTimeSeries expectedSeries = timeseriesBuilder(
+        new long[]{2},
+        new double[]{2},
+        new TimeSeries.EdgePoint(1, 1),
+        new TimeSeries.EdgePoint(3, 3),
+        window
+    );
+    Assert.assertEquals(expectedSeries, actualSeries);
+  }
+
+  @Test
   public void testMergeTSWithDataPointsAndTimeseries()
   {
-    SimpleTimeSeries simpleTimeSeries = Util.makeSimpleTS(new long[]{1}, new double[]{1});
-    SimpleTimeSeries input1 = Util.makeSimpleTS(new long[]{0, 5}, new double[]{0, 0});
+    SimpleTimeSeries simpleTimeSeries = timeseriesBuilder(new long[]{1}, new double[]{1}, null, null, VISIBLE_WINDOW);
+    SimpleTimeSeries input1 = timeseriesBuilder(new long[]{0, 5}, new double[]{0, 0}, null, null, VISIBLE_WINDOW);
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{input1, simpleTimeSeries}, VISIBLE_WINDOW);
-    SimpleTimeSeries expectedSeries = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{0, 1, 5}),
-                                                           new ImplyDoubleArrayList(new double[]{0, 1, 0}),
-                                                           VISIBLE_WINDOW,
-                                                           MAX_ENTRIES);
+    SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(new long[]{0, 1, 5}),
+        new ImplyDoubleArrayList(new double[]{0, 1, 0}),
+        VISIBLE_WINDOW,
+        MAX_ENTRIES
+    );
     Assert.assertEquals(3, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
@@ -49,49 +66,57 @@ public abstract class SimpleTimeSeriesBaseTest
   @Test
   public void testMergeTSWithTimeseries()
   {
-    SimpleTimeSeries first = Util.makeSimpleTS(new long[]{1, 4}, new double[]{1, 4});
-    SimpleTimeSeries second = Util.makeSimpleTS(new long[]{2, 5}, new double[]{2, 5});
-    SimpleTimeSeries third = Util.makeSimpleTS(new long[]{3, 6}, new double[]{10, 15});
+    SimpleTimeSeries first = timeseriesBuilder(new long[]{1, 4}, new double[]{1, 4}, null, null, VISIBLE_WINDOW);
+    SimpleTimeSeries second = timeseriesBuilder(new long[]{2, 5}, new double[]{2, 5}, null, null, VISIBLE_WINDOW);
+    SimpleTimeSeries third = timeseriesBuilder(new long[]{3, 6}, new double[]{10, 15}, null, null, VISIBLE_WINDOW);
 
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{first, second, third}, VISIBLE_WINDOW);
-    SimpleTimeSeries expectedSeries = Util.makeSimpleTS(new long[]{1, 2, 3, 4, 5, 6}, new double[]{1, 2, 10, 4, 5, 15});
+    SimpleTimeSeries expectedSeries = timeseriesBuilder(
+        new long[]{1, 2, 3, 4, 5, 6},
+        new double[]{1, 2, 10, 4, 5, 15},
+        null,
+        null,
+        VISIBLE_WINDOW
+    );
     Assert.assertEquals(6, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
   }
 
   @Test
-  public void testMergeTSWithTimeserieswindow()
+  public void testMergeTSWithTimeseriesWindow()
   {
     Interval window = Intervals.utc(2, 5);
-    SimpleTimeSeries first = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{4}),
-                                                  new ImplyDoubleArrayList(new double[]{4}),
-                                                  window,
-                                                  new TimeSeries.EdgePoint(1L, 1D),
-                                                  null,
-                                                  MAX_ENTRIES,
-                                                  1L
+    SimpleTimeSeries first = timeseriesBuilder(
+        new long[]{4},
+        new double[]{4},
+        new TimeSeries.EdgePoint(1L, 1D),
+        null,
+        window
     );
-    SimpleTimeSeries second = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{2}),
-                                                   new ImplyDoubleArrayList(new double[]{2}),
-                                                   window,
-                                                   MAX_ENTRIES);
-    SimpleTimeSeries third = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{3}),
-                                                  new ImplyDoubleArrayList(new double[]{10}),
-                                                  window,
-                                                  null,
-                                                  new TimeSeries.EdgePoint(5L, 5D),
-                                                  MAX_ENTRIES,
-                                                  1L
+    SimpleTimeSeries second = timeseriesBuilder(
+        new long[]{2},
+        new double[]{2},
+        null,
+        null,
+        window
+    );
+    SimpleTimeSeries third = timeseriesBuilder(
+        new long[]{3},
+        new double[]{10},
+        null,
+        new TimeSeries.EdgePoint(5L, 5D),
+        window
     );
 
     SimpleTimeSeries timeSeries = timeseriesBuilder(new SimpleTimeSeries[]{first, second, third}, window);
-    SimpleTimeSeries expectedSeries = new SimpleTimeSeries(new ImplyLongArrayList(new long[]{2, 3, 4}),
-                                                           new ImplyDoubleArrayList(new double[]{2, 10, 4}),
-                                                           window,
-                                                           new TimeSeries.EdgePoint(1L, 1D),
-                                                           new TimeSeries.EdgePoint(5L, 5D),
-                                                           MAX_ENTRIES,
-                                                           1L
+    SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
+        new ImplyLongArrayList(new long[]{2, 3, 4}),
+        new ImplyDoubleArrayList(new double[]{2, 10, 4}),
+        window,
+        new TimeSeries.EdgePoint(1L, 1D),
+        new TimeSeries.EdgePoint(5L, 5D),
+        MAX_ENTRIES,
+        1L
     );
     Assert.assertEquals(3, timeSeries.size());
     Assert.assertEquals(expectedSeries, timeSeries);
@@ -132,22 +157,65 @@ public abstract class SimpleTimeSeriesBaseTest
     };
 
     for (int i = 0; i < windowList.length; i++) {
-      SimpleTimeSeries simpleTimeSeries = new SimpleTimeSeries(windowList[i], 100);
-      for (int j = 1; j < 6; j++) {
-        simpleTimeSeries.addDataPoint(j, j);
-      }
+      SimpleTimeSeries simpleTimeSeries = timeseriesBuilder(
+          new long[]{1, 2, 3, 4, 5},
+          new double[]{1, 2, 3, 4, 5},
+          startsList[i],
+          endsList[i],
+          windowList[i]
+      );
       SimpleTimeSeries expectedSeries = new SimpleTimeSeries(
           new ImplyLongArrayList(timestampsList[i]),
           new ImplyDoubleArrayList(dataPointsList[i]),
           windowList[i],
           startsList[i],
           endsList[i],
-          100,
+          MAX_ENTRIES,
           1L
       );
       Assert.assertEquals(expectedSeries, simpleTimeSeries);
     }
   }
 
+  @Test
+  public void testMergeEmptySeriesWithEdgesAndNonEmptySeries()
+  {
+    Interval window = Intervals.utc(1, 4);
+    SimpleTimeSeries emptySeries = timeseriesBuilder(
+        new long[]{},
+        new double[]{},
+        new TimeSeries.EdgePoint(0, 0),
+        new TimeSeries.EdgePoint(4, 4),
+        window
+    );
+    SimpleTimeSeries nonEmptySeries = timeseriesBuilder(
+        new long[]{1, 2, 3},
+        new double[]{1, 2, 3},
+        null,
+        null,
+        window
+    );
+    SimpleTimeSeries actualSeries = timeseriesBuilder(new SimpleTimeSeries[]{emptySeries, nonEmptySeries}, window);
+    SimpleTimeSeries expectedSeries = timeseriesBuilder(
+        new long[]{1, 2, 3},
+        new double[]{1, 2, 3},
+        new TimeSeries.EdgePoint(0, 0),
+        new TimeSeries.EdgePoint(4, 4),
+        window
+    );
+    Assert.assertEquals(expectedSeries, actualSeries);
+  }
+
+  /**
+   * timeseries objects are merged in the order they are provided in the seriesList
+   */
   public abstract SimpleTimeSeries timeseriesBuilder(SimpleTimeSeries[] seriesList, Interval window);
+
+  public abstract SimpleTimeSeries timeseriesBuilder(
+      long[] timestamps,
+      double[] dataPoints,
+      TimeSeries.EdgePoint left,
+      TimeSeries.EdgePoint right,
+      Interval window
+  );
 }

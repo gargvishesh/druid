@@ -157,7 +157,7 @@ public class SimpleTimeSeries extends TimeSeries<SimpleTimeSeries>
   @Override
   public void addTimeSeries(SimpleTimeSeries timeSeries)
   {
-    if (timeSeries == null || timeSeries.size() == 0) {
+    if (timeSeries == null) {
       return;
     }
 

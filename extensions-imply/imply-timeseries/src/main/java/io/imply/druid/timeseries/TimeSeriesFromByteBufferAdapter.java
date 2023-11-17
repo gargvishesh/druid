@@ -54,7 +54,7 @@ public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
   public void addDataPointBuffered(WritableMemory mem, int buffStartPosition, long timestamp, double data)
   {
     if (isNull(mem, buffStartPosition)) {
-      mem.putInt(buffStartPosition, 0);
+      setSize(mem, buffStartPosition, 0);
     }
     Interval window = getWindow();
     // if the timestamp is in visible window (if any), then add it. Otherwise update the edges if needed
@@ -63,13 +63,13 @@ public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
     } else {
       if (timestamp < window.getStartMillis()) {
         long ts = mem.getLong(buffStartPosition + START_TS_OFFSET);
-        if (ts < timestamp) {
+        if (ts <= timestamp || ts == -1) {
           mem.putLong(buffStartPosition + START_TS_OFFSET, timestamp);
           mem.putDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES, data);
         }
       } else if (timestamp >= window.getEndMillis()) {
         long ts = mem.getLong(buffStartPosition + END_TS_OFFSET);
-        if (ts > timestamp) {
+        if (ts >= timestamp || ts == -1) {
           mem.putLong(buffStartPosition + END_TS_OFFSET, timestamp);
           mem.putDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES, data);
         }
@@ -111,7 +111,7 @@ public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
 
     // if null, set the timeseries to an empty one for merge
     if (isNull(mem, buffStartPosition)) {
-      mem.putInt(buffStartPosition, 0);
+      setSize(mem, buffStartPosition, 0);
     }
     // merge the visible window
     internalMergeSeriesBuffered(mem, buffStartPosition, mergeSeries);
@@ -129,6 +129,9 @@ public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
 
   public void setStartBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newStart)
   {
+    if (isNull(mem, buffStartPosition)) {
+      setSize(mem, buffStartPosition, 0);
+    }
     mem.putLong(buffStartPosition + START_TS_OFFSET, newStart.getTimestamp());
     mem.putDouble(buffStartPosition + START_TS_OFFSET + Long.BYTES, newStart.getData());
   }
@@ -141,18 +144,28 @@ public abstract class TimeSeriesFromByteBufferAdapter<T extends TimeSeries<T>>
 
   public void setEndBuffered(WritableMemory mem, int buffStartPosition, TimeSeries.EdgePoint newEnd)
   {
+    if (isNull(mem, buffStartPosition)) {
+      setSize(mem, buffStartPosition, 0);
+    }
     mem.putLong(buffStartPosition + END_TS_OFFSET, newEnd.getTimestamp());
     mem.putDouble(buffStartPosition + END_TS_OFFSET + Long.BYTES, newEnd.getData());
   }
 
   public boolean isNull(WritableMemory mem, int buffStartPosition)
   {
-    return size(mem, buffStartPosition) < 0;
+    return size(mem, buffStartPosition) < 0 &&
+           getStartBuffered(mem, buffStartPosition).getTimestampJson() == null &&
+           getEndBuffered(mem, buffStartPosition).getTimestampJson() == null;
   }
 
   public int size(WritableMemory mem, int buffStartPosition)
   {
     return mem.getInt(buffStartPosition);
+  }
+
+  public void setSize(WritableMemory mem, int buffStartPosition, int expectedSize)
+  {
+    mem.putInt(buffStartPosition, expectedSize);
   }
 
   public long getBucketMillis(WritableMemory mem, int buffStartPosition)
