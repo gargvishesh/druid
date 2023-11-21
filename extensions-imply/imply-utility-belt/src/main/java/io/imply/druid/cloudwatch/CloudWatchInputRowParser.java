@@ -13,6 +13,7 @@ package io.imply.druid.cloudwatch;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.druid.data.input.ByteBufferInputRowParser;
 import org.apache.druid.data.input.InputRow;
@@ -40,6 +41,7 @@ import java.util.TreeMap;
  *
  * See https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/SubscriptionFilters.html for details.
  */
+@JsonTypeName(CloudWatchInputRowParser.TYPE_NAME)
 public class CloudWatchInputRowParser implements ByteBufferInputRowParser
 {
   public static final String TYPE_NAME = "cloudwatch";
