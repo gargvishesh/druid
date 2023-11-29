@@ -353,35 +353,6 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
 
-      # - name: Create Imply Manager bundle
-      #   run: |
-      #     cd imply-release
-      #     bash scripts/build-imply-manager.sh
-      #     echo IMPLY_MANAGER_VERSION=$(cat imply-manager.version) >> $GITHUB_ENV
-      #     echo IMPLY_MANAGER_DISTRO_IMAGE=$(cat imply-manager-distro-image) >> $GITHUB_ENV
-      #     echo IMPLY_MANAGER_DISTRO_TGZ=$(cat imply-manager-distro-tgz) >> $GITHUB_ENV
-
-      # - name: Upload imply-manager bundle to Artifactory
-      #   run: |
-      #     find . -name "*.tar.gz"
-      #     export BUILD_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-      #     cd imply-release
-      #     jf rt upload --target-props "release.version=${RELEASE_VERSION};build.version=${IMPLY_MANAGER_VERSION};manager.version=${MANAGER_VERSION};manager.tgz={ARTIFACTORY_MANAGER_TGZ}-${MANAGER_VERSION}-bin.tar.gz;imply.version=${IMPLY_VERSION};imply.tgz=${ARTIFACTORY_IMPLY_TGZ}-${IMPLY_VERSION}.tar.gz" "${IMPLY_MANAGER_DISTRO_TGZ}" "tgz-local/imply-manager/"
-
-      # - name: Notify slack of new imply-manager bundle
-      #   uses: slackapi/slack-github-action@v1.24.0
-      #   with:
-      #     payload: |
-      #       {
-      #         "package_name": "imply-manager",
-      #         "package_version": "${{ env.IMPLY_VERSION }}",
-      #         "dvt_artifacts": "linux: ${{ env.ARTIFACTORY_IMPLY_MANAGER_TGZ }}-${{ env.IMPLY_MANAGER_VERSION }}.tar.gz",
-      #         "components": "imply: ${{ env.ARTIFACTORY_IMPLY_TGZ }}-${{ env.IMPLY_VERSION }}.tar.gz\nmanager: ${{ env.ARTIFACTORY_MANAGER_TGZ }}-${{ env.MANAGER_VERSION }}-bin.tar.gz",
-      #         "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #       }
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
-
       - name: Assume role to us-east-1 eng for s3 artifact deployment
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -389,14 +360,21 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 1200
 
-      - name: Release bundle to S3 for cloud.eng
+      - name: Release bundle to S3 for imply-cloud-eng/bundles
         env:
           S3_BUCKET_PREFIX: s3://imply-cloud-eng/bundles
         run:
           aws s3 cp "imply-release/imply-${IMPLY_VERSION}.tar.gz" "${S3_BUCKET_PREFIX}/imply-${IMPLY_VERSION}.tar.gz" --acl bucket-owner-full-control
 
-      # - name: Update the test cluster in cloud.eng
-      #   env:
-      #     CLUSTER_ID: <add cluster id>
-      #   run:
-      #     ./imply-release/scripts/update-cluster ${CLUSTER_ID} ROLLING ${IMPLY_VERSION} "imply-${IMPLY_VERSION}" ${IMPLY_VERSION} --environment dev
+      - name: Assume role to us-east-1 prod for s3 artifact deployment
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::018895040333:role/deployment_infra_initiating_deployment_role
+          aws-region: us-east-1
+          role-duration-seconds: 1200
+  
+      - name: Release bundle to S3 for static.imply.io/support
+        env:
+          S3_BUCKET_PREFIX: s3://static.imply.io/support
+        run:
+          aws s3 cp "imply-release/imply-${IMPLY_VERSION}.tar.gz" "${S3_BUCKET_PREFIX}/imply-${IMPLY_VERSION}.tar.gz" --acl bucket-owner-full-control
