@@ -20,6 +20,7 @@ import org.apache.datasketches.hash.MurmurHash3;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
 import org.apache.datasketches.thetacommon.ThetaUtil;
 import org.apache.druid.annotations.EverythingIsNonnullByDefault;
+import org.apache.druid.annotations.SuppressFBWarnings;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
@@ -112,6 +113,7 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
     );
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED")
   @Override
   protected void aggregateSingleValueDims(Grouper<ByteBuffer> grouper)
   {
@@ -123,11 +125,12 @@ public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggr
         // One advantage is that we're filtering some rows
         for (GroupByColumnSelectorPlus dim : dims) {
           GroupByColumnSelectorStrategy strategy = dim.getColumnSelectorStrategy();
-          strategy.writeToKeyBuffer(
+          int val = strategy.writeToKeyBuffer(
               dim.getKeyBufferPosition(),
               dim.getSelector(),
               keyBuffer
           );
+          assert val >= 0;
         }
         keyBuffer.rewind();
 

@@ -92,7 +92,6 @@ public class IpAddressTestUtils
   public static Segment createIpAddressIncrementalIndex(
       Granularity granularity,
       boolean rollup,
-      boolean deserializeComplexMetrics,
       int maxRowCount
   )
       throws Exception
@@ -103,7 +102,6 @@ public class IpAddressTestUtils
         "simple_ip_test_data_aggregators.json",
         granularity,
         rollup,
-        deserializeComplexMetrics,
         maxRowCount
     );
   }
@@ -131,7 +129,6 @@ public class IpAddressTestUtils
   public static Segment createIpPrefixIncrementalIndex(
       Granularity granularity,
       boolean rollup,
-      boolean deserializeComplexMetrics,
       int maxRowCount
   )
       throws Exception
@@ -142,7 +139,6 @@ public class IpAddressTestUtils
         "simple_ip_test_data_aggregators.json",
         granularity,
         rollup,
-        deserializeComplexMetrics,
         maxRowCount
     );
   }
@@ -196,7 +192,6 @@ public class IpAddressTestUtils
       String aggJsonFileName,
       Granularity granularity,
       boolean rollup,
-      boolean deserializeComplexMetrics,
       int maxRowCount
   )
       throws Exception
@@ -221,7 +216,6 @@ public class IpAddressTestUtils
         aggregatorSpecs.toArray(new AggregatorFactory[0]),
         0,
         granularity,
-        deserializeComplexMetrics,
         maxRowCount,
         rollup
     );
@@ -230,22 +224,22 @@ public class IpAddressTestUtils
 
   public static Segment createIpAddressDefaultHourlyIncrementalIndex() throws Exception
   {
-    return createIpAddressIncrementalIndex(Granularities.HOUR, true, true, 1000);
+    return createIpAddressIncrementalIndex(Granularities.HOUR, true, 1000);
   }
 
   public static Segment createIpAddressDefaultDailyIncrementalIndex() throws Exception
   {
-    return createIpAddressIncrementalIndex(Granularities.DAY, true, true, 1000);
+    return createIpAddressIncrementalIndex(Granularities.DAY, true, 1000);
   }
 
   public static Segment createIpPrefixDefaultHourlyIncrementalIndex() throws Exception
   {
-    return createIpPrefixIncrementalIndex(Granularities.HOUR, true, true, 1000);
+    return createIpPrefixIncrementalIndex(Granularities.HOUR, true, 1000);
   }
 
   public static Segment createIpPrefixDefaultDailyIncrementalIndex() throws Exception
   {
-    return createIpPrefixIncrementalIndex(Granularities.DAY, true, true, 1000);
+    return createIpPrefixIncrementalIndex(Granularities.DAY, true, 1000);
   }
 
   public static List<Segment> createIpAddressDefaultHourlySegments(AggregationTestHelper helper, TemporaryFolder tempFolder)

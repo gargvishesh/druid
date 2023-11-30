@@ -103,11 +103,12 @@ public class SamplingBufferHashGrouperTest
       samplingBufferHashGrouper.setCurrRowGroupHash(SamplingByteBufferHashTableTest.getRawHash(i));
       ByteBuffer keyBuffer = ByteBuffer.allocate(keySize);
       settableLongColumnValueSelector.setValue(i);
-      dims[1].getColumnSelectorStrategy().writeToKeyBuffer(
+      int val = dims[1].getColumnSelectorStrategy().writeToKeyBuffer(
           dims[1].getKeyBufferPosition(),
           settableLongColumnValueSelector,
           keyBuffer
       );
+      Assert.assertTrue(val >= 0);
       Assert.assertTrue(
           samplingBufferHashGrouper.aggregate(keyBuffer,
           SamplingByteBufferHashTableTest.getAggregateHash(i)).isOk()
