@@ -15,6 +15,7 @@ import com.google.common.collect.PeekingIterator;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import org.apache.datasketches.theta.RawHashHeapQuickSelectSketch;
+import org.apache.druid.annotations.SuppressFBWarnings;
 import org.apache.druid.java.util.common.CloseableIterators;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.ISE;
@@ -198,6 +199,7 @@ public class SamplingBufferHashGrouper extends AbstractBufferHashGrouper<ByteBuf
         return sortedGroupIterator.hasNext() && sortedGroupIterator.peek().getLongValue() < finalTheta;
       }
 
+      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED")
       @Override
       public Entry<ByteBuffer> next()
       {
@@ -210,18 +212,20 @@ public class SamplingBufferHashGrouper extends AbstractBufferHashGrouper<ByteBuf
             nextEntry = populateBucketEntryForOffset(reusableEntry, groupHashEntry.getIntKey());
             // hash is at first position
             settableLongColumnValueSelector.setValue(groupHashEntry.getLongValue());
-            dims[0].getColumnSelectorStrategy().writeToKeyBuffer(
+            int val = dims[0].getColumnSelectorStrategy().writeToKeyBuffer(
                 dims[0].getKeyBufferPosition(),
                 settableLongColumnValueSelector,
                 nextEntry.getKey()
             );
+            assert val >= 0;
             // theta is at last position
             settableLongColumnValueSelector.setValue(finalTheta);
-            dims[dims.length - 1].getColumnSelectorStrategy().writeToKeyBuffer(
+            val = dims[dims.length - 1].getColumnSelectorStrategy().writeToKeyBuffer(
                 dims[dims.length - 1].getKeyBufferPosition(),
                 settableLongColumnValueSelector,
                 nextEntry.getKey()
             );
+            assert val >= 0;
             return nextEntry;
           }
         }
