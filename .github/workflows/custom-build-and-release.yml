@@ -369,7 +369,7 @@ jobs:
       - name: Assume role to us-east-1 prod for s3 artifact deployment
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::018895040333:role/deployment_infra_initiating_deployment_role
+          role-to-assume: arn:aws:iam::269875963461:role/deployment_infra_assumed_deployment_role
           aws-region: us-east-1
           role-duration-seconds: 1200
   
