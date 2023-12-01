@@ -36,7 +36,7 @@ public class StringMatchDictionaryBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.maxLength = maxLength;
-    this.nullId = selector.idLookup().lookupId(null);
+    this.nullId = StringMatchUtil.getNullId(selector);
   }
 
   @Override
@@ -59,9 +59,7 @@ public class StringMatchDictionaryBufferAggregator implements BufferAggregator
       StringMatchUtil.putMatching(buf, position, false);
     } else if (sz == 1) {
       final int id = row.get(0);
-      if (id != nullId) {
-        StringMatchUtil.accumulateDictionaryId(buf, position, id);
-      }
+      StringMatchUtil.accumulateDictionaryId(selector, buf, position, id, nullId);
     }
   }
 
