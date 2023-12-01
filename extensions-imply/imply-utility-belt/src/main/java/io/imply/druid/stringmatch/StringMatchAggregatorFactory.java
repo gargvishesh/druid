@@ -62,7 +62,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   public static final ColumnType INTERMEDIATE_TYPE = ColumnType.ofComplex("serializablePairLongString");
   public static final ColumnType FINAL_TYPE = ColumnType.STRING;
 
-  private static final int DEFAULT_MAX_STRING_SIZE = 1024;
+  static final int DEFAULT_MAX_STRING_SIZE = 1024;
   private static final byte CACHE_TYPE_ID = (byte) 0xE0;
 
   private final String fieldName;
@@ -223,7 +223,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   {
     return new CacheKeyBuilder(CACHE_TYPE_ID)
         .appendString(fieldName)
-        .appendInt(maxStringBytes)
+        .appendInt(getMaxStringBytesOrDefault())
         .build();
   }
 

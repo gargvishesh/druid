@@ -42,7 +42,7 @@ public class StringMatchDictionaryAggregator implements Aggregator
   {
     this.selector = selector;
     this.maxLength = maxLength;
-    this.nullId = selector.idLookup().lookupId(null);
+    this.nullId = StringMatchUtil.getNullId(selector);
   }
 
   @Override
