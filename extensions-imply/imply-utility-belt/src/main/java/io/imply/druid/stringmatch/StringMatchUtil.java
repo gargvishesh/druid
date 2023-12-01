@@ -22,6 +22,7 @@ package io.imply.druid.stringmatch;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
 import org.apache.druid.segment.DimensionDictionarySelector;
+import org.apache.druid.segment.IdLookup;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -34,6 +35,17 @@ import java.nio.ByteBuffer;
  */
 public class StringMatchUtil
 {
+  /**
+   * Argument for {@link #accumulateDictionaryId} "nullId" parameter if the given selector is known to not include null.
+   */
+  static final int NULL_NOT_PRESENT = -1;
+
+  /**
+   * Argument for {@link #accumulateDictionaryId} "nullId" parameter if we don't know whether the given selector
+   * includes null.
+   */
+  static final int NULL_ID_UNKNOWN = -2;
+
   static final byte MATCHING = 0x01;
   static final byte NOT_MATCHING = 0x02;
 
@@ -104,12 +116,36 @@ public class StringMatchUtil
     buf.putInt(position + Byte.BYTES, id);
   }
 
-  static void accumulateDictionaryId(final ByteBuffer buf, final int position, final int id)
+  /**
+   * Accumulate dictionary id into buffer at a given position. May call
+   * {@link DimensionDictionarySelector#lookupName(int)} if nullId is {@link #NULL_ID_UNKNOWN}, but avoids calling
+   * that method in all other cases.
+   *
+   * @param selector selector the dictionary id is from
+   * @param buf      buffer
+   * @param position position
+   * @param id       dictionary id
+   * @param nullId   dictionary id of null, or {@link #NULL_NOT_PRESENT}, or {@link #NULL_ID_UNKNOWN}, as appropriate.
+   *                 Get this from {@link #getNullId(DimensionDictionarySelector)}
+   */
+  static void accumulateDictionaryId(
+      final DimensionDictionarySelector selector,
+      final ByteBuffer buf,
+      final int position,
+      final int id,
+      final int nullId
+  )
   {
+    if (id == nullId) {
+      return;
+    }
+
     final int acc = StringMatchUtil.getDictionaryId(buf, position);
     if (acc == StringMatchUtil.NONE_ID) {
-      StringMatchUtil.putDictionaryId(buf, position, id);
-    } else if (acc != id) {
+      if (nullId != NULL_ID_UNKNOWN || selector.lookupName(id) != null) {
+        StringMatchUtil.putDictionaryId(buf, position, id);
+      }
+    } else if (acc != id && (nullId != NULL_ID_UNKNOWN || selector.lookupName(id) != null)) {
       StringMatchUtil.putMatching(buf, position, false);
     }
   }
@@ -165,5 +201,21 @@ public class StringMatchUtil
     }
 
     return new SerializablePairLongString((long) NOT_MATCHING, null);
+  }
+
+  /**
+   * Returns ID of NULL, or {@link StringMatchUtil#NULL_NOT_PRESENT} if NULL is known not to be in the selector, or
+   * {@link StringMatchUtil#NULL_ID_UNKNOWN} if we can't tell because there is no {@link IdLookup}.
+   */
+  static int getNullId(final DimensionDictionarySelector selector)
+  {
+    final IdLookup idLookup = selector.idLookup();
+
+    if (idLookup != null) {
+      final int nullId = idLookup.lookupId(null);
+      return nullId >= 0 ? nullId : StringMatchUtil.NULL_NOT_PRESENT;
+    } else {
+      return StringMatchUtil.NULL_ID_UNKNOWN;
+    }
   }
 }

@@ -32,14 +32,14 @@ import java.util.Arrays;
 import java.util.List;
 
 @RunWith(Enclosed.class)
-public class StringMatchDictionaryVectorAggregatorTest
+public class StringMatchDictionaryVectorAggregatorWithoutIdLookupTest
 {
   public abstract static class Base extends BaseStringMatchAggregatorTest
   {
     @Override
     protected SerializablePairLongString aggregateMultiValue(List<List<String>> data, int maxLength)
     {
-      final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(makeDictionary(data), true);
+      final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(makeDictionary(data), false);
       final VectorAggregator aggregator = new StringMatchDictionaryVectorAggregator(selector, maxLength);
       final int capacity = new StringMatchAggregatorFactory("foo", "foo", maxLength).getMaxIntermediateSize() + 2;
       final ByteBuffer buf = ByteBuffer.allocate(capacity);

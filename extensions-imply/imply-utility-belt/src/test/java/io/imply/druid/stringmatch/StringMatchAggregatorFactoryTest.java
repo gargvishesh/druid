@@ -29,6 +29,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 public class StringMatchAggregatorFactoryTest
 {
@@ -183,7 +184,20 @@ public class StringMatchAggregatorFactoryTest
   }
 
   @Test
-  public void testSerde() throws IOException
+  public void test_getCacheKey()
+  {
+    final byte[] cacheKey1 = new StringMatchAggregatorFactory("a0", "x", null).getCacheKey();
+    final byte[] cacheKey2 = new StringMatchAggregatorFactory("a0", "y", null).getCacheKey();
+    final byte[] cacheKey3 =
+        new StringMatchAggregatorFactory("a0", "y", StringMatchAggregatorFactory.DEFAULT_MAX_STRING_SIZE).getCacheKey();
+
+    Assert.assertFalse(Arrays.equals(cacheKey1, cacheKey2));
+    Assert.assertFalse(Arrays.equals(cacheKey1, cacheKey3));
+    Assert.assertArrayEquals(cacheKey2, cacheKey3);
+  }
+
+  @Test
+  public void test_serde() throws IOException
   {
     Assert.assertEquals(factory, jsonMapper.readValue(jsonMapper.writeValueAsBytes(factory), AggregatorFactory.class));
 
@@ -198,7 +212,7 @@ public class StringMatchAggregatorFactoryTest
   }
 
   @Test
-  public void testEquals()
+  public void test_equals()
   {
     EqualsVerifier.forClass(StringMatchAggregatorFactory.class).usingGetClass().verify();
   }

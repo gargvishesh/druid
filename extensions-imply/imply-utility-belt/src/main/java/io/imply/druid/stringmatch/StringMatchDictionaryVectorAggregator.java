@@ -35,7 +35,7 @@ public class StringMatchDictionaryVectorAggregator implements VectorAggregator
   {
     this.selector = selector;
     this.maxLength = maxLength;
-    this.nullId = selector.idLookup().lookupId(null);
+    this.nullId = StringMatchUtil.getNullId(selector);
   }
 
   @Override
@@ -55,9 +55,7 @@ public class StringMatchDictionaryVectorAggregator implements VectorAggregator
 
     for (int i = startRow; i < endRow; i++) {
       final int id = rowVector[i];
-      if (id != nullId) {
-        StringMatchUtil.accumulateDictionaryId(buf, position, id);
-      }
+      StringMatchUtil.accumulateDictionaryId(selector, buf, position, id, nullId);
     }
   }
 
@@ -70,9 +68,7 @@ public class StringMatchDictionaryVectorAggregator implements VectorAggregator
       final int position = positions[i] + positionOffset;
       if (StringMatchUtil.isMatching(buf, position)) {
         final int id = rowVector[rows != null ? rows[i] : i];
-        if (id != nullId) {
-          StringMatchUtil.accumulateDictionaryId(buf, position, id);
-        }
+        StringMatchUtil.accumulateDictionaryId(selector, buf, position, id, nullId);
       }
     }
   }

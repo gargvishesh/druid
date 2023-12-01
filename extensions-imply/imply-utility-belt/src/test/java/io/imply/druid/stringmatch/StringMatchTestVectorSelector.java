@@ -33,11 +33,13 @@ public class StringMatchTestVectorSelector implements SingleValueDimensionVector
 
   private final DimensionDictionarySelector dictionarySelector;
   private final int[] currentVector = new int[MAX_VECTOR_SIZE];
+  private final boolean doesHaveIdLookup;
   private int currentVectorSize;
 
-  public StringMatchTestVectorSelector(List<String> dictionary)
+  public StringMatchTestVectorSelector(List<String> dictionary, final boolean doesHaveIdLookup)
   {
     this.dictionarySelector = new StringMatchTestDimensionSelector(dictionary);
+    this.doesHaveIdLookup = doesHaveIdLookup;
   }
 
   public void setCurrentVector(final List<String> strings)
@@ -50,7 +52,7 @@ public class StringMatchTestVectorSelector implements SingleValueDimensionVector
 
     for (int i = 0; i < currentVectorSize; i++) {
       String string = strings.get(i);
-      currentVector[i] = idLookup().lookupId(string);
+      currentVector[i] = dictionarySelector.idLookup().lookupId(string);
       if (currentVector[i] < 0) {
         throw new ISE("No such string[%s]", string);
       }
@@ -80,7 +82,7 @@ public class StringMatchTestVectorSelector implements SingleValueDimensionVector
   @Override
   public IdLookup idLookup()
   {
-    return dictionarySelector.idLookup();
+    return doesHaveIdLookup ? dictionarySelector.idLookup() : null;
   }
 
   @Override
