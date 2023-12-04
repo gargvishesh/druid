@@ -354,11 +354,12 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
 
       - name: Assume role to us-east-1 eng for s3 artifact deployment
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::422682147474:role/deployment_infra_assumed_deployment_role
           aws-region: us-east-1
           role-duration-seconds: 1200
+          unset-current-credentials: true
 
       - name: Release bundle to S3 for imply-cloud-eng/bundles
         env:
@@ -367,11 +368,12 @@ jobs:
           aws s3 cp "imply-release/imply-${IMPLY_VERSION}.tar.gz" "${S3_BUCKET_PREFIX}/imply-${IMPLY_VERSION}.tar.gz" --acl bucket-owner-full-control
 
       - name: Assume role to us-east-1 prod for s3 artifact deployment
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: arn:aws:iam::269875963461:role/deployment_infra_assumed_deployment_role
           aws-region: us-east-1
           role-duration-seconds: 1200
+          unset-current-credentials: true
   
       - name: Release bundle to S3 for static.imply.io/support
         env:
