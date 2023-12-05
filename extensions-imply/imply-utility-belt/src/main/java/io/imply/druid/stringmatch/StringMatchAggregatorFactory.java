@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.aggregation.Aggregator;
@@ -36,6 +35,7 @@ import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.segment.ColumnInspector;
 import org.apache.druid.segment.ColumnSelectorFactory;
+import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ColumnType;
@@ -52,8 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Returns a unique string value if a single value is encountered; otherwise returns
- * {@link NullHandling#defaultStringValue()}.
+ * Returns a unique string value if a single value is encountered; otherwise returns null.
  */
 @JsonTypeName(StringMatchAggregatorFactory.TYPE_NAME)
 public class StringMatchAggregatorFactory extends AggregatorFactory
@@ -62,20 +61,21 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   public static final ColumnType INTERMEDIATE_TYPE = ColumnType.ofComplex("serializablePairLongString");
   public static final ColumnType FINAL_TYPE = ColumnType.STRING;
 
-  static final int DEFAULT_MAX_STRING_SIZE = 1024;
+  static final int DEFAULT_MAX_STRING_BYTES = 1024;
   private static final byte CACHE_TYPE_ID = (byte) 0xE0;
 
   private final String fieldName;
   private final String name;
-
   @Nullable
   private final Integer maxStringBytes;
+  private final boolean combine;
 
   @JsonCreator
   public StringMatchAggregatorFactory(
       @JsonProperty("name") final String name,
       @JsonProperty("fieldName") final String fieldName,
-      @JsonProperty("maxStringBytes") final Integer maxStringBytes
+      @JsonProperty("maxStringBytes") final Integer maxStringBytes,
+      @JsonProperty("combine") final boolean combine
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -88,31 +88,42 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     this.name = name;
     this.fieldName = fieldName;
     this.maxStringBytes = maxStringBytes;
+    this.combine = combine;
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory columnSelectorFactory)
   {
-    final DimensionSelector selector =
-        columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
-
-    if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
-      return new StringMatchDictionaryAggregator(selector, getMaxStringBytesOrDefault());
+    if (combine) {
+      final ColumnValueSelector<?> selector = columnSelectorFactory.makeColumnValueSelector(fieldName);
+      return new StringMatchCombiningAggregator(selector, getMaxStringBytesOrDefault());
     } else {
-      return new StringMatchAggregator(selector, getMaxStringBytesOrDefault());
+      final DimensionSelector selector =
+          columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+
+      if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
+        return new StringMatchDictionaryAggregator(selector, getMaxStringBytesOrDefault());
+      } else {
+        return new StringMatchAggregator(selector, getMaxStringBytesOrDefault());
+      }
     }
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnSelectorFactory)
   {
-    final DimensionSelector selector =
-        columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
-
-    if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
-      return new StringMatchDictionaryBufferAggregator(selector, getMaxStringBytesOrDefault());
+    if (combine) {
+      final ColumnValueSelector<?> selector = columnSelectorFactory.makeColumnValueSelector(fieldName);
+      return new StringMatchCombiningBufferAggregator(selector, getMaxStringBytesOrDefault());
     } else {
-      return new StringMatchBufferAggregator(selector, getMaxStringBytesOrDefault());
+      final DimensionSelector selector =
+          columnSelectorFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+
+      if (selector.getValueCardinality() >= 0 && selector.idLookup() != null) {
+        return new StringMatchDictionaryBufferAggregator(selector, getMaxStringBytesOrDefault());
+      } else {
+        return new StringMatchBufferAggregator(selector, getMaxStringBytesOrDefault());
+      }
     }
   }
 
@@ -135,6 +146,10 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   @Override
   public boolean canVectorize(ColumnInspector columnInspector)
   {
+    if (combine) {
+      return false;
+    }
+
     final ColumnCapabilities capabilities = columnInspector.getColumnCapabilities(fieldName);
     return capabilities == null || (capabilities.is(ValueType.STRING)
                                     && capabilities.hasMultipleValues().isFalse()
@@ -169,7 +184,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new StringMatchAggregatorFactory(name, name, maxStringBytes);
+    return new StringMatchAggregatorFactory(name, name, maxStringBytes, true);
   }
 
   @Override
@@ -207,9 +222,16 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     return maxStringBytes;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  public boolean isCombine()
+  {
+    return combine;
+  }
+
   public int getMaxStringBytesOrDefault()
   {
-    return maxStringBytes != null ? maxStringBytes : DEFAULT_MAX_STRING_SIZE;
+    return maxStringBytes != null ? maxStringBytes : DEFAULT_MAX_STRING_BYTES;
   }
 
   @Override
@@ -224,6 +246,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
     return new CacheKeyBuilder(CACHE_TYPE_ID)
         .appendString(fieldName)
         .appendInt(getMaxStringBytesOrDefault())
+        .appendBoolean(combine)
         .build();
   }
 
@@ -249,7 +272,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory withName(String newName)
   {
-    return new StringMatchAggregatorFactory(newName, fieldName, maxStringBytes);
+    return new StringMatchAggregatorFactory(newName, fieldName, maxStringBytes, combine);
   }
 
   @Override
@@ -262,7 +285,8 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
       return false;
     }
     StringMatchAggregatorFactory that = (StringMatchAggregatorFactory) o;
-    return Objects.equals(fieldName, that.fieldName)
+    return combine == that.combine
+           && Objects.equals(fieldName, that.fieldName)
            && Objects.equals(name, that.name)
            && Objects.equals(maxStringBytes, that.maxStringBytes);
   }
@@ -270,7 +294,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    return Objects.hash(fieldName, name, maxStringBytes);
+    return Objects.hash(fieldName, name, maxStringBytes, combine);
   }
 
   @Override
@@ -280,6 +304,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
            "fieldName='" + fieldName + '\'' +
            ", name='" + name + '\'' +
            (maxStringBytes == null ? "" : ", maxStringBytes=" + maxStringBytes) +
+           (combine ? "combine=true" : "") +
            '}';
   }
 }

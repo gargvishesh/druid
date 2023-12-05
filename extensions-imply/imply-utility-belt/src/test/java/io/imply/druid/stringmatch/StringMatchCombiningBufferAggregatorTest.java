@@ -21,26 +21,34 @@ package io.imply.druid.stringmatch;
 
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.aggregation.SerializablePairLongString;
-import org.apache.druid.segment.DimensionSelector;
 import org.junit.Assert;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
-public class StringMatchBufferAggregatorTest extends BaseStringMatchAggregatorTest
+public class StringMatchCombiningBufferAggregatorTest extends BaseStringMatchCombiningAggregatorTest
 {
   @Override
-  protected SerializablePairLongString aggregateMultiValue(final List<List<String>> data, final int maxLength)
+  protected SerializablePairLongString aggregate(SerializablePairLongString... values)
   {
-    final StringMatchTestDimensionSelector selector = new StringMatchTestDimensionSelector(makeDictionary(data));
-    final BufferAggregator aggregator = makeAggregator(selector, maxLength);
-    final int capacity = new StringMatchAggregatorFactory("foo", "foo", maxLength, false).getMaxIntermediateSize() + 2;
+    final StringMatchTestCombiningSelector selector = new StringMatchTestCombiningSelector();
+    final BufferAggregator aggregator = new StringMatchCombiningBufferAggregator(
+        selector,
+        StringMatchAggregatorFactory.DEFAULT_MAX_STRING_BYTES
+    );
+
+    final int capacity = new StringMatchAggregatorFactory(
+        "foo",
+        "foo",
+        StringMatchAggregatorFactory.DEFAULT_MAX_STRING_BYTES,
+        false
+    ).getMaxIntermediateSize() + 2;
+
     final ByteBuffer buf = ByteBuffer.allocate(capacity);
     buf.position(1);
     aggregator.init(buf, 1);
 
-    for (final List<String> row : data) {
-      selector.setCurrentRow(row);
+    for (final SerializablePairLongString value : values) {
+      selector.set(value);
       aggregator.aggregate(buf, 1);
     }
 
@@ -51,10 +59,5 @@ public class StringMatchBufferAggregatorTest extends BaseStringMatchAggregatorTe
     Assert.assertEquals(0, buf.get(buf.limit() - 1));
 
     return retVal;
-  }
-
-  protected BufferAggregator makeAggregator(final DimensionSelector selector, final int maxLength)
-  {
-    return new StringMatchBufferAggregator(selector, maxLength);
   }
 }

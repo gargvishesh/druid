@@ -41,7 +41,8 @@ public class StringMatchDictionaryVectorAggregatorTest
     {
       final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(makeDictionary(data), true);
       final VectorAggregator aggregator = new StringMatchDictionaryVectorAggregator(selector, maxLength);
-      final int capacity = new StringMatchAggregatorFactory("foo", "foo", maxLength).getMaxIntermediateSize() + 2;
+      final int capacity =
+          new StringMatchAggregatorFactory("foo", "foo", maxLength, false).getMaxIntermediateSize() + 2;
       final ByteBuffer buf = ByteBuffer.allocate(capacity);
       buf.position(1);
       aggregator.init(buf, 1);

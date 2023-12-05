@@ -39,7 +39,7 @@ public class StringMatchAggregatorFactoryTest
   @Before
   public void setUp()
   {
-    factory = new StringMatchAggregatorFactory("foo", "bar", null);
+    factory = new StringMatchAggregatorFactory("foo", "bar", null, false);
     jsonMapper = TestHelper.makeJsonMapper();
     jsonMapper.registerSubtypes(StringMatchAggregatorFactory.class);
   }
@@ -88,6 +88,30 @@ public class StringMatchAggregatorFactoryTest
         factory.combine(
             new SerializablePairLongString((long) StringMatchUtil.MATCHING, "foo"),
             new SerializablePairLongString((long) StringMatchUtil.MATCHING, "foo")
+        )
+    );
+  }
+
+  @Test
+  public void test_combine_foo_empty()
+  {
+    Assert.assertEquals(
+        new SerializablePairLongString((long) StringMatchUtil.NOT_MATCHING, null),
+        factory.combine(
+            new SerializablePairLongString((long) StringMatchUtil.MATCHING, "foo"),
+            new SerializablePairLongString((long) StringMatchUtil.MATCHING, "")
+        )
+    );
+  }
+
+  @Test
+  public void test_combine_empty_empty()
+  {
+    Assert.assertEquals(
+        new SerializablePairLongString((long) StringMatchUtil.MATCHING, ""),
+        factory.combine(
+            new SerializablePairLongString((long) StringMatchUtil.MATCHING, ""),
+            new SerializablePairLongString((long) StringMatchUtil.MATCHING, "")
         )
     );
   }
@@ -186,14 +210,22 @@ public class StringMatchAggregatorFactoryTest
   @Test
   public void test_getCacheKey()
   {
-    final byte[] cacheKey1 = new StringMatchAggregatorFactory("a0", "x", null).getCacheKey();
-    final byte[] cacheKey2 = new StringMatchAggregatorFactory("a0", "y", null).getCacheKey();
-    final byte[] cacheKey3 =
-        new StringMatchAggregatorFactory("a0", "y", StringMatchAggregatorFactory.DEFAULT_MAX_STRING_SIZE).getCacheKey();
+    final byte[] cacheKey1 = new StringMatchAggregatorFactory("a0", "x", null, false).getCacheKey();
+    final byte[] cacheKey2 = new StringMatchAggregatorFactory("a0", "y", null, false).getCacheKey();
+    final byte[] cacheKey3 = new StringMatchAggregatorFactory("a0", "y", null, true).getCacheKey();
+    final byte[] cacheKey4 = new StringMatchAggregatorFactory(
+        "a0",
+        "y",
+        StringMatchAggregatorFactory.DEFAULT_MAX_STRING_BYTES,
+        false
+    ).getCacheKey();
 
     Assert.assertFalse(Arrays.equals(cacheKey1, cacheKey2));
     Assert.assertFalse(Arrays.equals(cacheKey1, cacheKey3));
-    Assert.assertArrayEquals(cacheKey2, cacheKey3);
+    Assert.assertFalse(Arrays.equals(cacheKey1, cacheKey4));
+    Assert.assertFalse(Arrays.equals(cacheKey2, cacheKey3));
+    Assert.assertArrayEquals(cacheKey2, cacheKey4);
+    Assert.assertFalse(Arrays.equals(cacheKey3, cacheKey4));
   }
 
   @Test
@@ -201,14 +233,15 @@ public class StringMatchAggregatorFactoryTest
   {
     Assert.assertEquals(factory, jsonMapper.readValue(jsonMapper.writeValueAsBytes(factory), AggregatorFactory.class));
 
-    // Also try one with maxLength set
-    final StringMatchAggregatorFactory factoryWithMaxLength = new StringMatchAggregatorFactory("foo", "bar", 4);
-    final AggregatorFactory factoryWithMaxLength2 = jsonMapper.readValue(
-        jsonMapper.writeValueAsBytes(factoryWithMaxLength),
+    // Also try one with maxLength and combine set
+    final StringMatchAggregatorFactory factoryWithExtras = new StringMatchAggregatorFactory("foo", "bar", 4, true);
+    final AggregatorFactory factoryWithExtras2 = jsonMapper.readValue(
+        jsonMapper.writeValueAsBytes(factoryWithExtras),
         AggregatorFactory.class
     );
-    Assert.assertEquals(factoryWithMaxLength, factoryWithMaxLength2);
-    Assert.assertEquals(4, (int) factoryWithMaxLength.getMaxStringBytes());
+    Assert.assertEquals(factoryWithExtras, factoryWithExtras2);
+    Assert.assertEquals(4, (int) factoryWithExtras.getMaxStringBytes());
+    Assert.assertTrue(factoryWithExtras.isCombine());
   }
 
   @Test

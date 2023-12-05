@@ -95,6 +95,6 @@ public class StringMatchSqlAggregator implements SqlAggregator
       );
     }
 
-    return Aggregation.create(new StringMatchAggregatorFactory(name, fieldName, maxSizeBytes));
+    return Aggregation.create(new StringMatchAggregatorFactory(name, fieldName, maxSizeBytes, false));
   }
 }
