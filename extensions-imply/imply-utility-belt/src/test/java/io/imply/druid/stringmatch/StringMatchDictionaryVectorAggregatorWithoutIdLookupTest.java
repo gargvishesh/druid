@@ -42,10 +42,10 @@ public class StringMatchDictionaryVectorAggregatorWithoutIdLookupTest
       final StringMatchTestVectorSelector selector = new StringMatchTestVectorSelector(makeDictionary(data), false);
       final VectorAggregator aggregator = new StringMatchDictionaryVectorAggregator(selector, maxLength);
       final int capacity =
-          new StringMatchAggregatorFactory("foo", "foo", maxLength, false).getMaxIntermediateSize() + 2;
+          new StringMatchAggregatorFactory("foo", "foo", maxLength, false).getMaxIntermediateSize() + 3;
       final ByteBuffer buf = ByteBuffer.allocate(capacity);
-      buf.position(1);
-      aggregator.init(buf, 1);
+      buf.position(capacity);
+      aggregator.init(buf, 2);
 
       final List<String> singlyValuedData = new ArrayList<>();
       for (List<String> row : data) {
@@ -54,12 +54,13 @@ public class StringMatchDictionaryVectorAggregatorWithoutIdLookupTest
       }
 
       selector.setCurrentVector(singlyValuedData);
-      aggregateVector(aggregator, buf, 1, data.size());
+      aggregateVector(aggregator, buf, 2, data.size());
 
-      final SerializablePairLongString retVal = (SerializablePairLongString) aggregator.get(buf, 1);
+      final SerializablePairLongString retVal = (SerializablePairLongString) aggregator.get(buf, 2);
 
-      Assert.assertEquals(buf.position(), 1);
+      Assert.assertEquals(buf.position(), capacity);
       Assert.assertEquals(buf.limit(), capacity);
+      Assert.assertEquals(0, buf.get(0));
       Assert.assertEquals(0, buf.get(buf.limit() - 1));
 
       return retVal;

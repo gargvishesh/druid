@@ -266,6 +266,7 @@ public class StringMatchAggregatorFactory extends AggregatorFactory
   public int getMaxIntermediateSize()
   {
     // matching? + string length + string
+    // OR; for dictionary codes: matching? + dictionary code + wasted space
     return Byte.BYTES + Integer.BYTES + getMaxStringBytesOrDefault();
   }
 
