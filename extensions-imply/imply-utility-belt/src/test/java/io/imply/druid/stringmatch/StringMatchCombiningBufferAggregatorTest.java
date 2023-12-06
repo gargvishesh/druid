@@ -41,21 +41,22 @@ public class StringMatchCombiningBufferAggregatorTest extends BaseStringMatchCom
         "foo",
         StringMatchAggregatorFactory.DEFAULT_MAX_STRING_BYTES,
         false
-    ).getMaxIntermediateSize() + 2;
+    ).getMaxIntermediateSize() + 3;
 
     final ByteBuffer buf = ByteBuffer.allocate(capacity);
-    buf.position(1);
-    aggregator.init(buf, 1);
+    buf.position(capacity);
+    aggregator.init(buf, 2);
 
     for (final SerializablePairLongString value : values) {
       selector.set(value);
-      aggregator.aggregate(buf, 1);
+      aggregator.aggregate(buf, 2);
     }
 
-    final SerializablePairLongString retVal = (SerializablePairLongString) aggregator.get(buf, 1);
+    final SerializablePairLongString retVal = (SerializablePairLongString) aggregator.get(buf, 2);
 
-    Assert.assertEquals(buf.position(), 1);
+    Assert.assertEquals(buf.position(), capacity);
     Assert.assertEquals(buf.limit(), capacity);
+    Assert.assertEquals(0, buf.get(0));
     Assert.assertEquals(0, buf.get(buf.limit() - 1));
 
     return retVal;

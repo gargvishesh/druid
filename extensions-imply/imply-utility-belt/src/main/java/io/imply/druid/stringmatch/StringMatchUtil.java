@@ -94,14 +94,15 @@ public class StringMatchUtil
       final int originalPosition = buf.position();
       final int originalLimit = buf.limit();
       try {
-        buf.position(position + Byte.BYTES + Integer.BYTES);
-        buf.limit(buf.position() + maxLength);
+        final int stringPosition = position + Byte.BYTES + Integer.BYTES;
+        buf.limit(stringPosition + maxLength);
+        buf.position(stringPosition);
         final int len = StringUtils.toUtf8WithLimit(s, buf);
         buf.putInt(position + Byte.BYTES, len);
       }
       finally {
-        buf.position(originalPosition);
         buf.limit(originalLimit);
+        buf.position(originalPosition);
       }
     }
   }
