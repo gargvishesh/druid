@@ -212,6 +212,7 @@ public class DruidCorrelateUnnestRel extends DruidRel<DruidCorrelateUnnestRel>
         leftPartialQueryToBeUpdated = leftPartialQuery;
       }
       final Project leftProject = leftPartialQueryToBeUpdated.getSelectProject();
+
       final String dimensionToUpdate = expressionToUnnest.getDirectColumn();
       final LogicalProject newProject;
       if (leftProject == null) {
