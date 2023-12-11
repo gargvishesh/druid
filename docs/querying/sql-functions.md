@@ -504,6 +504,23 @@ Returns the current timestamp in the connection's time zone.
 
 Rounds down a timestamp by a given time unit.
 
+## DECODE_BASE64_COMPLEX
+
+`DECODE_BASE64_COMPLEX(dataType, expr)`
+
+**Function type:** [Scalar, other](sql-scalar.md#other-scalar-functions)
+
+Decodes a Base64-encoded string into a complex data type, where `dataType` is the complex data type and `expr` is the Base64-encoded string to decode.
+
+## DECODE_BASE64_UTF8
+
+`DECODE_BASE64_UTF8(expr)`
+
+**Function type:** [Scalar, string](sql-scalar.md#string-functions)
+
+
+Decodes a Base64-encoded string into a UTF-8 encoded string.
+
 ## DEGREES
 
 `DEGREES(<NUMERIC>)`
@@ -769,7 +786,7 @@ Finds whether a string is in a given expression, case-insensitive.
 
 **Function type:** [Scalar, IP address](sql-scalar.md#ip-address-functions)
 
-Returns true if the `address` belongs to the `subnet` literal, else false.
+Returns true if the IPv4 `address` belongs to the `subnet` literal, else false.
 
 ## IPV4_PARSE
 
@@ -786,6 +803,14 @@ Parses `address` into an IPv4 address stored as an integer.
 **Function type:** [Scalar, IP address](sql-scalar.md#ip-address-functions)
 
 Converts `address` into an IPv4 address in dot-decimal notation.
+
+## IPV6_MATCH
+
+`IPV6_MATCH(address, subnet)`
+
+**Function type:** [Scalar, IP address](sql-scalar.md#ip-address-functions)
+
+Returns true if the IPv6 `address` belongs to the `subnet` literal, else false.
 
 ## JSON_KEYS
 
