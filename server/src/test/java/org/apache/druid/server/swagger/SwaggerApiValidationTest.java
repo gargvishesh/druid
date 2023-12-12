@@ -156,7 +156,8 @@ public class SwaggerApiValidationTest
         "/druid/coordinator/v1/datasources/{dataSourceName}/loadstatus",
         "/druid/coordinator/v1/compaction/status",
         "/druid/coordinator/v1/compaction",
-        "/druid/coordinator/v1/metadata/dataSourceInformation"
+        "/druid/coordinator/v1/metadata/dataSourceInformation",
+        "/druid/coordinator/v1/metadata/datasources/{dataSourceName}/unusedSegments"
     );
 
     todoExludePaths.forEach(restEndpoints::remove);
