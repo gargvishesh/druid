@@ -332,12 +332,14 @@ jobs:
       - name: Build Saas Docker image from Imply bundle
         env: 
           SAAS_DOCKER_IMAGE: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}"
+          SAAS_DOCKER_IMAGE_JAVA_17: "repo.cnc.imply.io/docker/imply/druid-agent:imply-saas-${{ env.IMPLY_VERSION }}-java17"
         run: |
           echo SAAS_DOCKER_IMAGE=${SAAS_DOCKER_IMAGE} >> $GITHUB_ENV
           cd imply-release/imply-cloud
           cd docker/saas-data-plane
           docker buildx create --use
-          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=${ARTIFACTORY_URL}/artifactory/tgz/imply-saas -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
+          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas --build-arg JDK_IMAGE="eclipse-temurin:11.0.18_10-jdk-focal" -t ${SAAS_DOCKER_IMAGE} --platform=linux/arm64,linux/amd64 --push .
+          docker buildx build --build-arg VERSION="imply-saas-${IMPLY_VERSION}" --build-arg REPOSITORY=https://repo.cnc.imply.io/artifactory/tgz/imply-saas --build-arg JDK_IMAGE="eclipse-temurin:17.0.9_9-jdk-focal" -t ${SAAS_DOCKER_IMAGE_JAVA_17} --platform=linux/arm64,linux/amd64 --push .
 
       - name: Notify slack of new imply bundle
         uses: slackapi/slack-github-action@v1.24.0
