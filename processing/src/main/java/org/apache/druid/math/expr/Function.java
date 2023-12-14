@@ -1437,11 +1437,12 @@ public interface Function extends NamedFunction
     private static final BigDecimal MAX_FINITE_VALUE = BigDecimal.valueOf(Double.MAX_VALUE);
     private static final BigDecimal MIN_FINITE_VALUE = BigDecimal.valueOf(-1 * Double.MAX_VALUE);
     //CHECKSTYLE.ON: Regexp
+    public static final String NAME = "round";
 
     @Override
     public String name()
     {
-      return "round";
+      return NAME;
     }
 
     @Override

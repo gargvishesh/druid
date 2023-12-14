@@ -240,12 +240,6 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
         }
 
         @Override
-        public double estimateSelectivity(int totalRows)
-        {
-          return (double) getBitmap(getIndex(value)).size() / totalRows;
-        }
-
-        @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
           if (includeUnknown && hasNull && value != null) {

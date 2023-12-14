@@ -47,7 +47,6 @@ import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
-import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.filter.ValueMatchers;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
 import org.apache.druid.segment.index.BitmapColumnIndex;
@@ -709,12 +708,6 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       return new SimpleBitmapColumnIndex()
       {
         @Override
-        public double estimateSelectivity(int totalRows)
-        {
-          return delegate.getBitmapForValue(blob).size();
-        }
-
-        @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
           if (includeUnknown && blob != null) {
@@ -747,12 +740,6 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       return new SimpleBitmapColumnIndex()
       {
         @Override
-        public double estimateSelectivity(int totalRows)
-        {
-          return Filters.estimateSelectivity(delegate.getBitmapsForValues(blobs).iterator(), totalRows);
-        }
-
-        @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
           if (includeUnknown && !containsNull) {
@@ -780,12 +767,6 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
     {
       return new SimpleBitmapColumnIndex()
       {
-        @Override
-        public double estimateSelectivity(int totalRows)
-        {
-          return Filters.estimateSelectivity(delegate.getBitmapsForPredicateFactory(matcherFactory, false).iterator(), totalRows);
-        }
-
         @Override
         public <T> T computeBitmapResult(BitmapResultFactory<T> bitmapResultFactory, boolean includeUnknown)
         {
