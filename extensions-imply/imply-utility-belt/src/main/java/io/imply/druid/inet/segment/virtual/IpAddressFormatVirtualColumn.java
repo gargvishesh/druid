@@ -47,7 +47,6 @@ import org.apache.druid.segment.column.SimpleColumnIndexCapabilities;
 import org.apache.druid.segment.data.ColumnarInts;
 import org.apache.druid.segment.data.IndexedInts;
 import org.apache.druid.segment.data.ReadableOffset;
-import org.apache.druid.segment.filter.Filters;
 import org.apache.druid.segment.filter.ValueMatchers;
 import org.apache.druid.segment.historical.HistoricalDimensionSelector;
 import org.apache.druid.segment.index.BitmapColumnIndex;
