@@ -51,6 +51,9 @@ case "$1" in
 	kafka_dump)
 		_kafka /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --from-beginning --property print.key=true --topic dbserver1.inventory.orders_cdc
 		;;
+	cdcdelayqueue)
+		_kafka /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --from-beginning --property print.key=true --topic cdcdelayqueue
+		;;
 	insert_old)
 		_mysql "insert into orders_cdc (orderid,cost,create_ts) select concat('old',count(1)),'I',floor((unix_timestamp(now(3))-4000)*1000) from orders_cdc"
 		;;
