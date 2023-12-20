@@ -59,6 +59,7 @@ import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.query.SinkQueryRunners;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.planning.DataSourceAnalysis;
+import org.apache.druid.query.scan.ScanResultValue;
 import org.apache.druid.query.spec.SpecificSegmentQueryRunner;
 import org.apache.druid.query.spec.SpecificSegmentSpec;
 import org.apache.druid.segment.SegmentReference;
@@ -322,7 +323,13 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
               @Override
               public int compare(T o1, T o2)
               {
-                return 0;
+                if(o1 instanceof ScanResultValue && o2 instanceof ScanResultValue) {
+                  ScanResultValue s1 = (ScanResultValue)o1;
+                  ScanResultValue s2 = (ScanResultValue)o2;
+                  s1.getValue(null, CONTEXT_SKIP_INCREMENTAL_SEGMENT)
+
+                }
+                return -1;
               }
             },
             new BinaryOperator<T>()

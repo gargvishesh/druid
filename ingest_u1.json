@@ -2,7 +2,7 @@
   "type": "kafka",
   "spec": {
     "dataSchema": {
-      "dataSource": "u1",
+      "dataSource": "orders_cdc",
       "timestampSpec": {
         "column": "kafka.timestamp",
         "format": "millis",
@@ -12,13 +12,13 @@
         "dimensions": [
           {
             "type": "long",
-            "name": "id",
+            "name": "orderid",
             "multiValueHandling": "SORTED_ARRAY",
             "createBitmapIndex": false
           },
           {
             "type": "long",
-            "name": "cnt",
+            "name": "cost",
             "multiValueHandling": "SORTED_ARRAY",
             "createBitmapIndex": true
           },
@@ -51,13 +51,13 @@
         "transforms": [
           {
             "type": "expression",
-            "name": "id",
-            "expression": "json_value(payload,'$.after.id')"
+            "name": "orderid",
+            "expression": "json_value(payload,'$.after.orderid')"
           },
           {
             "type": "expression",
-            "name": "cnt",
-            "expression": "json_value(payload,'$.after.cnt')"
+            "name": "cost",
+            "expression": "json_value(payload,'$.after.cost')"
           },
           {
             "type": "expression",
@@ -73,7 +73,7 @@
       }
     },
     "ioConfig": {
-      "topic": "dbserver1.inventory.u1",
+      "topic": "dbserver1.inventory.orders_cdc",
       "topicPattern": null,
       "inputFormat": {
         "type": "kafka",
@@ -86,14 +86,14 @@
             "fields": [
               {
                 "type": "path",
-                "name": "id",
-                "expr": "$.payload.after.id",
+                "name": "orderid",
+                "expr": "$.payload.after.orderid",
                 "nodes": null
               },
               {
                 "type": "path",
-                "name": "cnt",
-                "expr": "$.payload.after.cnt",
+                "name": "cost",
+                "expr": "$.payload.after.cost",
                 "nodes": null
               },
               {
@@ -137,7 +137,7 @@
       "configOverrides": null,
       "idleConfig": null,
       "stopTaskCount": 1,
-      "stream": "dbserver1.inventory.u1",
+      "stream": "dbserver1.inventory.orders_cdc",
       "useEarliestSequenceNumber": true,
       "type": "kafka"
     },
