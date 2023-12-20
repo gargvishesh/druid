@@ -2,7 +2,7 @@
   "type": "kafka",
   "spec": {
     "dataSchema": {
-      "dataSource": "orders_cdc2",
+      "dataSource": "orders_cdcA",
       "timestampSpec": {
         "column": "create_ts",
         "format": "millis",
@@ -28,7 +28,18 @@
         {
           "type": "longLast",
           "name": "cost",
+          "fieldName": "cost",
+          "timeColumn": "system.ts_ms"
+        },
+        {
+          "type": "longSum",
+          "name": "costSum",
           "fieldName": "cost"
+        },
+        {
+          "type": "stringLast",
+          "name": "system.eventtime",
+          "fieldName": "system.ts_ms",
           "timeColumn": "system.ts_ms"
         }
       ],
@@ -45,22 +56,22 @@
           {
             "type": "expression",
             "name": "orderid",
-            "expression": "json_value(payload,'$.after.orderid')"
+            "expression": "json_value(payload,'$.after.orderid','STRING')"
           },
           {
             "type": "expression",
             "name": "cost",
-            "expression": "json_value(payload,'$.after.cost')"
+            "expression": "json_value(payload,'$.after.cost','LONG')"
           },
           {
             "type": "expression",
             "name": "create_ts",
-            "expression": "json_value(payload,'$.after.create_ts')"
+            "expression": "json_value(payload,'$.after.create_ts','LONG')"
           },
           {
             "type": "expression",
             "name": "system.ts_ms",
-            "expression": "json_value(payload,'$.ts_ms')"
+            "expression": "json_value(payload,'$.ts_ms','LONG')"
           }
         ]
       }
