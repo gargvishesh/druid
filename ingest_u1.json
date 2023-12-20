@@ -4,7 +4,7 @@
     "dataSchema": {
       "dataSource": "orders_cdc2",
       "timestampSpec": {
-        "column": "kafka.timestamp",
+        "column": "create_ts",
         "format": "millis",
         "missingValue": null
       },
