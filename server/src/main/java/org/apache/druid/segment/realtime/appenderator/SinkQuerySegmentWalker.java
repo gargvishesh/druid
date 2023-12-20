@@ -310,11 +310,14 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   {
     return new QueryRunner<T>()
     {
-
       @Override
       public Sequence<T> run(QueryPlus<T> queryPlus, ResponseContext responseContext)
       {
         Sequence<T> r = mergeRunners.run(queryPlus, responseContext);
+        if(true) {
+          // disable for now
+          return r;
+        }
         return CombiningSequence.create(
             r,
             new Comparator<T>()
