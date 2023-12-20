@@ -48,13 +48,13 @@ case "$1" in
 		$0 setup_connect
 		;;
 	kafka_dump)
-		_kafka /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --from-beginning --property print.key=true --topic dbserver1.inventory.order_cdc
+		_kafka /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --from-beginning --property print.key=true --topic dbserver1.inventory.orders_cdc
 		;;
 	insert)
-		_mysql "insert into order_cdc (orderid,cost) select count(1),0 from order_cdc"
+		_mysql "insert into orders_cdc (orderid,cost) select count(1),0 from orders_cdc"
 		;;
 	update)
-		_mysql "update order_cdc set cost=cost+1 order by rand() limit 1"
+		_mysql "update orders_cdc set cost=cost+1 order by rand() limit 1"
 		;;
 	*)
 		echo "unknown cmd: $1" && exit 1
