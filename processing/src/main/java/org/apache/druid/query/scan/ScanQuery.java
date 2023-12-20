@@ -442,6 +442,31 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     if (timeOrder == Order.NONE) {
       return Ordering.natural();
     }
+    if (context().isCDC() && StringUtils.toLowerCase(getDataSource().getTableNames()
+                                                                    .stream()
+                                                                    .findFirst()
+                                                                    .orElse("null")).startsWith("orders")) {
+      final Comparator<ScanResultValue> scanResultValueComparator = new ScanResultValueTimestampComparator(this).thenComparing(
+          timeOrder == Order.ASCENDING
+          ? Comparator.naturalOrder()
+          : Comparator.<ScanResultValue>naturalOrder().reversed()
+      );
+      return Ordering.from(
+          new Comparator<ScanResultValue>()
+          {
+            @Override
+            public int compare(ScanResultValue o1, ScanResultValue o2)
+            {
+              int compare = scanResultValueComparator.compare(o1, o2);
+              if (compare == 0) {
+                return o1.getSegmentId().compareTo(o2.getSegmentId());
+              } else {
+                return o1.getStringValue(resultFormat, "orderid").compareTo(o2.getStringValue(resultFormat, "orderid"));
+              }
+            }
+          }
+      );
+    }
     return Ordering.from(
         new ScanResultValueTimestampComparator(this).thenComparing(
             timeOrder == Order.ASCENDING

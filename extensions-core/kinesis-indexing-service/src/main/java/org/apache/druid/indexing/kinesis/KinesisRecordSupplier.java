@@ -50,6 +50,7 @@ import com.google.common.collect.Queues;
 import org.apache.druid.common.aws.AWSClientUtil;
 import org.apache.druid.common.aws.AWSCredentialsConfig;
 import org.apache.druid.common.aws.AWSCredentialsUtils;
+import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.indexing.kinesis.supervisor.KinesisSupervisor;
 import org.apache.druid.indexing.seekablestream.common.OrderedPartitionableRecord;
@@ -811,6 +812,12 @@ public class KinesisRecordSupplier implements RecordSupplier<String, String, Byt
       }
       return partitionIds;
     });
+  }
+
+  @Override
+  public void pushRecord(InputRow row)
+  {
+
   }
 
   /**

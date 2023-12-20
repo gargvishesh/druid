@@ -295,7 +295,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   @Test(timeout = 60_000L)
   public void testDefaultResource()
   {
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
     Assert.assertEquals(task.getId(), task.getTaskResource().getAvailabilityGroup());
   }
 
@@ -304,7 +304,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   public void testHandoffTimeout() throws Exception
   {
     expectPublishedSegments(1);
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, true, 100L, true, 0, 1);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, true, 100L, true, 0, 1);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -333,7 +333,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   public void testBasics() throws Exception
   {
     expectPublishedSegments(1);
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
     Assert.assertTrue(task.supportsQueries());
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
@@ -395,7 +395,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   public void testLateData() throws Exception
   {
     expectPublishedSegments(1);
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -459,7 +459,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     // Expect 2 segments as we will hit maxRowsPerSegment
     expectPublishedSegments(2);
 
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -524,7 +524,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     // Expect 2 segments as we will hit maxTotalRows
     expectPublishedSegments(2);
 
-    final AppenderatorDriverRealtimeIndexTask task =
+    final RemoveAppenderatorDriverRealtimeIndexTask task =
         makeRealtimeTask(null, Integer.MAX_VALUE, 1500L);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
@@ -596,7 +596,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
             new ExpressionTransform("dim1t", "concat(dim1,dim1)", ExprMacroTable.nil())
         )
     );
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, transformSpec, true, 0, true, 0, 1);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, transformSpec, true, 0, true, 0, 1);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -663,7 +663,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   public void testReportParseExceptionsOnBadMetric() throws Exception
   {
     expectPublishedSegments(0);
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, true);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, true);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -709,7 +709,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   {
     expectPublishedSegments(1);
 
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(
         null,
         TransformSpec.NONE,
         false,
@@ -807,7 +807,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   {
     expectPublishedSegments(1);
 
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, false, 0, true, 10, 10);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, false, 0, true, 10, 10);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -929,7 +929,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   {
     expectPublishedSegments(1);
 
-    final AppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, false, 0, true, 3, 10);
+    final RemoveAppenderatorDriverRealtimeIndexTask task = makeRealtimeTask(null, TransformSpec.NONE, false, 0, true, 3, 10);
     final ListenableFuture<TaskStatus> statusFuture = runTask(task);
 
     // Wait for firehose to show up, it starts off null.
@@ -1020,7 +1020,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   {
     expectPublishedSegments(0);
 
-    final AppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
     final DataSegment publishedSegment;
 
     // First run:
@@ -1054,7 +1054,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     // Second run:
     {
       expectPublishedSegments(1);
-      final AppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
+      final RemoveAppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
       final ListenableFuture<TaskStatus> statusFuture = runTask(task2);
 
       // Wait for firehose to show up, it starts off null.
@@ -1109,7 +1109,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   @Test(timeout = 60_000L)
   public void testRestoreAfterHandoffAttemptDuringShutdown() throws Exception
   {
-    final AppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
     final DataSegment publishedSegment;
 
     // First run:
@@ -1152,7 +1152,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     // Second run:
     {
       expectPublishedSegments(1);
-      final AppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
+      final RemoveAppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
       final ListenableFuture<TaskStatus> statusFuture = runTask(task2);
 
       // Wait for firehose to show up, it starts off null.
@@ -1192,7 +1192,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   @Test(timeout = 60_000L)
   public void testRestoreCorruptData() throws Exception
   {
-    final AppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
 
     // First run:
     {
@@ -1239,7 +1239,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     {
       expectPublishedSegments(0);
 
-      final AppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
+      final RemoveAppenderatorDriverRealtimeIndexTask task2 = makeRealtimeTask(task1.getId());
       final ListenableFuture<TaskStatus> statusFuture = runTask(task2);
 
       // Wait for the task to finish.
@@ -1272,7 +1272,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
   {
     expectPublishedSegments(0);
 
-    final AppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
+    final RemoveAppenderatorDriverRealtimeIndexTask task1 = makeRealtimeTask(null);
 
     task1.stopGracefully(taskToolboxFactory.build(task1).getConfig());
     final ListenableFuture<TaskStatus> statusFuture = runTask(task1);
@@ -1288,7 +1288,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     // Expect 2 segments as we will hit maxTotalRows
     expectPublishedSegments(2);
 
-    final AppenderatorDriverRealtimeIndexTask task =
+    final RemoveAppenderatorDriverRealtimeIndexTask task =
         makeRealtimeTask(null, Integer.MAX_VALUE, 1500L);
     Assert.assertThrows(
         UOE.class,
@@ -1323,7 +1323,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     );
   }
 
-  private AppenderatorDriverRealtimeIndexTask makeRealtimeTask(final String taskId)
+  private RemoveAppenderatorDriverRealtimeIndexTask makeRealtimeTask(final String taskId)
   {
     return makeRealtimeTask(
         taskId,
@@ -1336,7 +1336,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     );
   }
 
-  private AppenderatorDriverRealtimeIndexTask makeRealtimeTask(
+  private RemoveAppenderatorDriverRealtimeIndexTask makeRealtimeTask(
       final String taskId,
       final Integer maxRowsPerSegment,
       final Long maxTotalRows
@@ -1355,7 +1355,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     );
   }
 
-  private AppenderatorDriverRealtimeIndexTask makeRealtimeTask(final String taskId, boolean reportParseExceptions)
+  private RemoveAppenderatorDriverRealtimeIndexTask makeRealtimeTask(final String taskId, boolean reportParseExceptions)
   {
     return makeRealtimeTask(
         taskId,
@@ -1368,7 +1368,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     );
   }
 
-  private AppenderatorDriverRealtimeIndexTask makeRealtimeTask(
+  private RemoveAppenderatorDriverRealtimeIndexTask makeRealtimeTask(
       final String taskId,
       final TransformSpec transformSpec,
       final boolean reportParseExceptions,
@@ -1392,7 +1392,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
     );
   }
 
-  private AppenderatorDriverRealtimeIndexTask makeRealtimeTask(
+  private RemoveAppenderatorDriverRealtimeIndexTask makeRealtimeTask(
       final String taskId,
       final TransformSpec transformSpec,
       final boolean reportParseExceptions,
@@ -1453,7 +1453,7 @@ public class AppenderatorDriverRealtimeIndexTaskTest extends InitializedNullHand
         maxParseExceptions,
         maxSavedParseExceptions
     );
-    return new AppenderatorDriverRealtimeIndexTask(
+    return new RemoveAppenderatorDriverRealtimeIndexTask(
         taskId,
         null,
         new RealtimeAppenderatorIngestionSpec(dataSchema, realtimeIOConfig, tuningConfig),

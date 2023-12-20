@@ -28,10 +28,12 @@ import org.apache.druid.client.cache.Cache;
 import org.apache.druid.client.cache.CacheConfig;
 import org.apache.druid.client.cache.CachePopulatorStats;
 import org.apache.druid.client.cache.ForegroundCachePopulator;
+import org.apache.druid.common.guava.CombiningSequence;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.guava.FunctionalIterable;
+import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.BySegmentQueryRunner;
@@ -44,6 +46,7 @@ import org.apache.druid.query.NoopQueryRunner;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.QueryMetrics;
+import org.apache.druid.query.QueryPlus;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryRunnerFactory;
@@ -54,6 +57,7 @@ import org.apache.druid.query.QueryToolChest;
 import org.apache.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.query.SinkQueryRunners;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.query.spec.SpecificSegmentQueryRunner;
 import org.apache.druid.query.spec.SpecificSegmentSpec;
@@ -70,11 +74,13 @@ import org.apache.druid.utils.CloseableUtils;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 /**
@@ -149,8 +155,15 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
     return getQueryRunnerForSegments(query, specs);
   }
 
+
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(final Query<T> query, final Iterable<SegmentDescriptor> specs)
+  {
+
+    return  getQueryRunnerForSegments1(query,specs);
+  }
+
+  public <T> QueryRunner<T> getQueryRunnerForSegments1(final Query<T> query, final Iterable<SegmentDescriptor> specs)
   {
     // We only handle one particular dataSource. Make sure that's what we have, then ignore from here on out.
     final DataSource dataSourceFromQuery = query.getDataSource();
@@ -256,10 +269,11 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                         new BySegmentQueryRunner<>(
                             sinkSegmentId,
                             descriptor.getInterval().getStart(),
+                            merge2(
                             factory.mergeRunners(
                                 DirectQueryProcessingPool.INSTANCE,
                                 perHydrantRunners
-                            )
+                            ))
                         ),
                         toolChest,
                         sinkSegmentId,
@@ -290,6 +304,54 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
         cpuTimeAccumulator,
         true
     );
+  }
+
+  private <T> QueryRunner<T> merge2(QueryRunner<T> mergeRunners)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(QueryPlus<T> queryPlus, ResponseContext responseContext)
+      {
+        Sequence<T> r = mergeRunners.run(queryPlus, responseContext);
+        if(true) {
+          return r;
+        }
+        return CombiningSequence.create(
+            r,
+            new Comparator<T>()
+            {
+
+              @Override
+              public int compare(T o1, T o2)
+              {
+//                if(o1 instanceof ScanResultValue && o2 instanceof ScanResultValue) {
+//                  ScanResultValue s1 = (ScanResultValue)o1;
+//                  ScanResultValue s2 = (ScanResultValue)o2;
+////                  s1.getValue(null, CONTEXT_SKIP_INCREMENTAL_SEGMENT)
+//
+//                }
+                return -1;
+              }
+            },
+            new BinaryOperator<T>()
+            {
+              @Override
+              public T apply(T t, T u)
+              {
+                if(t==null) {
+                  return u;
+                }
+                if(u==null) {
+                  return t;
+                }
+                return u;
+              }
+            }
+        );
+      }
+    };
+
   }
 
   public void registerNewVersionOfPendingSegment(

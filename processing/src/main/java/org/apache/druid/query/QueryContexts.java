@@ -85,6 +85,7 @@ public class QueryContexts
   public static final String SERIALIZE_DATE_TIME_AS_LONG_INNER_KEY = "serializeDateTimeAsLongInner";
   public static final String UNCOVERED_INTERVALS_LIMIT_KEY = "uncoveredIntervalsLimit";
   public static final String MIN_TOP_N_THRESHOLD = "minTopNThreshold";
+  public static final String USE_CDC = "CDC";
 
   // SQL query context keys
   public static final String CTX_SQL_QUERY_ID = BaseQuery.SQL_QUERY_ID;
@@ -117,6 +118,7 @@ public class QueryContexts
   public static final boolean DEFAULT_ENABLE_DEBUG = false;
   public static final int DEFAULT_IN_SUB_QUERY_THRESHOLD = 20;
   public static final boolean DEFAULT_ENABLE_TIME_BOUNDARY_PLANNING = false;
+  public static final boolean DEFAULT_USE_CDC = false;
 
   @SuppressWarnings("unused") // Used by Jackson serialization
   public enum Vectorize

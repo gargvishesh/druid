@@ -1,0 +1,201 @@
+{
+  "type": "kafka",
+  "spec": {
+    "dataSchema": {
+      "dataSource": "orders_cdcA",
+      "timestampSpec": {
+        "column": "create_ts",
+        "format": "millis",
+        "missingValue": null
+      },
+      "dimensionsSpec": {
+        "dimensions": [
+          {
+            "type": "string",
+            "name": "orderid",
+            "multiValueHandling": "SORTED_ARRAY",
+            "createBitmapIndex": false
+          }
+        ],
+        "dimensionExclusions": [
+          "__time",
+          "kafka.timestamp"
+        ],
+        "includeAllDimensions": false,
+        "useSchemaDiscovery": false
+      },
+      "metricsSpec": [
+        {
+          "type": "longLast",
+          "name": "cost",
+          "fieldName": "cost",
+          "timeColumn": "system.ts_ms"
+        },
+        {
+          "type": "longSum",
+          "name": "costSum",
+          "fieldName": "cost"
+        },
+        {
+          "type": "stringLast",
+          "name": "system.eventtime",
+          "fieldName": "system.ts_ms",
+          "timeColumn": "system.ts_ms"
+        }
+      ],
+      "granularitySpec": {
+        "type": "uniform",
+        "segmentGranularity": "HOUR",
+        "queryGranularity": "HOUR",
+        "rollup": true,
+        "intervals": []
+      },
+      "transformSpec": {
+        "filter": null,
+        "transforms": [
+          {
+            "type": "expression",
+            "name": "orderid",
+            "expression": "json_value(payload,'$.after.orderid','STRING')"
+          },
+          {
+            "type": "expression",
+            "name": "cost",
+            "expression": "json_value(payload,'$.after.cost','LONG')"
+          },
+          {
+            "type": "expression",
+            "name": "create_ts",
+            "expression": "json_value(payload,'$.after.create_ts','LONG')"
+          },
+          {
+            "type": "expression",
+            "name": "system.ts_ms",
+            "expression": "json_value(payload,'$.ts_ms','LONG')"
+          }
+        ]
+      }
+    },
+    "ioConfig": {
+      "topic": "dbserver1.inventory.orders_cdc",
+      "topicPattern": null,
+      "inputFormat": {
+        "type": "kafka",
+        "headerFormat": null,
+        "keyFormat": null,
+        "valueFormat": {
+          "type": "json",
+          "flattenSpec": {
+            "useFieldDiscovery": true,
+            "fields": [
+              {
+                "type": "path",
+                "name": "orderid",
+                "expr": "$.payload.after.orderid",
+                "nodes": null
+              },
+              {
+                "type": "path",
+                "name": "cost",
+                "expr": "$.payload.after.cost",
+                "nodes": null
+              },
+              {
+                "type": "path",
+                "name": "create_ts",
+                "expr": "$.payload.after.create_ts",
+                "nodes": null
+              },
+              {
+                "type": "path",
+                "name": "system.ts_ms",
+                "expr": "$.payload.ts_ms",
+                "nodes": null
+              }
+            ]
+          },
+          "keepNullColumns": false,
+          "assumeNewlineDelimited": false,
+          "useJsonNodeReader": true
+        },
+        "headerColumnPrefix": "kafka.header.",
+        "keyColumnName": "kafka.key",
+        "timestampColumnName": "kafka.timestamp",
+        "topicColumnName": "kafka.topic"
+      },
+      "replicas": 1,
+      "taskCount": 1,
+      "taskDuration": "PT3600S",
+      "consumerProperties": {
+        "bootstrap.servers": "kafka:9092"
+      },
+      "autoScalerConfig": null,
+      "pollTimeout": 100,
+      "startDelay": "PT5S",
+      "period": "PT30S",
+      "useEarliestOffset": true,
+      "completionTimeout": "PT1800S",
+      "lateMessageRejectionPeriod": null,
+      "earlyMessageRejectionPeriod": null,
+      "lateMessageRejectionStartDateTime": null,
+      "configOverrides": null,
+      "idleConfig": null,
+      "stopTaskCount": 1,
+      "stream": "dbserver1.inventory.orders_cdc",
+      "useEarliestSequenceNumber": true,
+      "type": "kafka"
+    },
+    "tuningConfig": {
+      "type": "kafka",
+      "appendableIndexSpec": {
+        "type": "onheap",
+        "preserveExistingMetrics": false
+      },
+      "maxRowsInMemory": 150000,
+      "maxBytesInMemory": 0,
+      "skipBytesInMemoryOverheadCheck": false,
+      "maxRowsPerSegment": 5000000,
+      "maxTotalRows": null,
+      "intermediatePersistPeriod": "PT10M",
+      "maxPendingPersists": 0,
+      "indexSpec": {
+        "bitmap": {
+          "type": "roaring"
+        },
+        "dimensionCompression": "lz4",
+        "stringDictionaryEncoding": {
+          "type": "utf8"
+        },
+        "metricCompression": "lz4",
+        "longEncoding": "longs"
+      },
+      "indexSpecForIntermediatePersists": {
+        "bitmap": {
+          "type": "roaring"
+        },
+        "dimensionCompression": "lz4",
+        "stringDictionaryEncoding": {
+          "type": "utf8"
+        },
+        "metricCompression": "lz4",
+        "longEncoding": "longs"
+      },
+      "reportParseExceptions": false,
+      "handoffConditionTimeout": 900000,
+      "resetOffsetAutomatically": false,
+      "segmentWriteOutMediumFactory": null,
+      "workerThreads": null,
+      "chatRetries": 8,
+      "httpTimeout": "PT10S",
+      "shutdownTimeout": "PT80S",
+      "offsetFetchPeriod": "PT30S",
+      "intermediateHandoffPeriod": "P2147483647D",
+      "logParseExceptions": false,
+      "maxParseExceptions": 2147483647,
+      "maxSavedParseExceptions": 0,
+      "skipSequenceNumberAvailabilityCheck": false,
+      "repartitionTransitionDuration": "PT120S"
+    }
+  },
+  "context": null
+}

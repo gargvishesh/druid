@@ -97,21 +97,36 @@ public class ScanResultValue implements Comparable<ScanResultValue>
 
   public long getFirstEventTimestamp(ScanQuery.ResultFormat resultFormat)
   {
+    return getValue(resultFormat, ColumnHolder.TIME_COLUMN_NAME);
+  }
+
+  public Long getValue(ScanQuery.ResultFormat resultFormat, String columnName)
+  {
+    return DimensionHandlerUtils.convertObjectToLong(getObjectValue(resultFormat, columnName));
+  }
+
+  public String getStringValue(ScanQuery.ResultFormat resultFormat, String columnName)
+  {
+    return DimensionHandlerUtils.convertObjectToString(getObjectValue(resultFormat, columnName));
+  }
+
+  private Object getObjectValue(ScanQuery.ResultFormat resultFormat, String columnName)
+  {
     if (resultFormat.equals(ScanQuery.ResultFormat.RESULT_FORMAT_LIST)) {
-      Object timestampObj = ((Map<String, Object>) ((List<Object>) this.getEvents()).get(0)).get(ColumnHolder.TIME_COLUMN_NAME);
-      if (timestampObj == null) {
-        throw new ISE("Unable to compare timestamp for rows without a time column");
+      Object obj = ((Map<String, Object>) ((List<Object>) this.getEvents()).get(0)).get(columnName);
+      if (obj == null) {
+        throw new ISE("Unable to compare %s for rows without a %s column", columnName, columnName);
       }
-      return DimensionHandlerUtils.convertObjectToLong(timestampObj);
+      return obj;
     } else if (resultFormat.equals(ScanQuery.ResultFormat.RESULT_FORMAT_COMPACTED_LIST)) {
-      int timeColumnIndex = this.getColumns().indexOf(ColumnHolder.TIME_COLUMN_NAME);
-      if (timeColumnIndex == -1) {
-        throw new ISE("Unable to compare timestamp for rows without a time column");
+      int colIndex = this.getColumns().indexOf(columnName);
+      if (colIndex == -1) {
+        throw new ISE("Unable to compare %s for rows without a %s column", columnName, columnName);
       }
-      List<Object> firstEvent = (List<Object>) ((List<Object>) this.getEvents()).get(0);
-      return DimensionHandlerUtils.convertObjectToLong(firstEvent.get(timeColumnIndex));
+      List<Object> obj = (List<Object>) ((List<Object>) this.getEvents()).get(0);
+      return obj.get(colIndex);
     }
-    throw new UOE("Unable to get first event timestamp using result format of [%s]", resultFormat.toString());
+    throw new UOE("Unable to get rows using result format of [%s]", resultFormat.toString());
   }
 
   public List<ScanResultValue> toSingleEventScanResultValues()

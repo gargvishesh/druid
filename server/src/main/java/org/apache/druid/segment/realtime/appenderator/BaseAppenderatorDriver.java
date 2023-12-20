@@ -509,6 +509,7 @@ public abstract class BaseAppenderatorDriver implements Closeable
                 pushedSegments,
                 segmentIdentifiers
             );
+            // supervisor will need to keep track of segments subtasks push and then revoke locks based on that. Maybe not required.
           }
 
           return segmentsAndMetadata;
