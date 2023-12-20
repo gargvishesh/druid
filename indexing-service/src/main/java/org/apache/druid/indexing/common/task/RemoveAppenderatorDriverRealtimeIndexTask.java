@@ -118,7 +118,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Deprecated
-public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements ChatHandler
+public class RemoveAppenderatorDriverRealtimeIndexTask extends AbstractTask implements ChatHandler
 {
   private static final String CTX_KEY_LOOKUP_TIER = "lookupTier";
 
@@ -183,7 +183,7 @@ public class AppenderatorDriverRealtimeIndexTask extends AbstractTask implements
   private String errorMsg;
 
   @JsonCreator
-  public AppenderatorDriverRealtimeIndexTask(
+  public RemoveAppenderatorDriverRealtimeIndexTask(
       @JsonProperty("id") String id,
       @JsonProperty("resource") TaskResource taskResource,
       @JsonProperty("spec") RealtimeAppenderatorIngestionSpec spec,

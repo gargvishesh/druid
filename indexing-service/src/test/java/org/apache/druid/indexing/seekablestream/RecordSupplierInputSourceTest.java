@@ -234,6 +234,11 @@ public class RecordSupplierInputSourceTest extends InitializedNullHandlingTest
     }
 
     @Override
+    public void pushRecord(InputRow row)
+    {
+    }
+
+    @Override
     public void close()
     {
       closed = true;

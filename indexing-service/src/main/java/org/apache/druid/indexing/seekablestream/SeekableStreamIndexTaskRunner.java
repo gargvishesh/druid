@@ -143,7 +143,8 @@ import java.util.stream.Collectors;
  * @param <SequenceOffsetType> Sequence Number Type
  */
 @SuppressWarnings("CheckReturnValue")
-public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOffsetType, RecordType extends ByteEntity> implements ChatHandler
+public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOffsetType, RecordType extends ByteEntity>
+    implements ChatHandler
 {
   public enum Status
   {
@@ -404,7 +405,11 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
         null
     );
     this.fireDepartmentMetrics = fireDepartmentForMetrics.getMetrics();
-    TaskRealtimeMetricsMonitor metricsMonitor = TaskRealtimeMetricsMonitorBuilder.build(task, fireDepartmentForMetrics, rowIngestionMeters);
+    TaskRealtimeMetricsMonitor metricsMonitor = TaskRealtimeMetricsMonitorBuilder.build(
+        task,
+        fireDepartmentForMetrics,
+        rowIngestionMeters
+    );
     toolbox.addMonitor(metricsMonitor);
 
     final String lookupTier = task.getContextValue(RealtimeIndexTask.CTX_KEY_LOOKUP_TIER);
@@ -621,6 +626,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
 
           // calling getRecord() ensures that exceptions specific to kafka/kinesis like OffsetOutOfRangeException
           // are handled in the subclasses.
+          // poll records from the stream
           List<OrderedPartitionableRecord<PartitionIdType, SequenceOffsetType, RecordType>> records = getRecords(
               recordSupplier,
               toolbox
@@ -661,33 +667,39 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
               }
 
               for (InputRow row : rows) {
-                final AppenderatorDriverAddResult addResult = driver.add(
-                    row,
-                    sequenceToUse.getSequenceName(),
-                    committerSupplier,
-                    true,
-                    // do not allow incremental persists to happen until all the rows from this batch
-                    // of rows are indexed
-                    false
-                );
-
-                if (addResult.isOk()) {
-                  // If the number of rows in the segment exceeds the threshold after adding a row,
-                  // move the segment out from the active segments of BaseAppenderatorDriver to make a new segment.
-                  final boolean isPushRequired = addResult.isPushRequired(
-                      tuningConfig.getPartitionsSpec().getMaxRowsPerSegment(),
-                      tuningConfig.getPartitionsSpec()
-                                  .getMaxTotalRowsOr(DynamicPartitionsSpec.DEFAULT_MAX_TOTAL_ROWS)
-                  );
-                  if (isPushRequired && !sequenceToUse.isCheckpointed()) {
-                    sequenceToCheckpoint = sequenceToUse;
-                  }
-                  isPersistRequired |= addResult.isPersistRequired();
+                //todo: add window based checks for late events and push to another kafka topic
+                // we need to commit the record as well since we donot want to reread the record again.
+                if (!rowInCurrentRange(row)) {
+                  recordSupplier.pushRecord(row);
                 } else {
-                  // Failure to allocate segment puts determinism at risk, bail out to be safe.
-                  // May want configurable behavior here at some point.
-                  // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
-                  throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
+                  final AppenderatorDriverAddResult addResult = driver.add(
+                      row,
+                      sequenceToUse.getSequenceName(),
+                      committerSupplier,
+                      true,
+                      // do not allow incremental persists to happen until all the rows from this batch
+                      // of rows are indexed
+                      false
+                  );
+
+                  if (addResult.isOk()) {
+                    // If the number of rows in the segment exceeds the threshold after adding a row,
+                    // move the segment out from the active segments of BaseAppenderatorDriver to make a new segment.
+                    final boolean isPushRequired = addResult.isPushRequired(
+                        tuningConfig.getPartitionsSpec().getMaxRowsPerSegment(),
+                        tuningConfig.getPartitionsSpec()
+                                    .getMaxTotalRowsOr(DynamicPartitionsSpec.DEFAULT_MAX_TOTAL_ROWS)
+                    );
+                    if (isPushRequired && !sequenceToUse.isCheckpointed()) {
+                      sequenceToCheckpoint = sequenceToUse;
+                    }
+                    isPersistRequired = isPersistRequired || addResult.isPersistRequired();
+                  } else {
+                    // Failure to allocate segment puts determinism at risk, bail out to be safe.
+                    // May want configurable behavior here at some point.
+                    // If we allow continuing, then consider blacklisting the interval for a while to avoid constant checks.
+                    throw new ISE("Could not allocate segment for row with timestamp[%s]", row.getTimestamp());
+                  }
                 }
               }
               if (isPersistRequired) {
@@ -732,6 +744,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
               stillReading = !assignment.isEmpty();
             }
           }
+
 
           if (!stillReading) {
             // We let the fireDepartmentMetrics know that all messages have been read. This way, some metrics such as
@@ -934,6 +947,20 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
     return TaskStatus.success(task.getId());
   }
 
+
+  private boolean rowInCurrentRange(InputRow row)
+  {
+    DateTime timeStamp = row.getTimestamp();
+    if (timeStamp == null) {
+      return true;
+    }
+    DateTime now = DateTimes.nowUtc();
+    now = now.minusMinutes(now.minuteOfHour().get())
+             .minusSeconds(now.secondOfMinute().get())
+             .minusMillis(now.getMillisOfSecond());
+    return timeStamp.isAfter(now);
+  }
+
   private TaskLockType getTaskLockType()
   {
     return TaskLocks.determineLockTypeForAppend(task.getContext());
@@ -1104,14 +1131,14 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
 
   /**
    * Return a map of reports for the task.
-   *
+   * <p>
    * A successfull task should always have a null errorMsg. Segments availability is inherently confirmed
    * if the task was succesful.
-   *
+   * <p>
    * A falied task should always have a non-null errorMsg. Segment availability is never confirmed if the task
    * was not successful.
    *
-   * @param errorMsg Nullable error message for the task. null if task succeeded.
+   * @param errorMsg      Nullable error message for the task. null if task succeeded.
    * @param handoffWaitMs Milliseconds waited for segments to be handed off.
    * @return Map of reports for the task.
    */
@@ -1668,6 +1695,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
     return Response.ok(events).build();
   }
 
+  // todo: add caller information here
   @VisibleForTesting
   public Response setEndOffsets(
       Map<PartitionIdType, SequenceOffsetType> sequenceNumbers,
@@ -1993,9 +2021,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    *
    * @param toolbox           task toolbox
    * @param checkpointsString the json-serialized checkpoint string
-   *
    * @return checkpoint
-   *
    * @throws IOException jsonProcessingException
    */
   @Nullable
@@ -2009,7 +2035,6 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    * This is what would become the start offsets of the next reader, if we stopped reading now.
    *
    * @param sequenceNumber the sequence number that has already been processed
-   *
    * @return next sequence number to be stored
    */
   protected abstract SequenceOffsetType getNextStartOffset(SequenceOffsetType sequenceNumber);
@@ -2019,7 +2044,6 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    *
    * @param mapper json objectMapper
    * @param object metadata
-   *
    * @return SeekableStreamEndSequenceNumbers
    */
   protected abstract SeekableStreamEndSequenceNumbers<PartitionIdType, SequenceOffsetType> deserializePartitionsFromMetadata(
@@ -2033,9 +2057,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    *
    * @param recordSupplier
    * @param toolbox
-   *
    * @return list of records polled, can be empty but cannot be null
-   *
    * @throws Exception
    */
   @NotNull
@@ -2048,7 +2070,6 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    * creates specific implementations of kafka/kinesis datasource metadata
    *
    * @param partitions partitions used to create the datasource metadata
-   *
    * @return datasource metadata
    */
   protected abstract SeekableStreamDataSourceMetadata<PartitionIdType, SequenceOffsetType> createDataSourceMetadata(
@@ -2059,7 +2080,6 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
    * create a specific implementation of Kafka/Kinesis sequence number/offset used for comparison mostly
    *
    * @param sequenceNumber
-   *
    * @return a specific OrderedSequenceNumber instance for Kafka/Kinesis
    */
   protected abstract OrderedSequenceNumber<SequenceOffsetType> createSequenceNumber(SequenceOffsetType sequenceNumber);

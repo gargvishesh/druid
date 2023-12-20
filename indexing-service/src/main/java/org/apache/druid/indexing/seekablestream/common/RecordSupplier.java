@@ -20,6 +20,7 @@
 package org.apache.druid.indexing.seekablestream.common;
 
 import com.google.common.annotations.Beta;
+import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.impl.ByteEntity;
 
 import javax.annotation.Nullable;
@@ -131,6 +132,8 @@ public interface RecordSupplier<PartitionIdType, SequenceOffsetType, RecordType 
    * @return set of partitions
    */
   Set<PartitionIdType> getPartitionIds(String stream);
+
+  void pushRecord(InputRow row);
 
   /**
    * close the RecordSupplier

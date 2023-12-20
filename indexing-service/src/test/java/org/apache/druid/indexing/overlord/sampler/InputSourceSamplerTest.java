@@ -27,6 +27,7 @@ import net.thisptr.jackson.jq.internal.misc.Lists;
 import org.apache.druid.client.indexing.SamplerResponse;
 import org.apache.druid.client.indexing.SamplerResponse.SamplerResponseRow;
 import org.apache.druid.data.input.InputFormat;
+import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputRowSchema;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.InputSourceReader;
@@ -1700,6 +1701,12 @@ public class InputSourceSamplerTest extends InitializedNullHandlingTest
     public Set<Integer> getPartitionIds(String stream)
     {
       return partitions;
+    }
+
+    @Override
+    public void pushRecord(InputRow row)
+    {
+
     }
 
     @Override

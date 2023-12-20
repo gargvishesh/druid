@@ -19,10 +19,12 @@
 
 package org.apache.druid.indexing.kafka;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import org.apache.druid.common.utils.IdUtils;
+import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.data.input.kafka.KafkaTopicPartition;
 import org.apache.druid.error.DruidException;
@@ -40,9 +42,13 @@ import org.apache.druid.metadata.DynamicConfigProvider;
 import org.apache.druid.metadata.PasswordProvider;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 
 import javax.annotation.Nonnull;
 import java.lang.reflect.InvocationTargetException;
@@ -63,10 +69,16 @@ import java.util.stream.Collectors;
 public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, Long, KafkaRecordEntity>
 {
   private final KafkaConsumer<byte[], byte[]> consumer;
+
   private final KafkaConsumerMonitor monitor;
+  private Map<String, Object> consumerProperties;
+  private ObjectMapper mapper;
+  private KafkaConfigOverrides configOverrides;
   private boolean closed;
 
   private final boolean multiTopic;
+
+  private KafkaProducer<byte[], String> producer;
 
   /**
    * Store the stream information when partitions get assigned. This is required because the consumer does not
@@ -82,6 +94,10 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
   )
   {
     this(getKafkaConsumer(sortingMapper, consumerProperties, configOverrides), multiTopic);
+    this.consumerProperties = consumerProperties;
+    this.mapper = sortingMapper;
+    this.configOverrides = configOverrides;
+
   }
 
   @VisibleForTesting
@@ -240,6 +256,20 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
     });
   }
 
+  @Override
+  public void pushRecord(InputRow row)
+  {
+    try {
+      if (producer == null) {
+        producer = getKafkaProducer(mapper, consumerProperties, configOverrides);
+      }
+      producer.send(new ProducerRecord<>("cdcdelayqueue", mapper.writeValueAsString(row)));
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * Returns a Monitor that emits Kafka consumer metrics.
    */
@@ -257,6 +287,9 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
     closed = true;
 
     monitor.stopAfterNextEmit();
+    if (producer != null) {
+      producer.close();
+    }
     consumer.close();
   }
 
@@ -288,7 +321,10 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
     // Additional DynamicConfigProvider based extensible support for all consumer properties
     Object dynamicConfigProviderJson = consumerProperties.get(KafkaSupervisorIOConfig.DRUID_DYNAMIC_CONFIG_PROVIDER_KEY);
     if (dynamicConfigProviderJson != null) {
-      DynamicConfigProvider dynamicConfigProvider = configMapper.convertValue(dynamicConfigProviderJson, DynamicConfigProvider.class);
+      DynamicConfigProvider dynamicConfigProvider = configMapper.convertValue(
+          dynamicConfigProviderJson,
+          DynamicConfigProvider.class
+      );
       Map<String, String> dynamicConfig = dynamicConfigProvider.getConfig();
       for (Map.Entry<String, String> e : dynamicConfig.entrySet()) {
         properties.setProperty(e.getKey(), e.getValue());
@@ -316,7 +352,8 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
                                            deserializerReturnType.getTypeName());
       }
     }
-    catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException |
+           InvocationTargetException e) {
       throw new StreamException(e);
     }
 
@@ -359,6 +396,40 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
       Deserializer valueDeserializerObject = getKafkaDeserializer(props, "value.deserializer", false);
 
       return new KafkaConsumer<>(props, keyDeserializerObject, valueDeserializerObject);
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(currCtxCl);
+    }
+  }
+
+
+  public static KafkaProducer<byte[], String> getKafkaProducer(
+      ObjectMapper sortingMapper,
+      Map<String, Object> consumerProperties,
+      KafkaConfigOverrides configOverrides
+  )
+  {
+    final Map<String, Object> consumerConfigs = KafkaConsumerConfigs.getConsumerProperties();
+    final Properties props = new Properties();
+    Map<String, Object> effectiveConsumerProperties;
+    if (configOverrides != null) {
+      effectiveConsumerProperties = configOverrides.overrideConfigs(consumerProperties);
+    } else {
+      effectiveConsumerProperties = consumerProperties;
+    }
+    addConsumerPropertiesFromConfig(
+        props,
+        sortingMapper,
+        effectiveConsumerProperties
+    );
+    props.putIfAbsent("isolation.level", "read_committed");
+    props.putIfAbsent("group.id", StringUtils.format("kafka-producer-supervisor-%s", IdUtils.getRandomId()));
+    props.putAll(consumerConfigs);
+
+    ClassLoader currCtxCl = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(KafkaRecordSupplier.class.getClassLoader());
+      return new KafkaProducer<byte[], String>(props, new ByteArraySerializer(), new StringSerializer());
     }
     finally {
       Thread.currentThread().setContextClassLoader(currCtxCl);

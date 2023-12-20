@@ -582,6 +582,14 @@ public class QueryContext
     );
   }
 
+  public boolean isCDC()
+  {
+    return getBoolean(
+        QueryContexts.USE_CDC,
+        QueryContexts.DEFAULT_USE_CDC
+    );
+  }
+
   public String getBrokerServiceName()
   {
     return getString(QueryContexts.BROKER_SERVICE_NAME);
