@@ -26,11 +26,13 @@ import org.apache.druid.client.CachingQueryRunner;
 import org.apache.druid.client.cache.Cache;
 import org.apache.druid.client.cache.CacheConfig;
 import org.apache.druid.client.cache.CachePopulator;
+import org.apache.druid.common.guava.CombiningSequence;
 import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.guava.FunctionalIterable;
+import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
 import org.apache.druid.query.BySegmentQueryRunner;
@@ -44,6 +46,7 @@ import org.apache.druid.query.PerSegmentQueryOptimizationContext;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryDataSource;
 import org.apache.druid.query.QueryMetrics;
+import org.apache.druid.query.QueryPlus;
 import org.apache.druid.query.QueryProcessingPool;
 import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryRunnerFactory;
@@ -54,6 +57,7 @@ import org.apache.druid.query.QueryUnsupportedException;
 import org.apache.druid.query.ReferenceCountingSegmentQueryRunner;
 import org.apache.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import org.apache.druid.query.SegmentDescriptor;
+import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.query.spec.SpecificSegmentQueryRunner;
 import org.apache.druid.query.spec.SpecificSegmentSpec;
@@ -70,8 +74,10 @@ import org.apache.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 /**
@@ -343,6 +349,9 @@ public class ServerManager implements QuerySegmentWalker
         new PerSegmentQueryOptimizationContext(segmentDescriptor)
     );
 
+
+    MyRunner r = new MyRunner(perSegmentOptimizingQueryRunner);
+
     return new SetAndVerifyContextQueryRunner<>(
         serverConfig,
         CPUTimeMetricQueryRunner.safeBuild(
@@ -354,4 +363,48 @@ public class ServerManager implements QuerySegmentWalker
         )
     );
   }
+
+  static class MyRunner<T> implements QueryRunner<T>
+  {
+
+    private PerSegmentOptimizingQueryRunner<T> baseRunner;
+
+    public MyRunner(PerSegmentOptimizingQueryRunner<T> baseRunner)
+    {
+      this.baseRunner = baseRunner;
+    }
+
+    @Override
+    public Sequence<T> run(QueryPlus<T> queryPlus, ResponseContext responseContext)
+    {
+      Sequence<T> r = baseRunner.run(queryPlus, responseContext);
+      return CombiningSequence.create(
+          r,
+          new Comparator<T>()
+          {
+
+            @Override
+            public int compare(T o1, T o2)
+            {
+              return 0;
+            }
+          },
+          new BinaryOperator<T>()
+          {
+            @Override
+            public T apply(T t, T u)
+            {
+              if (t == null) {
+                return u;
+              }
+              if (u == null) {
+                return t;
+              }
+              return u;
+            }
+          }
+      );
+    }
+  }
+
 }
