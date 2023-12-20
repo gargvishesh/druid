@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
@@ -263,7 +264,15 @@ public class KafkaRecordSupplier implements RecordSupplier<KafkaTopicPartition, 
       if (producer == null) {
         producer = getKafkaProducer(mapper, consumerProperties, configOverrides);
       }
-      producer.send(new ProducerRecord<>("cdcdelayqueue", mapper.writeValueAsString(row)));
+      Map<String, Object> m = new HashMap<>();
+      for (String s : Sets.newHashSet("cost", "orderid")) {
+        m.put(s, String.valueOf(row.getRaw(s)));
+      }
+      m.put("system.ts_ms", Long.getLong(String.valueOf(row.getRaw("system.ts_ms"))));
+
+      m.put("__time", (row.getTimestampFromEpoch()));
+
+      producer.send(new ProducerRecord<>("cdcdelayqueue", mapper.writeValueAsString(m)));
     }
     catch (JsonProcessingException e) {
       throw new RuntimeException(e);
