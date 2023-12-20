@@ -1,3 +1,36 @@
+
+.h1 CDC hackatlon doc
+
+
+you will need:
+* docker
+* docker compose
+
+```bash
+./cdc-test up
+# wait finish + a minute or something
+./cdc-test setup
+# create ingestion by using ingest_u1.json
+
+# then insert/update via
+./cdc-test insert 
+./cdc-test update
+
+# destroy/restart
+./cdc-test down
+```
+
+NOTE: you might need to add `kafka` as an alias to localhost in the hosts file
+
+
+
+
+
+
+
+
+
+
 <!--
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements.  See the NOTICE file
