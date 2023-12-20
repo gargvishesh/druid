@@ -37,7 +37,8 @@ case "$1" in
 		docker-compose -f $DE/tutorial/docker-compose-mysql.yaml down
 		;;
 	setup_mysql)
-		_mysql 'create table orders_cdc (create_ts bigint default (floor(unix_timestamp(now(3))*1000)),orderid text, cost integer, orderstate text);'
+		_mysql 'create table orders_cdc (create_ts bigint default (floor(unix_timestamp(now(3))*1000)),orderid text, cost text, orderstate text);'
+		# _mysql 'create table orders_cdc1 (create_ts bigint default (floor(unix_timestamp(now(3))*1000)),orderid text, cost integer, orderstate text);'
 		;;
 	setup_connect)
 		_connect bash -c 'cat >register-mysql.json' < "$DE/tutorial/register-mysql.json"
@@ -50,11 +51,14 @@ case "$1" in
 	kafka_dump)
 		_kafka /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --from-beginning --property print.key=true --topic dbserver1.inventory.orders_cdc
 		;;
+	insert_old)
+		_mysql "insert into orders_cdc (orderid,cost,create_ts) select concat('old',count(1)),'I',floor((unix_timestamp(now(3))-4000)*1000) from orders_cdc"
+		;;
 	insert)
-		_mysql "insert into orders_cdc (orderid,cost) select count(1),0 from orders_cdc"
+		_mysql "insert into orders_cdc (orderid,cost) select concat('new',count(1)),'I' from orders_cdc"
 		;;
 	update)
-		_mysql "update orders_cdc set cost=cost+1 order by rand() limit 1"
+		_mysql "update orders_cdc set cost=concat(cost,'x') order by rand() limit 1"
 		;;
 	*)
 		echo "unknown cmd: $1" && exit 1
