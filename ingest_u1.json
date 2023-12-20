@@ -2,7 +2,7 @@
   "type": "kafka",
   "spec": {
     "dataSchema": {
-      "dataSource": "orders_cdc",
+      "dataSource": "orders_cdc2",
       "timestampSpec": {
         "column": "kafka.timestamp",
         "format": "millis",
@@ -11,20 +11,8 @@
       "dimensionsSpec": {
         "dimensions": [
           {
-            "type": "long",
+            "type": "string",
             "name": "orderid",
-            "multiValueHandling": "SORTED_ARRAY",
-            "createBitmapIndex": false
-          },
-          {
-            "type": "long",
-            "name": "cost",
-            "multiValueHandling": "SORTED_ARRAY",
-            "createBitmapIndex": true
-          },
-          {
-            "type": "long",
-            "name": "create_ts",
             "multiValueHandling": "SORTED_ARRAY",
             "createBitmapIndex": false
           }
@@ -36,14 +24,19 @@
         "includeAllDimensions": false,
         "useSchemaDiscovery": false
       },
-      "metricsSpec": [],
+      "metricsSpec": [
+        {
+          "type": "longLast",
+          "name": "cost",
+          "fieldName": "cost"
+          "timeColumn": "system.ts_ms"
+        }
+      ],
       "granularitySpec": {
         "type": "uniform",
         "segmentGranularity": "HOUR",
-        "queryGranularity": {
-          "type": "none"
-        },
-        "rollup": false,
+        "queryGranularity": "HOUR",
+        "rollup": true,
         "intervals": []
       },
       "transformSpec": {
