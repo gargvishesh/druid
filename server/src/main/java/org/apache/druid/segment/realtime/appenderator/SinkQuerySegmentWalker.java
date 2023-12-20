@@ -263,26 +263,22 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                     }
                 )
             );
-            QueryRunner<T> merge2 = merge2(
-                factory.mergeRunners(
-                    DirectQueryProcessingPool.INSTANCE,
-                    perHydrantRunners
-                ), toolChest
-            );
-            BySegmentQueryRunner<T> sinkRunner = new BySegmentQueryRunner<>(
-                sinkSegmentId,
-                descriptor.getInterval().getStart(),
-                merge2
-            );
-            QueryRunner<T> withPerSinkMetrics = withPerSinkMetrics(
-                sinkRunner,
-                toolChest,
-                sinkSegmentId,
-                cpuTimeAccumulator
-            );
             return QueryRunnerHelper.makeClosingQueryRunner(
                 new SpecificSegmentQueryRunner<>(
-                    withPerSinkMetrics,
+                    withPerSinkMetrics(
+                        new BySegmentQueryRunner<>(
+                            sinkSegmentId,
+                            descriptor.getInterval().getStart(),
+                            merge2(
+                            factory.mergeRunners(
+                                DirectQueryProcessingPool.INSTANCE,
+                                perHydrantRunners
+                            ))
+                        ),
+                        toolChest,
+                        sinkSegmentId,
+                        cpuTimeAccumulator
+                    ),
                     new SpecificSegmentSpec(descriptor)
                 ),
                 releaser
@@ -310,14 +306,8 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
     );
   }
 
-  private boolean ctrl = true;
-
-  private <T> QueryRunner<T> merge2(QueryRunner<T> mergeRunners, QueryToolChest<T, Query<T>> toolChest)
+  private <T> QueryRunner<T> merge2(QueryRunner<T> mergeRunners)
   {
-    if(ctrl) {
-      return new FinalizeResultsQueryRunner<T>(mergeRunners, toolChest);
-    }
-
     return new QueryRunner<T>()
     {
       @Override
