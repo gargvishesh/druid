@@ -1,5 +1,6 @@
 package org.hackathon;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
@@ -20,7 +21,8 @@ public class AWSClient
   public AWSClient(String bucket, Integer maxListing)
   {
     this.bucket = bucket;
-    s3Client = AmazonS3Client.builder().build();
+//    ClientConfiguration clientConfiguration = new ClientConfiguration().
+    s3Client = AmazonS3Client.builder().withRegion("us-east-1").build();
     this.maxListing = maxListing;
   }
 

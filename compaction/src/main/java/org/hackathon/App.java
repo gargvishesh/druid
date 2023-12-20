@@ -19,15 +19,16 @@ public class App
     public static void main(String[] args) throws InterruptedException
     {
 
-
-        AWSClient awsClient = new AWSClient("vishesh-imply-test", 10);
+        String bucket = "vishesh-imply-test-us-east-1";
+        AWSClient awsClient = new AWSClient(bucket, 2);
         DruidClient druidClient = new DruidClient(
-            "jdbc:avatica:remote:url=http://localhost:8888/druid/v2/sql/avatica/;transparent_reconnection=true");
+            "http://localhost:8888/druid/v2/sql/task/", bucket);
+//            "jdbc:avatica:remote:url=http://localhost:8888/druid/v2/sql/task/avatica/;transparent_reconnection=true");
         while (true) {
             Set<String> currentObjects = awsClient.getObjects("topics/spooldir-json-topic");
             druidClient.sendInsertFromS3Query(currentObjects);
             druidClient.sendCompactionQuery();
-            awsClient.deleteObjects(currentObjects);
+//            awsClient.deleteObjects(currentObjects);
             sleep(1000);
         }
     }
