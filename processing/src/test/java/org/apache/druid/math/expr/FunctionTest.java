@@ -1243,7 +1243,7 @@ public class FunctionTest extends InitializedNullHandlingTest
   public void testDateExpandIncorrectDateTime()
   {
     Throwable t = Assert.assertThrows(
-        ExpressionValidationException.class,
+        DruidException.class,
         () -> assertArrayExpr("date_expand(abcd, 1674202858500, 'PT0.1S')", new Long[] {})
     );
     Assert.assertEquals(
