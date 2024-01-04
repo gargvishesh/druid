@@ -21,22 +21,26 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Function;
 
 public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncodedValueIndex
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final GenericIndexed<ByteBuffer> dictionary;
+  private final Function<ByteBuffer, Object> byteBufferConversionFunction;
 
   public DictionaryEncodedIpAddressBlobValueIndex(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
-      GenericIndexed<ByteBuffer> dictionary
+      GenericIndexed<ByteBuffer> dictionary,
+      Function<ByteBuffer, Object> byteBufferConversionFunction
   )
   {
     this.bitmapFactory = bitmapFactory;
     this.bitmaps = bitmaps;
     this.dictionary = dictionary;
+    this.byteBufferConversionFunction = byteBufferConversionFunction;
   }
 
   @Override
@@ -48,6 +52,26 @@ public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncod
 
     final ImmutableBitmap bitmap = bitmaps.get(idx);
     return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
+  }
+
+  @Override
+  public int getCardinality()
+  {
+    return dictionary.size();
+  }
+
+  @Nullable
+  @Override
+  public Object getValue(int index)
+  {
+    ByteBuffer buf = dictionary.get(index);
+    return buf == null ? null : byteBufferConversionFunction.apply(buf);
+  }
+
+  @Override
+  public BitmapFactory getBitmapFactory()
+  {
+    return bitmapFactory;
   }
 
   public ImmutableBitmap getBitmapForValue(@Nullable ByteBuffer blob)

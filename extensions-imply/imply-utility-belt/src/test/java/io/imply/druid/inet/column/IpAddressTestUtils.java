@@ -351,7 +351,8 @@ public class IpAddressTestUtils
     return new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
         roaringFactory.getBitmapFactory(),
         bitmaps,
-        dictionary
+        dictionary,
+        IpAddressBlob::ofByteBuffer
     );
   }
 
@@ -379,7 +380,8 @@ public class IpAddressTestUtils
     return new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
         roaringFactory.getBitmapFactory(),
         bitmaps,
-        dictionary
+        dictionary,
+        IpPrefixBlob::ofByteBuffer
     );
   }
 

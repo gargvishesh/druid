@@ -151,7 +151,8 @@ public class IpPrefixComplexTypeSerde extends ComplexMetricSerde
             new DictionaryEncodedIpAddressBlobColumnIndexSupplier(
                 metadata.getBitmapSerdeFactory().getBitmapFactory(),
                 bitmaps,
-                dictionaryBytes
+                dictionaryBytes,
+                IpPrefixBlob::ofByteBuffer
             ),
             true,
             false
