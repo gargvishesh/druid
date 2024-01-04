@@ -427,6 +427,8 @@
                                         <argument>-c</argument>
                                         <argument>org.apache.druid.extensions.contrib:statsd-emitter</argument>
                                         <argument>-c</argument>
+                                        <argument>org.apache.druid.extensions.contrib:kafka-emitter</argument>
+                                        <argument>-c</argument>
                                         <argument>io.imply:imply-polaris-secrets-provider</argument>
                                         <argument>-c</argument>
                                         <argument>io.imply:imply-extra-service-dimensions</argument>
