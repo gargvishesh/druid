@@ -22,6 +22,7 @@ package org.apache.druid.query.lookup;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.query.extraction.MapLookupExtractor;
@@ -76,12 +77,15 @@ public abstract class LookupExtractor
    * Otherwise unused. Implementations that override {@link #unapplyAll(Set)} may throw
    * {@link UnsupportedOperationException} from this method.
    *
+   * The method is made public in Imply Druid for testing imply-lookups package
+   *
    * @param value the value to apply the reverse lookup. {@link NullHandling#emptyToNullIfNeeded(String)} will have
    *              been applied to the value.
    *
    * @return the list of keys that maps to the provided value.
    */
-  protected abstract List<String> unapply(@Nullable String value);
+  @VisibleForTesting
+  public abstract List<String> unapply(@Nullable String value);
 
   /**
    * Reverse lookup from a given set of values.
