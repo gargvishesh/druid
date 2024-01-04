@@ -202,6 +202,7 @@
         <module>extensions-core/druid-catalog</module>
         <module>extensions-core/testing-tools</module>
         <!-- Community extensions -->
+        <module>extensions-contrib/kafka-emitter</module>
         <module>extensions-contrib/statsd-emitter</module>
         <module>extensions-contrib/kubernetes-overlord-extensions</module>
         <module>extensions-contrib/druid-iceberg-extensions</module>
