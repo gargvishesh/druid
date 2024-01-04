@@ -17,22 +17,26 @@ import org.apache.druid.segment.index.semantic.DictionaryEncodedValueIndex;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
+import java.util.function.Function;
 
 public class DictionaryEncodedIpAddressBlobColumnIndexSupplier implements ColumnIndexSupplier
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final GenericIndexed<ByteBuffer> dictionary;
+  private final Function<ByteBuffer, Object> byteBufferConversionFunction;
 
   public DictionaryEncodedIpAddressBlobColumnIndexSupplier(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
-      GenericIndexed<ByteBuffer> dictionary
+      GenericIndexed<ByteBuffer> dictionary,
+      Function<ByteBuffer, Object> byteBufferConversionFunction
   )
   {
     this.bitmapFactory = bitmapFactory;
     this.bitmaps = bitmaps;
     this.dictionary = dictionary;
+    this.byteBufferConversionFunction = byteBufferConversionFunction;
   }
 
   @Nullable
@@ -40,7 +44,12 @@ public class DictionaryEncodedIpAddressBlobColumnIndexSupplier implements Column
   public <T> T as(Class<T> clazz)
   {
     if (clazz.equals(DictionaryEncodedIpAddressBlobValueIndex.class) || clazz.equals(DictionaryEncodedValueIndex.class)) {
-      return (T) new DictionaryEncodedIpAddressBlobValueIndex(bitmapFactory, bitmaps, dictionary);
+      return (T) new DictionaryEncodedIpAddressBlobValueIndex(
+          bitmapFactory,
+          bitmaps,
+          dictionary,
+          byteBufferConversionFunction
+      );
     }
     return null;
   }
