@@ -9,9 +9,9 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Predicate;
 import io.imply.druid.inet.IpAddressModule;
 import org.apache.druid.query.extraction.ExtractionFn;
+import org.apache.druid.query.filter.DruidObjectPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -164,7 +164,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
               }
             };
           } else {
-            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
+            return ValueMatchers.makeAlwaysFalseWithNullUnknownDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
@@ -177,7 +177,7 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
       {
         final BitSet checkedIds = new BitSet(getCardinality());
         final BitSet matchingIds = new BitSet(getCardinality());
-        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
+        final DruidObjectPredicate<String> predicate = predicateFactory.makeStringPredicate();
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
@@ -190,9 +190,8 @@ public class IpAddressDictionaryEncodedColumn implements DictionaryEncodedColumn
             if (checkedIds.get(id)) {
               return matchingIds.get(id);
             } else {
-              final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
               final String value = lookupName(id);
-              final boolean matches = (matchNull && value == null) || predicate.apply(null);
+              final boolean matches = predicate.apply(value).matches(includeUnknown);
               checkedIds.set(id);
               if (matches) {
                 matchingIds.set(id);

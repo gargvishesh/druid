@@ -154,7 +154,8 @@ public class SqlAsyncResourceTest extends BaseCalciteQueryTest
         new PlannerConfig(),
         viewManager,
         new NoopDruidSchemaManager(),
-        CalciteTests.TEST_AUTHORIZER_MAPPER
+        CalciteTests.TEST_AUTHORIZER_MAPPER,
+        CatalogResolver.NULL_RESOLVER
     );
     PlannerFactory plannerFactory = new PlannerFactory(
         rootSchema,
