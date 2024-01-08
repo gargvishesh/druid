@@ -39,8 +39,8 @@ public class PolarisSourceFunctionTest
   private static final String SOURCE_VALUE = "< polaris source >";
   private static final Map<String, Object> ARGS_WITH_SOURCE = ImmutableMap.of(SOURCE_PARAM, SOURCE_VALUE);
   private static final List<ColumnSpec> COLUMNS = Arrays.asList(
-      new ColumnSpec("x", Columns.VARCHAR, null),
-      new ColumnSpec("y", Columns.BIGINT, null)
+      new ColumnSpec("x", Columns.SQL_VARCHAR, null),
+      new ColumnSpec("y", Columns.SQL_BIGINT, null)
   );
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private PolarisTableFunctionResolver resolver;

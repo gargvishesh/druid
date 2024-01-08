@@ -12,7 +12,6 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Predicate;
 import io.imply.druid.inet.IpAddressModule;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import org.apache.druid.collections.bitmap.BitmapFactory;
@@ -21,6 +20,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.extraction.ExtractionFn;
+import org.apache.druid.query.filter.DruidObjectPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -175,7 +175,7 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
               }
             };
           } else {
-            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
+            return ValueMatchers.makeAlwaysFalseWithNullUnknownDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
@@ -188,8 +188,7 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
       {
         final BitSet checkedIds = new BitSet(maxId);
         final BitSet matchingIds = new BitSet(maxId);
-        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
-        final boolean predicateMatchesNull = predicate.apply(null);
+        final DruidObjectPredicate<String> predicate = predicateFactory.makeStringPredicate();
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
@@ -197,15 +196,14 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
           @Override
           public boolean matches(boolean includeUnknown)
           {
-            final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
             Object[] dims = currEntry.get().getDims();
             if (dimIndex >= dims.length) {
-              return matchNull || predicateMatchesNull;
+              return predicate.apply(null).matches(includeUnknown);
             }
 
             Integer dimsInt = (Integer) dims[dimIndex];
             if (dimsInt == null) {
-              return matchNull || predicateMatchesNull;
+              return predicate.apply(null).matches(includeUnknown);
             }
 
             if (checkedIds.get(dimsInt)) {
@@ -214,7 +212,7 @@ public class IpPrefixDictionaryEncodedColumnIndexer extends DictionaryEncodedCol
               }
             } else {
               final String value = lookupName(dimsInt);
-              final boolean matches = (value == null && matchNull) || predicate.apply(value);
+              final boolean matches = predicate.apply(value).matches(includeUnknown);
               checkedIds.set(dimsInt);
               if (matches) {
                 matchingIds.set(dimsInt);

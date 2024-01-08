@@ -9,9 +9,9 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Predicate;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
+import org.apache.druid.query.filter.DruidObjectPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.segment.data.GenericIndexed;
 import org.apache.druid.segment.index.semantic.DictionaryEncodedValueIndex;
@@ -125,7 +125,7 @@ public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncod
     return () -> new Iterator<ImmutableBitmap>()
     {
       // this should probably actually use the object predicate, but most filters don't currently use the object predicate...
-      final Predicate<String> stringPredicate = predicateFactory.makeStringPredicate();
+      final DruidObjectPredicate<String> stringPredicate = predicateFactory.makeStringPredicate();
       final Iterator<ByteBuffer> iterator = dictionary.iterator();
       @Nullable
       ByteBuffer next = null;
@@ -164,10 +164,10 @@ public class DictionaryEncodedIpAddressBlobValueIndex implements DictionaryEncod
         while (!nextSet && iterator.hasNext()) {
           ByteBuffer nextValue = iterator.next();
           if (nextValue == null) {
-            nextSet = (includeUnknown && predicateFactory.isNullInputUnknown()) || stringPredicate.apply(null);
+            nextSet = stringPredicate.apply(null).matches(includeUnknown);
           } else {
             final IpAddressBlob blob = IpAddressBlob.ofByteBuffer(nextValue);
-            nextSet = stringPredicate.apply(blob.asCompressedString());
+            nextSet = stringPredicate.apply(blob.asCompressedString()).matches(includeUnknown);
           }
           if (nextSet) {
             next = nextValue;

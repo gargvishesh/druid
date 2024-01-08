@@ -12,7 +12,6 @@ package io.imply.druid.inet.segment.virtual;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import io.imply.druid.inet.column.DictionaryEncodedIpAddressBlobValueIndex;
@@ -25,6 +24,8 @@ import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.filter.ColumnIndexSelector;
+import org.apache.druid.query.filter.DruidObjectPredicate;
 import org.apache.druid.query.filter.DruidPredicateFactory;
 import org.apache.druid.query.filter.StringPredicateDruidPredicateFactory;
 import org.apache.druid.query.filter.ValueMatcher;
@@ -311,7 +312,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
               }
             };
           } else {
-            return ValueMatchers.makeAlwaysFalseDimensionMatcher(this, false);
+            return ValueMatchers.makeAlwaysFalseWithNullUnknownDimensionMatcher(this, false);
           }
         } else {
           // Employ caching BitSet optimization
@@ -324,7 +325,7 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
       {
         final BitSet checkedIds = new BitSet(ipAddressColumn.getCardinality());
         final BitSet matchingIds = new BitSet(ipAddressColumn.getCardinality());
-        final Predicate<String> predicate = predicateFactory.makeStringPredicate();
+        final DruidObjectPredicate<String> predicate = predicateFactory.makeStringPredicate();
 
         // Lazy matcher; only check an id if matches() is called.
         return new ValueMatcher()
@@ -337,9 +338,8 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
             if (checkedIds.get(id)) {
               return matchingIds.get(id);
             } else {
-              final boolean matchNull = includeUnknown && predicateFactory.isNullInputUnknown();
               final String value = lookupName(id);
-              final boolean matches = (matchNull && value == null) || predicate.apply(value);
+              final boolean matches = predicate.apply(value).matches(includeUnknown);
               checkedIds.set(id);
               if (matches) {
                 matchingIds.set(id);
@@ -588,16 +588,11 @@ public class IpAddressFormatVirtualColumn implements VirtualColumn
 
   @Nullable
   @Override
-  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnSelector columnSelector)
+  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnIndexSelector columnIndexSelector)
   {
-    final ColumnHolder holder = columnSelector.getColumnHolder(field);
-    if (holder == null) {
-      // column doesn't exist
-      return null;
-    }
-    final ColumnIndexSupplier underlyingIndexes = holder.getIndexSupplier();
+    final ColumnIndexSupplier underlyingIndexes = columnIndexSelector.getIndexSupplier(field);
     if (underlyingIndexes == null) {
-      throw new UnsupportedOperationException("How can this be?");
+      return null;
     }
 
     final DictionaryEncodedIpAddressBlobValueIndex index = underlyingIndexes.as(

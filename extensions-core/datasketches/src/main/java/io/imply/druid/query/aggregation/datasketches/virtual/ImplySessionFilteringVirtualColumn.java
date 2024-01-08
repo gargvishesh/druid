@@ -27,8 +27,8 @@ import org.apache.druid.math.expr.ExpressionType;
 import org.apache.druid.query.BitmapResultFactory;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.dimension.DimensionSpec;
+import org.apache.druid.query.filter.ColumnIndexSelector;
 import org.apache.druid.segment.ColumnInspector;
-import org.apache.druid.segment.ColumnSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.DimensionSelector;
@@ -152,9 +152,9 @@ public class ImplySessionFilteringVirtualColumn implements VirtualColumn
 
   @Nullable
   @Override
-  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnSelector columnSelector)
+  public ColumnIndexSupplier getIndexSupplier(String columnName, ColumnIndexSelector columnIndexSelector)
   {
-    final ColumnHolder holder = columnSelector.getColumnHolder(field);
+    final ColumnHolder holder = columnIndexSelector.getColumnHolder(field);
     if (holder == null) {
       throw new RE(
           "%s column doesn't exist for creating %s virtual column",
