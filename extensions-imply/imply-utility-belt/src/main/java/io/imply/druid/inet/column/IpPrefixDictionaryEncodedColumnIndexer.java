@@ -12,7 +12,6 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Predicate;
 import io.imply.druid.inet.IpAddressModule;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import org.apache.druid.collections.bitmap.BitmapFactory;

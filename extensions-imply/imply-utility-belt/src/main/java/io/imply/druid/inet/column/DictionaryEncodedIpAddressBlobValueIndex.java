@@ -9,7 +9,6 @@
 
 package io.imply.druid.inet.column;
 
-import com.google.common.base.Predicate;
 import org.apache.druid.collections.bitmap.BitmapFactory;
 import org.apache.druid.collections.bitmap.ImmutableBitmap;
 import org.apache.druid.query.filter.DruidObjectPredicate;
