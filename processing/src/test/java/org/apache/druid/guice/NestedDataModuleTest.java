@@ -24,7 +24,6 @@ import com.google.inject.Injector;
 import org.apache.druid.segment.DefaultColumnFormatConfig;
 import org.apache.druid.segment.DimensionHandlerProvider;
 import org.apache.druid.segment.DimensionHandlerUtils;
-import org.apache.druid.segment.NestedCommonFormatColumnHandler;
 import org.apache.druid.segment.NestedDataColumnHandlerV4;
 import org.apache.druid.segment.nested.NestedDataComplexTypeSerde;
 import org.junit.AfterClass;
@@ -74,7 +73,8 @@ public class NestedDataModuleTest
     DimensionHandlerProvider provider = DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.get(
         NestedDataComplexTypeSerde.TYPE_NAME
     );
-    Assert.assertTrue(provider.get("test") instanceof NestedCommonFormatColumnHandler);
+    // imply LTS deviation, v4 is the default
+    Assert.assertTrue(provider.get("test") instanceof NestedDataColumnHandlerV4);
   }
 
   @Test

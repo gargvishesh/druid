@@ -37,17 +37,19 @@ public class DefaultColumnFormatsConfigTest
     String there = MAPPER.writeValueAsString(defaultColumnFormatConfig);
     DefaultColumnFormatConfig andBack = MAPPER.readValue(there, DefaultColumnFormatConfig.class);
     Assert.assertEquals(defaultColumnFormatConfig, andBack);
-    Assert.assertNull(andBack.getNestedColumnFormatVersion());
+    // imply LTS specific change, we default to version 4 for backwards compatibility with older LTS
+    // releases which did not have version 5 available.
+    Assert.assertEquals(4, (int) andBack.getNestedColumnFormatVersion());
   }
 
   @Test
   public void testDefaultsSerdeOverride() throws JsonProcessingException
   {
-    DefaultColumnFormatConfig defaultColumnFormatConfig = new DefaultColumnFormatConfig(4);
+    DefaultColumnFormatConfig defaultColumnFormatConfig = new DefaultColumnFormatConfig(5);
     String there = MAPPER.writeValueAsString(defaultColumnFormatConfig);
     DefaultColumnFormatConfig andBack = MAPPER.readValue(there, DefaultColumnFormatConfig.class);
     Assert.assertEquals(defaultColumnFormatConfig, andBack);
-    Assert.assertEquals(4, (int) andBack.getNestedColumnFormatVersion());
+    Assert.assertEquals(5, (int) andBack.getNestedColumnFormatVersion());
   }
 
   @Test

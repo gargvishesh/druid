@@ -47,7 +47,9 @@ public class DefaultColumnFormatConfig
       @JsonProperty("nestedColumnFormatVersion") @Nullable Integer nestedColumnFormatVersion
   )
   {
-    this.nestedColumnFormatVersion = nestedColumnFormatVersion;
+    // imply LTS specific change, we default to version 4 for backwards compatibility with older LTS
+    // releases which did not have version 5 available.
+    this.nestedColumnFormatVersion = nestedColumnFormatVersion == null ? 4 : nestedColumnFormatVersion;
     validateNestedFormatVersion(this.nestedColumnFormatVersion);
   }
 

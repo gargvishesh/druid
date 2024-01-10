@@ -62,11 +62,11 @@ public class NestedDataColumnSchemaTest
   }
 
   @Test
-  public void testSerdeDefault() throws JsonProcessingException
+  public void testSerdeV5() throws JsonProcessingException
   {
     final String there = "{\"type\":\"json\", \"name\":\"test\"}";
     NestedDataColumnSchema andBack = MAPPER.readValue(there, NestedDataColumnSchema.class);
-    Assert.assertEquals(new NestedDataColumnSchema("test", 5), andBack);
+    Assert.assertEquals(new NestedDataColumnSchema("test", 4), andBack);
   }
 
   @Test
@@ -80,9 +80,9 @@ public class NestedDataColumnSchemaTest
   @Test
   public void testSerdeOverride() throws JsonProcessingException
   {
-    final String there = "{\"type\":\"json\", \"name\":\"test\",\"formatVersion\":4}";
+    final String there = "{\"type\":\"json\", \"name\":\"test\",\"formatVersion\":5}";
     NestedDataColumnSchema andBack = MAPPER.readValue(there, NestedDataColumnSchema.class);
-    Assert.assertEquals(new NestedDataColumnSchema("test", 4), andBack);
+    Assert.assertEquals(new NestedDataColumnSchema("test", 5), andBack);
   }
 
   @Test

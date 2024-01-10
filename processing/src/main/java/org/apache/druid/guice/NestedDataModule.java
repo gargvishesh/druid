@@ -92,10 +92,12 @@ public class NestedDataModule implements DruidModule
   public static void registerHandlersAndSerde()
   {
     registerSerde();
-    DimensionHandlerUtils.registerDimensionHandlerProvider(
-        NestedDataComplexTypeSerde.TYPE_NAME,
-        new NestedCommonFormatHandlerProvider()
-    );
+    if (!DimensionHandlerUtils.DIMENSION_HANDLER_PROVIDERS.containsKey(NestedDataComplexTypeSerde.TYPE_NAME)) {
+      DimensionHandlerUtils.registerDimensionHandlerProvider(
+          NestedDataComplexTypeSerde.TYPE_NAME,
+          new NestedCommonFormatHandlerProvider()
+      );
+    }
   }
 
   private static void registerSerde()
