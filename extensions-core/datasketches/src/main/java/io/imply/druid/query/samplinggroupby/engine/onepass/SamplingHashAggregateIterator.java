@@ -25,7 +25,7 @@ import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.ResultRow;
-import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngineV2;
+import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngine;
 import org.apache.druid.query.groupby.epinephelinae.Grouper;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorPlus;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorStrategy;
@@ -39,7 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @EverythingIsNonnullByDefault
-public class SamplingHashAggregateIterator extends GroupByQueryEngineV2.HashAggregateIterator
+public class SamplingHashAggregateIterator extends GroupByQueryEngine.HashAggregateIterator
 {
   private final int maxGroups;
   private final RawHashHeapQuickSelectSketch rawHashHeapQuickSelectSketch;

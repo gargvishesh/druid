@@ -92,7 +92,7 @@ import java.util.stream.Stream;
  */
 public class GroupByQueryEngine
 {
-  private static final GroupByStrategyFactory STRATEGY_FACTORY = new GroupByStrategyFactory();
+  public static final GroupByStrategyFactory STRATEGY_FACTORY = new GroupByStrategyFactory();
 
   private GroupByQueryEngine()
   {
@@ -290,7 +290,7 @@ public class GroupByQueryEngine
     }
   }
 
-  private abstract static class GroupByEngineIterator<KeyType> implements Iterator<ResultRow>, Closeable
+  public abstract static class GroupByEngineIterator<KeyType> implements Iterator<ResultRow>, Closeable
   {
     protected final GroupByQuery query;
     protected final GroupByQueryConfig querySpecificConfig;
@@ -456,7 +456,7 @@ public class GroupByQueryEngine
     }
   }
 
-  private static class HashAggregateIterator extends GroupByEngineIterator<ByteBuffer>
+  public static class HashAggregateIterator extends GroupByEngineIterator<ByteBuffer>
   {
     private static final Logger LOGGER = new Logger(HashAggregateIterator.class);
 
@@ -470,7 +470,7 @@ public class GroupByQueryEngine
     // Sum of internal state footprint across all "dims".
     private long selectorInternalFootprint = 0;
 
-    private HashAggregateIterator(
+    public HashAggregateIterator(
         GroupByQuery query,
         GroupByQueryConfig querySpecificConfig,
         DruidProcessingConfig processingConfig,
