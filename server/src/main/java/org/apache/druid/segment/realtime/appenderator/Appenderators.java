@@ -32,8 +32,6 @@ import org.apache.druid.segment.IndexMerger;
 import org.apache.druid.segment.incremental.ParseExceptionHandler;
 import org.apache.druid.segment.incremental.RowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
-import org.apache.druid.segment.join.JoinableFactory;
-import org.apache.druid.segment.join.JoinableFactoryWrapper;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 import org.apache.druid.segment.loading.SegmentLoaderConfig;
 import org.apache.druid.segment.realtime.FireDepartmentMetrics;
@@ -57,7 +55,6 @@ public class Appenderators
       DataSegmentAnnouncer segmentAnnouncer,
       ServiceEmitter emitter,
       QueryProcessingPool queryProcessingPool,
-      JoinableFactory joinableFactory,
       Cache cache,
       CacheConfig cacheConfig,
       CachePopulatorStats cachePopulatorStats,
@@ -84,7 +81,6 @@ public class Appenderators
             emitter,
             conglomerate,
             queryProcessingPool,
-            new JoinableFactoryWrapper(joinableFactory),
             Preconditions.checkNotNull(cache, "cache"),
             cacheConfig,
             cachePopulatorStats
