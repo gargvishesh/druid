@@ -47,12 +47,12 @@ public class HttpClientModule implements Module
 {
   public static HttpClientModule global()
   {
-    return new HttpClientModule("druid.global.http", Global.class, false);
+    return new HttpClientModule("druid.global.http", Global.class);
   }
 
   public static HttpClientModule escalatedGlobal()
   {
-    return new HttpClientModule("druid.global.http", EscalatedGlobal.class, false);
+    return new HttpClientModule("druid.global.http", EscalatedGlobal.class);
   }
 
   private static final Set<Class<? extends Annotation>> ESCALATING_ANNOTATIONS =
@@ -61,13 +61,11 @@ public class HttpClientModule implements Module
   private final String propertyPrefix;
   private final Class<? extends Annotation> annotationClazz;
   private final boolean isEscalated;
-  private final boolean eagerByDefault;
 
-  public HttpClientModule(String propertyPrefix, Class<? extends Annotation> annotationClazz, boolean eagerByDefault)
+  public HttpClientModule(String propertyPrefix, Class<? extends Annotation> annotationClazz)
   {
     this.propertyPrefix = Preconditions.checkNotNull(propertyPrefix, "propertyPrefix");
     this.annotationClazz = Preconditions.checkNotNull(annotationClazz, "annotationClazz");
-    this.eagerByDefault = eagerByDefault;
 
     isEscalated = ESCALATING_ANNOTATIONS.contains(this.annotationClazz);
   }
@@ -78,21 +76,19 @@ public class HttpClientModule implements Module
     JsonConfigProvider.bind(binder, propertyPrefix, DruidHttpClientConfig.class, annotationClazz);
     binder.bind(HttpClient.class)
           .annotatedWith(annotationClazz)
-          .toProvider(new HttpClientProvider(annotationClazz, isEscalated, eagerByDefault))
+          .toProvider(new HttpClientProvider(annotationClazz, isEscalated))
           .in(LazySingleton.class);
   }
 
   public static class HttpClientProvider extends AbstractHttpClientProvider<HttpClient>
   {
     private final boolean isEscalated;
-    private final boolean eagerByDefault;
     private Escalator escalator;
 
-    public HttpClientProvider(Class<? extends Annotation> annotationClazz, boolean isEscalated, boolean eagerByDefault)
+    public HttpClientProvider(Class<? extends Annotation> annotationClazz, boolean isEscalated)
     {
       super(annotationClazz);
       this.isEscalated = isEscalated;
-      this.eagerByDefault = eagerByDefault;
     }
 
     @Inject
@@ -109,7 +105,7 @@ public class HttpClientModule implements Module
       final HttpClientConfig.Builder builder = HttpClientConfig
           .builder()
           .withNumConnections(config.getNumConnections())
-          .withEagerInitialization(config.isEagerInitialization(eagerByDefault))
+          .withEagerInitialization(config.isEagerInitialization())
           .withReadTimeout(config.getReadTimeout())
           .withWorkerCount(config.getNumMaxThreads())
           .withCompressionCodec(
