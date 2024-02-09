@@ -489,8 +489,8 @@ public class Initializer
             new EscalatorModule(),
             HttpClientModule.global(),
             HttpClientModule.escalatedGlobal(),
-            new HttpClientModule("druid.broker.http", Client.class, true),
-            new HttpClientModule("druid.broker.http", EscalatedClient.class, true),
+            new HttpClientModule("druid.broker.http", Client.class),
+            new HttpClientModule("druid.broker.http", EscalatedClient.class),
             // For ZK discovery
             new CuratorModule(),
             new AnnouncerModule(),
