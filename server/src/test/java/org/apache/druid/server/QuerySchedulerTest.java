@@ -88,8 +88,6 @@ public class QuerySchedulerTest
   private static final int NUM_ROWS = 10000;
   private static final int TEST_HI_CAPACITY = 5;
   private static final int TEST_LO_CAPACITY = 2;
-  private static final ServerConfig SERVER_CONFIG_WITHOUT_TOTAL = new ServerConfig();
-  private static final ServerConfig SERVER_CONFIG_WITH_TOTAL = new ServerConfig(false);
 
   private ListeningExecutorService executorService;
   private ObservableQueryScheduler scheduler;
@@ -104,8 +102,7 @@ public class QuerySchedulerTest
         TEST_HI_CAPACITY,
         ManualQueryPrioritizationStrategy.INSTANCE,
         new HiLoQueryLaningStrategy(40),
-        // Test with total laning turned on
-        SERVER_CONFIG_WITH_TOTAL
+        new ServerConfig()
     );
   }
 
@@ -341,7 +338,7 @@ public class QuerySchedulerTest
         0,
         ManualQueryPrioritizationStrategy.INSTANCE,
         new NoQueryLaningStrategy(),
-        SERVER_CONFIG_WITHOUT_TOTAL
+        new ServerConfig()
     );
     List<Future<?>> futures = new ArrayList<>(NUM_QUERIES);
     for (int i = 0; i < NUM_QUERIES; i++) {
@@ -351,9 +348,9 @@ public class QuerySchedulerTest
   }
 
   @Test
-  public void testTotalLimitWithoutQueryQueuing()
+  public void testTotalLimitWithQueryQueuing()
   {
-    ServerConfig serverConfig = SERVER_CONFIG_WITH_TOTAL;
+    ServerConfig serverConfig = new ServerConfig();
     QueryScheduler queryScheduler = new QueryScheduler(
         serverConfig.getNumThreads() - 1,
         ManualQueryPrioritizationStrategy.INSTANCE,
@@ -364,9 +361,9 @@ public class QuerySchedulerTest
   }
 
   @Test
-  public void testTotalLimitWithQueryQueuing()
+  public void testTotalLimitWithouQueryQueuing()
   {
-    ServerConfig serverConfig = SERVER_CONFIG_WITHOUT_TOTAL;
+    ServerConfig serverConfig = new ServerConfig(true);
     QueryScheduler queryScheduler = new QueryScheduler(
         serverConfig.getNumThreads() - 1,
         ManualQueryPrioritizationStrategy.INSTANCE,
@@ -383,7 +380,7 @@ public class QuerySchedulerTest
         5,
         ManualQueryPrioritizationStrategy.INSTANCE,
         new NoQueryLaningStrategy(),
-        SERVER_CONFIG_WITH_TOTAL
+        new ServerConfig()
     );
 
     QueryRunnerFactory factory = GroupByQueryRunnerTest.makeQueryRunnerFactory(
@@ -862,7 +859,7 @@ public class QuerySchedulerTest
     Injector injector = GuiceInjectors.makeStartupInjectorWithModules(
         ImmutableList.of(
             binder -> {
-              binder.bind(ServerConfig.class).toInstance(SERVER_CONFIG_WITH_TOTAL);
+              binder.bind(ServerConfig.class).toInstance(new ServerConfig());
               binder.bind(ServiceEmitter.class).toInstance(new ServiceEmitter("test", "localhost", new NoopEmitter()));
               JsonConfigProvider.bind(binder, "druid.query.scheduler", QuerySchedulerProvider.class, Global.class);
             }

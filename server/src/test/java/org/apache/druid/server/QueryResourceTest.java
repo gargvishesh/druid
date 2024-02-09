@@ -1057,8 +1057,7 @@ public class QueryResourceTest
         2,
         ManualQueryPrioritizationStrategy.INSTANCE,
         NoQueryLaningStrategy.INSTANCE,
-        // enable total laning
-        new ServerConfig(false)
+        new ServerConfig()
     );
 
     ArrayList<Future<Boolean>> back2 = new ArrayList<>();

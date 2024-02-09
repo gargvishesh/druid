@@ -204,8 +204,7 @@ public class SqlResourceTest extends CalciteTestBase
         5,
         ManualQueryPrioritizationStrategy.INSTANCE,
         new HiLoQueryLaningStrategy(40),
-        // Enable total laning
-        new ServerConfig(false)
+        new ServerConfig()
     )
     {
       @Override
@@ -1613,7 +1612,7 @@ public class SqlResourceTest extends CalciteTestBase
   }
 
   @Test
-  public void testTooManyRequestsAfterTotalLaning() throws Exception
+  public void testTooManyRequests() throws Exception
   {
     final int numQueries = 3;
     CountDownLatch queriesScheduledLatch = new CountDownLatch(numQueries - 1);

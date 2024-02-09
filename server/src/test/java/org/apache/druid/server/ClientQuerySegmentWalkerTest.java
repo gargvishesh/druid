@@ -234,7 +234,7 @@ public class ClientQuerySegmentWalkerTest
         8,
         ManualQueryPrioritizationStrategy.INSTANCE,
         NoQueryLaningStrategy.INSTANCE,
-        new ServerConfig(false)
+        new ServerConfig()
     );
     initWalker(ImmutableMap.of(), scheduler);
   }
