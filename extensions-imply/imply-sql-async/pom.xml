@@ -24,7 +24,7 @@
   <parent>
     <artifactId>druid</artifactId>
     <groupId>org.apache.druid</groupId>
-    <version>2024.01.3-lts-iap-SNAPSHOT</version>
+    <version>2024.01.4-lts-iap-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
