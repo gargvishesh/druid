@@ -84,13 +84,6 @@ public class PassthroughAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @JsonProperty
-  public String getComplexTypeName()
-  {
-    return complexTypeName;
-  }
-
-  @Override
   public byte[] getCacheKey()
   {
     throw new UnsupportedOperationException();
