@@ -61,7 +61,6 @@ import org.apache.druid.segment.incremental.SimpleRowIngestionMeters;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.RealtimeTuningConfig;
 import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
-import org.apache.druid.segment.join.NoopJoinableFactory;
 import org.apache.druid.segment.loading.DataSegmentPusher;
 import org.apache.druid.segment.loading.SegmentLoaderConfig;
 import org.apache.druid.segment.realtime.FireDepartmentMetrics;
@@ -242,7 +241,6 @@ public class StreamAppenderatorTester implements AutoCloseable
           new NoopDataSegmentAnnouncer(),
           emitter,
           new ForwardingQueryProcessingPool(queryExecutor),
-          NoopJoinableFactory.INSTANCE,
           MapCache.create(2048),
           new CacheConfig(),
           new CachePopulatorStats(),
@@ -289,7 +287,6 @@ public class StreamAppenderatorTester implements AutoCloseable
           new NoopDataSegmentAnnouncer(),
           emitter,
           new ForwardingQueryProcessingPool(queryExecutor),
-          NoopJoinableFactory.INSTANCE,
           MapCache.create(2048),
           new CacheConfig(),
           new CachePopulatorStats(),

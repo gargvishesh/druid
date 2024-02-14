@@ -103,7 +103,6 @@ public class PeonAppenderatorsManager implements AppenderatorsManager
           segmentAnnouncer,
           emitter,
           queryProcessingPool,
-          joinableFactory,
           cache,
           cacheConfig,
           cachePopulatorStats,
