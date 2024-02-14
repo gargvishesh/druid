@@ -24,7 +24,7 @@ import org.apache.druid.query.filter.Filter;
 import org.apache.druid.query.groupby.GroupByQuery;
 import org.apache.druid.query.groupby.GroupByQueryConfig;
 import org.apache.druid.query.groupby.ResultRow;
-import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngineV2;
+import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngine;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorPlus;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorStrategy;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -81,20 +81,20 @@ public class SamplingGroupByOnePassQueryEngine
       Sequence<ResultRow> resultRowSequence =
           cursors.flatMap(
               cursor -> new BaseSequence<>(
-                  new BaseSequence.IteratorMaker<ResultRow, GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer>>()
+                  new BaseSequence.IteratorMaker<ResultRow, GroupByQueryEngine.GroupByEngineIterator<ByteBuffer>>()
                   {
                     @Override
-                    public GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> make()
+                    public GroupByQueryEngine.GroupByEngineIterator<ByteBuffer> make()
                     {
                       ColumnSelectorFactory columnSelectorFactory = cursor.getColumnSelectorFactory();
 
                       ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] selectorPlus = DimensionHandlerUtils
                           .createColumnSelectorPluses(
-                              GroupByQueryEngineV2.STRATEGY_FACTORY,
+                              GroupByQueryEngine.STRATEGY_FACTORY,
                               groupByQuery.getDimensions(),
                               columnSelectorFactory
                           );
-                      GroupByColumnSelectorPlus[] dims = GroupByQueryEngineV2.createGroupBySelectorPlus(
+                      GroupByColumnSelectorPlus[] dims = createGroupBySelectorPlus(
                           selectorPlus,
                           groupByQuery.getResultRowDimensionStart()
                       );
@@ -112,7 +112,7 @@ public class SamplingGroupByOnePassQueryEngine
                     }
 
                     @Override
-                    public void cleanup(GroupByQueryEngineV2.GroupByEngineIterator<ByteBuffer> iterFromMake)
+                    public void cleanup(GroupByQueryEngine.GroupByEngineIterator<ByteBuffer> iterFromMake)
                     {
                       iterFromMake.close();
                     }
@@ -127,5 +127,19 @@ public class SamplingGroupByOnePassQueryEngine
     finally {
       bufferHolder.close();
     }
+  }
+
+  public static GroupByColumnSelectorPlus[] createGroupBySelectorPlus(
+      ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] baseSelectorPlus,
+      int dimensionStart
+  )
+  {
+    GroupByColumnSelectorPlus[] retInfo = new GroupByColumnSelectorPlus[baseSelectorPlus.length];
+    int curPos = 0;
+    for (int i = 0; i < retInfo.length; i++) {
+      retInfo[i] = new GroupByColumnSelectorPlus(baseSelectorPlus[i], curPos, dimensionStart + i);
+      curPos += retInfo[i].getColumnSelectorStrategy().getGroupingKeySize();
+    }
+    return retInfo;
   }
 }

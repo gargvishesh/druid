@@ -22,7 +22,7 @@ import org.apache.druid.query.ColumnSelectorPlus;
 import org.apache.druid.query.aggregation.AggregatorAdapters;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
-import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngineV2;
+import org.apache.druid.query.groupby.epinephelinae.GroupByQueryEngine;
 import org.apache.druid.query.groupby.epinephelinae.GroupByTestColumnSelectorFactory;
 import org.apache.druid.query.groupby.epinephelinae.Grouper;
 import org.apache.druid.query.groupby.epinephelinae.column.GroupByColumnSelectorPlus;
@@ -60,7 +60,7 @@ public class SamplingBufferHashGrouperTest
 
     ColumnSelectorPlus<GroupByColumnSelectorStrategy>[] selectorPlus = DimensionHandlerUtils
         .createColumnSelectorPluses(
-            GroupByQueryEngineV2.STRATEGY_FACTORY,
+            GroupByQueryEngine.STRATEGY_FACTORY,
             ImmutableList.of(
                 new DefaultDimensionSpec(
                     SamplingGroupByQuery.INTERMEDIATE_RESULT_ROW_HASH_DIMENSION_NAME,
@@ -80,7 +80,7 @@ public class SamplingBufferHashGrouperTest
             ),
             new TestLongColumnSelectorFactory()
         );
-    GroupByColumnSelectorPlus[] dims = GroupByQueryEngineV2.createGroupBySelectorPlus(
+    GroupByColumnSelectorPlus[] dims = SamplingGroupByOnePassQueryEngine.createGroupBySelectorPlus(
         selectorPlus,
         0
     );
