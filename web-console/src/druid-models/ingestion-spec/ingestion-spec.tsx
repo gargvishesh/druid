@@ -229,9 +229,6 @@ export function getRequiredModule(ingestionType: IngestionComboTypeWithExtra): s
     case 'index_parallel:azure':
       return 'druid-azure-extensions';
 
-    case 'index_parallel:delta':
-      return 'druid-deltalake-extensions';
-
     case 'index_parallel:google':
       return 'druid-google-extensions';
 
